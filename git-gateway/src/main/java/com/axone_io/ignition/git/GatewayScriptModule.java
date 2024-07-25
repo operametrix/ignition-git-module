@@ -1,15 +1,9 @@
 package com.axone_io.ignition.git;
 
-import com.axone_io.ignition.git.commissioning.utils.GitCommissioningUtils;
-import com.axone_io.ignition.git.managers.GitImageManager;
-import com.axone_io.ignition.git.managers.GitProjectManager;
-import com.axone_io.ignition.git.managers.GitTagManager;
-import com.axone_io.ignition.git.managers.GitThemeManager;
+import com.axone_io.ignition.git.managers.*;
 import com.axone_io.ignition.git.records.GitProjectsConfigRecord;
 import com.inductiveautomation.ignition.common.BasicDataset;
 import com.inductiveautomation.ignition.common.Dataset;
-import com.inductiveautomation.ignition.common.project.ProjectManifest;
-import com.inductiveautomation.ignition.common.project.ProjectSnapshot;
 import com.inductiveautomation.ignition.common.util.DatasetBuilder;
 import com.inductiveautomation.ignition.common.util.LoggerEx;
 import com.inductiveautomation.ignition.gateway.model.GatewayContext;
@@ -203,6 +197,13 @@ public class GatewayScriptModule extends AbstractScriptModule {
                 logger.warn("An error occurred while setting up local repo for '" + projectName + "' project.", e);
             }
         }
+    }
+
+    @Override
+    protected String getRepoURLImpl(String projectName) throws Exception {
+        GitProjectsConfigRecord gitProjectsConfigRecord = getGitProjectConfigRecord(projectName);
+
+        return GitManager.repoUriToUrl(gitProjectsConfigRecord.getURI());
     }
 
     private void setupGitFromCurrentFolder(String projectName, String userName, Git git) throws Exception {

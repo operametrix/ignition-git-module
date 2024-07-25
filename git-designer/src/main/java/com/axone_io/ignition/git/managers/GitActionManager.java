@@ -11,9 +11,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.swing.*;
 import java.awt.*;
-import java.io.IOException;
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -79,12 +77,12 @@ public class GitActionManager {
             };
         }
     }
-    public static void openRepositoryLink() {
+    public static void openRepositoryLink(String projectName) {
         try {
             Desktop desktop = Desktop.getDesktop();
-            String repoLink = "https://github.com";
+            String repoLink = rpc.getRepoURL(projectName);
             desktop.browse(new URI(repoLink)); // This line might throw IOException or URISyntaxException
-        } catch (IOException | URISyntaxException e) {
+        } catch (Exception e) {
             logger.error("Error opening repository link", e);
         }
     }

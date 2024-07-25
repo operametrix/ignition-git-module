@@ -1,6 +1,5 @@
 package com.axone_io.ignition.git.actions;
 
-import com.axone_io.ignition.git.managers.GitActionManager;
 import com.axone_io.ignition.git.utils.IconUtils;
 import com.inductiveautomation.ignition.client.util.action.BaseAction;
 import com.inductiveautomation.ignition.client.util.gui.ErrorUtil;
@@ -38,7 +37,7 @@ public class GitBaseAction extends BaseAction {
 
         REPO(
             "DesignerHook.Actions.Repo",
-            "/com/axone_io/ignition/git/icons/ic_repo.svg"
+            "/com/axone_io/ignition/git/icons/ic_git.svg"
         );
 
         private final String baseBundleKey;
@@ -113,7 +112,7 @@ public class GitBaseAction extends BaseAction {
                     rpc.exportConfig(projectName);
                     break;
                 case REPO:
-                    openRepositoryLink();
+                    openRepositoryLink(projectName);
                     break;
             }
             if(confirmPopup) SwingUtilities.invokeLater(new Thread(() -> showConfirmPopup(message, messageType)));

@@ -14,6 +14,7 @@ public interface GitScriptInterface {
     boolean isRegisteredUser(String projectName, String userName);
     boolean exportConfig(String projectName);
     void setupLocalRepo(String projectName, String userName) throws Exception;
+    String getRepoURL(String projectName) throws Exception;
 
 
 }

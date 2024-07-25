@@ -192,13 +192,6 @@ public class GitManager {
         return hasActor;
     }
 
-//    public static String getActor(String projectName, String path) {
-//        ProjectManager projectManager = context.getProjectManager();
-//        RuntimeProject project = projectManager.getProject(projectName).get();
-//
-//        ProjectResource projectResource = project.getResource(getResourcePath(path)).get();
-//        return LastModification.of(projectResource).map(LastModification::getActor).orElse("unknown");
-//    }
     public static String getActor(String projectName, String path) {
         ProjectManager projectManager = context.getProjectManager();
         Optional<RuntimeProject> projectOpt = projectManager.getProject(projectName);
@@ -212,6 +205,7 @@ public class GitManager {
                 return LastModification.of(projectResource).map(LastModification::getActor).orElse("unknown");
             }
         }
+
         return "unknown";
     }
 
@@ -338,5 +332,20 @@ public class GitManager {
         }
 
         return isUpdatedResource;
+    }
+
+    public static String repoUriToUrl(String uri) {
+        String url = uri;
+
+        if (!uri.toLowerCase().startsWith("http")) {
+            String[] splitUri = uri.split("[@:/]");
+
+            if (splitUri.length >= 4) {
+                String repoName = splitUri[3].split("\\.git")[0];
+                url = "https://" + splitUri[1] + "/" + splitUri[2] + "/" + repoName;
+            }
+        }
+
+        return url;
     }
 }
