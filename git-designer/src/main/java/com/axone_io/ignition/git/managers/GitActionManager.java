@@ -1,34 +1,26 @@
 package com.axone_io.ignition.git.managers;
 
-import com.axone_io.ignition.git.records.GitProjectsConfigRecord;
 import com.axone_io.ignition.git.CommitPopup;
 import com.axone_io.ignition.git.DesignerHook;
 import com.axone_io.ignition.git.PullPopup;
 import com.inductiveautomation.ignition.common.Dataset;
 import com.inductiveautomation.ignition.common.project.ChangeOperation;
 import com.inductiveautomation.ignition.common.project.resource.ProjectResourceId;
-import com.inductiveautomation.ignition.common.util.LoggerEx;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.swing.*;
-import java.util.ArrayList;
-import java.util.List;
-import java.awt.Desktop;
+import java.awt.*;
+import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.io.IOException;
-
-
-
-
-
+import java.util.ArrayList;
+import java.util.List;
 
 import static com.axone_io.ignition.git.DesignerHook.context;
 import static com.axone_io.ignition.git.DesignerHook.rpc;
 import static com.axone_io.ignition.git.actions.GitBaseAction.handleCommitAction;
 import static com.axone_io.ignition.git.actions.GitBaseAction.handlePullAction;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 public class GitActionManager {
 
     static CommitPopup commitPopup;
