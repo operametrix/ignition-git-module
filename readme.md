@@ -36,10 +36,9 @@ You will also find a download link to the signed version of the module.
 Before installing and running this project on your local machine, make sure you have installed the following :
 
 - Java (JDK >= 11)
-- Maven
 - Java IDE (I recommend [Intellij](https://www.jetbrains.com/idea/download/))
 
-If you are using Intellij, Maven is already integrated in the IDE and you can easily download the right Java SDK from your project settings.
+The Gradle wrapper is included in the project, so no separate Gradle installation is needed.
 
 ### Installation Instructions
 
@@ -47,7 +46,7 @@ To install and run this project on your local machine, follow these steps :
 
 1. Clone the repo to your local machine: `git clone https://github.com/your-username/your-project.git`.
 2. Open the project in your preferred IDE.
-3. Build the project using Maven by running the following command: mvn clean package.
+3. Build the project using Gradle by running the following command: `./gradlew build`.
 4. Install the module on your gateway.
 
 That's it ! You're ready to start working with the project on your local machine.

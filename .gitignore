@@ -41,3 +41,9 @@ build/
 
 # Module Signer
 module-signer/
+
+# Gradle signing properties (contains credentials)
+gradle.properties
+
+# VS Code
+.vscode/

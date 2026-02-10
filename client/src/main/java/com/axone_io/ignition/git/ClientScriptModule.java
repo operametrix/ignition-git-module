@@ -51,4 +51,9 @@ public class ClientScriptModule extends AbstractScriptModule {
     protected void setupLocalRepoImpl(String projectName, String userName) throws Exception {
         rpc.setupLocalRepo(projectName, userName);
     }
+
+    @Override
+    protected String getRepoURLImpl(String projectName) throws Exception {
+        return rpc.getRepoURL(projectName);
+    }
 }
