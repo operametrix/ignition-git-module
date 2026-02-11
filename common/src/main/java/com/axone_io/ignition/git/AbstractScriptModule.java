@@ -76,6 +76,46 @@ public abstract class AbstractScriptModule implements GitScriptInterface {
         return getRepoURLImpl(projectName);
     }
 
+    @Override
+    @ScriptFunction(docBundlePrefix = "AbstractScriptModule")
+    public List<String> getLocalBranches(@ScriptArg("projectName") String projectName) throws Exception {
+        return getLocalBranchesImpl(projectName);
+    }
+
+    @Override
+    @ScriptFunction(docBundlePrefix = "AbstractScriptModule")
+    public List<String> getRemoteBranches(@ScriptArg("projectName") String projectName) throws Exception {
+        return getRemoteBranchesImpl(projectName);
+    }
+
+    @Override
+    @ScriptFunction(docBundlePrefix = "AbstractScriptModule")
+    public String getCurrentBranch(@ScriptArg("projectName") String projectName) throws Exception {
+        return getCurrentBranchImpl(projectName);
+    }
+
+    @Override
+    @ScriptFunction(docBundlePrefix = "AbstractScriptModule")
+    public boolean createBranch(@ScriptArg("projectName") String projectName,
+                                @ScriptArg("branchName") String branchName,
+                                @ScriptArg("startPoint") String startPoint) throws Exception {
+        return createBranchImpl(projectName, branchName, startPoint);
+    }
+
+    @Override
+    @ScriptFunction(docBundlePrefix = "AbstractScriptModule")
+    public boolean checkoutBranch(@ScriptArg("projectName") String projectName,
+                                  @ScriptArg("branchName") String branchName) throws Exception {
+        return checkoutBranchImpl(projectName, branchName);
+    }
+
+    @Override
+    @ScriptFunction(docBundlePrefix = "AbstractScriptModule")
+    public boolean deleteBranch(@ScriptArg("projectName") String projectName,
+                                @ScriptArg("branchName") String branchName) throws Exception {
+        return deleteBranchImpl(projectName, branchName);
+    }
+
     protected abstract boolean pullImpl(String projectName, String userName, boolean importTags, boolean importTheme,
                                         boolean importImages) throws Exception;
     protected abstract boolean pushImpl(String projectName, String userName) throws Exception;
@@ -85,5 +125,11 @@ public abstract class AbstractScriptModule implements GitScriptInterface {
     protected abstract boolean exportConfigImpl(String projectName);
     protected abstract void setupLocalRepoImpl(String projectName, String userName) throws Exception;
     protected abstract String getRepoURLImpl(String projectName) throws Exception;
+    protected abstract List<String> getLocalBranchesImpl(String projectName) throws Exception;
+    protected abstract List<String> getRemoteBranchesImpl(String projectName) throws Exception;
+    protected abstract String getCurrentBranchImpl(String projectName) throws Exception;
+    protected abstract boolean createBranchImpl(String projectName, String branchName, String startPoint) throws Exception;
+    protected abstract boolean checkoutBranchImpl(String projectName, String branchName) throws Exception;
+    protected abstract boolean deleteBranchImpl(String projectName, String branchName) throws Exception;
 
 }

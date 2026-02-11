@@ -56,4 +56,34 @@ public class ClientScriptModule extends AbstractScriptModule {
     protected String getRepoURLImpl(String projectName) throws Exception {
         return rpc.getRepoURL(projectName);
     }
+
+    @Override
+    protected List<String> getLocalBranchesImpl(String projectName) throws Exception {
+        return rpc.getLocalBranches(projectName);
+    }
+
+    @Override
+    protected List<String> getRemoteBranchesImpl(String projectName) throws Exception {
+        return rpc.getRemoteBranches(projectName);
+    }
+
+    @Override
+    protected String getCurrentBranchImpl(String projectName) throws Exception {
+        return rpc.getCurrentBranch(projectName);
+    }
+
+    @Override
+    protected boolean createBranchImpl(String projectName, String branchName, String startPoint) throws Exception {
+        return rpc.createBranch(projectName, branchName, startPoint);
+    }
+
+    @Override
+    protected boolean checkoutBranchImpl(String projectName, String branchName) throws Exception {
+        return rpc.checkoutBranch(projectName, branchName);
+    }
+
+    @Override
+    protected boolean deleteBranchImpl(String projectName, String branchName) throws Exception {
+        return rpc.deleteBranch(projectName, branchName);
+    }
 }

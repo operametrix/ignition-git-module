@@ -206,6 +206,38 @@ public class GatewayScriptModule extends AbstractScriptModule {
         return GitManager.repoUriToUrl(gitProjectsConfigRecord.getURI());
     }
 
+    @Override
+    protected List<String> getLocalBranchesImpl(String projectName) throws Exception {
+        return GitManager.listLocalBranches(getProjectFolderPath(projectName));
+    }
+
+    @Override
+    protected List<String> getRemoteBranchesImpl(String projectName) throws Exception {
+        return GitManager.listRemoteBranches(getProjectFolderPath(projectName));
+    }
+
+    @Override
+    protected String getCurrentBranchImpl(String projectName) throws Exception {
+        return GitManager.getCurrentBranch(getProjectFolderPath(projectName));
+    }
+
+    @Override
+    protected boolean createBranchImpl(String projectName, String branchName, String startPoint) throws Exception {
+        return GitManager.createBranch(getProjectFolderPath(projectName), branchName, startPoint);
+    }
+
+    @Override
+    protected boolean checkoutBranchImpl(String projectName, String branchName) throws Exception {
+        boolean result = GitManager.checkoutBranch(getProjectFolderPath(projectName), branchName);
+        GitProjectManager.importProject(projectName);
+        return result;
+    }
+
+    @Override
+    protected boolean deleteBranchImpl(String projectName, String branchName) throws Exception {
+        return GitManager.deleteBranch(getProjectFolderPath(projectName), branchName);
+    }
+
     private void setupGitFromCurrentFolder(String projectName, String userName, Git git) throws Exception {
         try {
             git.add().addFilepattern(".").call();

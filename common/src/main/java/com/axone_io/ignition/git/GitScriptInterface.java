@@ -16,5 +16,11 @@ public interface GitScriptInterface {
     void setupLocalRepo(String projectName, String userName) throws Exception;
     String getRepoURL(String projectName) throws Exception;
 
+    List<String> getLocalBranches(String projectName) throws Exception;
+    List<String> getRemoteBranches(String projectName) throws Exception;
+    String getCurrentBranch(String projectName) throws Exception;
+    boolean createBranch(String projectName, String branchName, String startPoint) throws Exception;
+    boolean checkoutBranch(String projectName, String branchName) throws Exception;
+    boolean deleteBranch(String projectName, String branchName) throws Exception;
 
 }

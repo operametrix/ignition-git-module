@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Ignition Git Module — a Java module for the Inductive Automation Ignition SCADA platform (8.1.0+) that embeds a Git client into the Ignition Designer. It enables committing, pushing, pulling project resources, and exporting gateway configuration directly from the Designer toolbar. Built by AXONE-IO, version 1.0.3.
+Ignition Git Module — a Java module for the Inductive Automation Ignition SCADA platform (8.1.0+) that embeds a Git client into the Ignition Designer. It enables committing, pushing, pulling project resources, branch management, and exporting gateway configuration directly from the Designer toolbar and status bar. Built by AXONE-IO, version 1.0.3.
 
 ## Build Commands
 
@@ -37,13 +37,13 @@ The root `build.gradle.kts` uses the `io.ia.sdk.modl` Gradle plugin to assemble 
 
 **Hook classes** are the entry points for each scope. Each implements the Ignition lifecycle (`setup`/`startup`/`shutdown`):
 - `ClientHook` — registers the script module on the client
-- `DesignerHook` — initializes toolbar actions, status bar, user verification timer; uses `ModuleRPCFactory` to call gateway methods remotely
+- `DesignerHook` — initializes toolbar actions, status bar (with clickable branch button), user verification timer; uses `ModuleRPCFactory` to call gateway methods remotely
 - `GatewayHook` — creates DB schema, loads commissioning config, registers web config pages
 
 **Script interface pattern**: `GitScriptInterface` (common) defines the API. `AbstractScriptModule` (common) decorates it with Ignition annotations. `GatewayScriptModule` (gateway) provides the real implementation. Designer calls gateway methods via RPC.
 
 **Manager classes** in `gateway` encapsulate domain logic:
-- `GitManager` — core JGit operations (clone, fetch, pull, push, commit, status)
+- `GitManager` — core JGit operations (clone, fetch, pull, push, commit, status, branch list/create/checkout/delete)
 - `GitProjectManager`, `GitTagManager`, `GitThemeManager`, `GitImageManager` — resource import/export
 - `GitCommissioningUtils` — file-based config loading for automated deployment
 

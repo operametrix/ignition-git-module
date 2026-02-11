@@ -9,6 +9,8 @@ import org.slf4j.LoggerFactory;
 
 import javax.swing.*;
 import java.awt.event.ActionEvent;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.util.List;
 
 import static com.axone_io.ignition.git.DesignerHook.*;
@@ -38,6 +40,11 @@ public class GitBaseAction extends BaseAction {
         REPO(
             "DesignerHook.Actions.Repo",
             "/com/axone_io/ignition/git/icons/ic_git.svg"
+        ),
+
+        BRANCH(
+            "DesignerHook.Actions.Branch",
+            "/com/axone_io/ignition/git/icons/ic_branch.svg"
         );
 
         private final String baseBundleKey;
@@ -90,6 +97,70 @@ public class GitBaseAction extends BaseAction {
         }
     }
 
+    public static void handleCheckoutAction(String branchName) {
+        String message = BundleUtil.get().getStringLenient(GitActionType.BRANCH.baseBundleKey + ".CheckoutConfirmMessage");
+        int messageType = JOptionPane.INFORMATION_MESSAGE;
+
+        try {
+            rpc.checkoutBranch(projectName, branchName);
+            pullProjectFromGateway();
+            SwingUtilities.invokeLater(new Thread(() -> showConfirmPopup(message, messageType)));
+        } catch (Exception ex) {
+            ErrorUtil.showError(ex);
+        }
+    }
+
+    private static void pullProjectFromGateway() {
+        try {
+            java.awt.Frame frame = context.getFrame();
+            Class<?> frameClass = frame.getClass();
+
+            // Call pullAndResolve() directly, skipping commitAll() which would
+            // push stale open-editor content back to the gateway and cause conflicts
+            Method pullAndResolve = frameClass.getDeclaredMethod("pullAndResolve");
+            pullAndResolve.setAccessible(true);
+            pullAndResolve.invoke(frame);
+
+            // Notify module hooks that the update cycle is complete
+            Method notifyModules = frameClass.getDeclaredMethod("notifyModulesProjectSaveDone");
+            notifyModules.setAccessible(true);
+            notifyModules.invoke(frame);
+
+            // Clear the pending-update state so the "Merge" button disappears
+            Field remField = frameClass.getDeclaredField("resourceEditManager");
+            remField.setAccessible(true);
+            Object rem = remField.get(frame);
+            Method onComplete = rem.getClass().getMethod("onDesignerUpdateComplete");
+            onComplete.invoke(rem);
+        } catch (Exception e) {
+            logger.error("Failed to pull project from gateway", e);
+        }
+    }
+
+    public static void handleCreateBranchAction(String branchName, String startPoint) {
+        String message = BundleUtil.get().getStringLenient(GitActionType.BRANCH.baseBundleKey + ".CreateConfirmMessage");
+        int messageType = JOptionPane.INFORMATION_MESSAGE;
+
+        try {
+            rpc.createBranch(projectName, branchName, startPoint);
+            SwingUtilities.invokeLater(new Thread(() -> showConfirmPopup(message, messageType)));
+        } catch (Exception ex) {
+            ErrorUtil.showError(ex);
+        }
+    }
+
+    public static void handleDeleteBranchAction(String branchName) {
+        String message = BundleUtil.get().getStringLenient(GitActionType.BRANCH.baseBundleKey + ".DeleteConfirmMessage");
+        int messageType = JOptionPane.INFORMATION_MESSAGE;
+
+        try {
+            rpc.deleteBranch(projectName, branchName);
+            SwingUtilities.invokeLater(new Thread(() -> showConfirmPopup(message, messageType)));
+        } catch (Exception ex) {
+            ErrorUtil.showError(ex);
+        }
+    }
+
     public static void handleAction(GitActionType type) {
         String message = BundleUtil.get().getStringLenient(type.baseBundleKey + ".ConfirmMessage");
         int messageType = JOptionPane.INFORMATION_MESSAGE;
@@ -113,6 +184,10 @@ public class GitBaseAction extends BaseAction {
                     break;
                 case REPO:
                     openRepositoryLink(projectName);
+                    break;
+                case BRANCH:
+                    confirmPopup = Boolean.FALSE;
+                    showBranchPopup(projectName, userName);
                     break;
             }
             if(confirmPopup) SwingUtilities.invokeLater(new Thread(() -> showConfirmPopup(message, messageType)));

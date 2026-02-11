@@ -17,6 +17,7 @@ import com.jidesoft.action.DockableBarManager;
 
 import javax.swing.*;
 import javax.swing.Timer;
+import java.awt.*;
 import java.util.*;
 import java.util.List;
 
@@ -31,6 +32,7 @@ public class DesignerHook extends AbstractDesignerModuleHook {
     public static String projectName;
     public static String userName;
     JPanel gitStatusBar;
+    JButton branchButton;
     Timer gitUserTimer;
     @Override
     public void initializeScriptManager(ScriptManager manager) {
@@ -69,7 +71,20 @@ public class DesignerHook extends AbstractDesignerModuleHook {
         gitIconLabel.setSize(35, 35);
         gitStatusBar.add(gitIconLabel);
 
-        gitStatusBar.add(new JLabel(userName));
+        branchButton = new JButton();
+        try {
+            branchButton.setText(rpc.getCurrentBranch(projectName));
+        } catch (Exception e) {
+            branchButton.setText("unknown");
+        }
+        branchButton.setFont(branchButton.getFont().deriveFont(Font.BOLD));
+        branchButton.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        branchButton.setContentAreaFilled(false);
+        branchButton.setBorderPainted(false);
+        branchButton.setFocusPainted(false);
+        branchButton.setMargin(new Insets(0, 0, 0, 0));
+        branchButton.addActionListener(e -> GitBaseAction.handleAction(GitBaseAction.GitActionType.BRANCH));
+        gitStatusBar.add(branchButton);
 
         boolean userValid = rpc.isRegisteredUser(projectName, userName);
         String userIconPath = userValid ? "/com/axone_io/ignition/git/icons/ic_verified_user.svg" : "/com/axone_io/ignition/git/icons/ic_unregister_user.svg";
@@ -77,12 +92,20 @@ public class DesignerHook extends AbstractDesignerModuleHook {
         labelUserIcon.setSize(35,35);
         gitStatusBar.add(labelUserIcon);
 
+        gitStatusBar.add(new JLabel(userName));
+
         statusBar.addDisplay(gitStatusBar);
 
         gitUserTimer = new Timer(10000, e -> {
             boolean valid = rpc.isRegisteredUser(projectName, userName);
             String userIconPath1 = valid ? "/com/axone_io/ignition/git/icons/ic_verified_user.svg" : "/com/axone_io/ignition/git/icons/ic_unregister_user.svg";
             labelUserIcon.setIcon(IconUtils.getIcon(userIconPath1));
+
+            try {
+                branchButton.setText(rpc.getCurrentBranch(projectName));
+            } catch (Exception ex) {
+                branchButton.setText("unknown");
+            }
         });
 
         gitUserTimer.start();

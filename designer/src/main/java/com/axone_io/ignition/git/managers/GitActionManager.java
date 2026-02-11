@@ -1,5 +1,6 @@
 package com.axone_io.ignition.git.managers;
 
+import com.axone_io.ignition.git.BranchPopup;
 import com.axone_io.ignition.git.CommitPopup;
 import com.axone_io.ignition.git.DesignerHook;
 import com.axone_io.ignition.git.PullPopup;
@@ -17,12 +18,12 @@ import java.util.List;
 
 import static com.axone_io.ignition.git.DesignerHook.context;
 import static com.axone_io.ignition.git.DesignerHook.rpc;
-import static com.axone_io.ignition.git.actions.GitBaseAction.handleCommitAction;
-import static com.axone_io.ignition.git.actions.GitBaseAction.handlePullAction;
+import static com.axone_io.ignition.git.actions.GitBaseAction.*;
 public class GitActionManager {
 
     static CommitPopup commitPopup;
     static PullPopup pullPopup;
+    static BranchPopup branchPopup;
     private static final Logger logger = LoggerFactory.getLogger(GitActionManager.class);
 
 
@@ -101,6 +102,54 @@ public class GitActionManager {
                     resetCheckboxes();
                 }
             };
+        }
+    }
+
+    public static void showBranchPopup(String projectName, String userName) {
+        try {
+            String currentBranch = rpc.getCurrentBranch(projectName);
+            List<String> localBranches = rpc.getLocalBranches(projectName);
+            List<String> remoteBranches = rpc.getRemoteBranches(projectName);
+
+            if (branchPopup != null) {
+                branchPopup.setData(currentBranch, localBranches, remoteBranches);
+                branchPopup.setVisible(true);
+                branchPopup.toFront();
+            } else {
+                branchPopup = new BranchPopup(currentBranch, localBranches, remoteBranches, context.getFrame()) {
+                    @Override
+                    public void onCheckoutBranch(String branchName) {
+                        handleCheckoutAction(branchName);
+                        onRefresh();
+                    }
+
+                    @Override
+                    public void onCreateBranch(String branchName, String startPoint) {
+                        handleCreateBranchAction(branchName, startPoint);
+                        onRefresh();
+                    }
+
+                    @Override
+                    public void onDeleteBranch(String branchName) {
+                        handleDeleteBranchAction(branchName);
+                        onRefresh();
+                    }
+
+                    @Override
+                    public void onRefresh() {
+                        try {
+                            String current = rpc.getCurrentBranch(projectName);
+                            List<String> local = rpc.getLocalBranches(projectName);
+                            List<String> remote = rpc.getRemoteBranches(projectName);
+                            setData(current, local, remote);
+                        } catch (Exception ex) {
+                            logger.error("Error refreshing branch data", ex);
+                        }
+                    }
+                };
+            }
+        } catch (Exception e) {
+            logger.error("Error showing branch popup", e);
         }
     }
 

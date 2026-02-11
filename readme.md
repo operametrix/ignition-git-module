@@ -16,6 +16,7 @@ Exporting gateway configuration is simplified or even automated.
 - Link an Ignition user to a git project, with ssh or user/password authentication, (Gateway Webpage)
 - Commit resources, (Designer, on project saved or from git toolbar)
 - Push & Pull resources, (Designer, from git toolbar)
+- Branch management: list, create, checkout, and delete branches, (Designer, from status bar branch button)
 - Export of the gateway configuration. Tags, images, theme... (Designer, from git toolbar)
 - Commit popup :<br/>
 ![Commit Popup](./img/CommitPopup.png)
@@ -53,7 +54,6 @@ That's it ! You're ready to start working with the project on your local machine
 
 ## Roadmap
 
-- Branch management,
 - Project options for select which resources export on ExportGatewayConfig :
   - Tags, which tag provider, which folder…
 - Timestamp changes in commit popup,

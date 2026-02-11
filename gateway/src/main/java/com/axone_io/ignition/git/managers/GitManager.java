@@ -16,10 +16,7 @@ import com.inductiveautomation.ignition.common.util.LoggerEx;
 import com.inductiveautomation.ignition.gateway.project.ProjectManager;
 import org.apache.commons.io.FileUtils;
 import org.eclipse.jgit.api.*;
-import org.eclipse.jgit.lib.ObjectId;
-import org.eclipse.jgit.lib.ObjectReader;
-import org.eclipse.jgit.lib.Repository;
-import org.eclipse.jgit.lib.StoredConfig;
+import org.eclipse.jgit.lib.*;
 import org.eclipse.jgit.revwalk.RevCommit;
 import org.eclipse.jgit.revwalk.RevTree;
 import org.eclipse.jgit.revwalk.RevWalk;
@@ -347,5 +344,83 @@ public class GitManager {
         }
 
         return url;
+    }
+
+    public static List<String> listLocalBranches(Path projectFolderPath) throws Exception {
+        try (Git git = getGit(projectFolderPath)) {
+            List<Ref> refs = git.branchList().call();
+            List<String> branches = new ArrayList<>();
+            for (Ref ref : refs) {
+                branches.add(Repository.shortenRefName(ref.getName()));
+            }
+            return branches;
+        }
+    }
+
+    public static List<String> listRemoteBranches(Path projectFolderPath) throws Exception {
+        try (Git git = getGit(projectFolderPath)) {
+            List<Ref> refs = git.branchList().setListMode(ListBranchCommand.ListMode.REMOTE).call();
+            List<String> branches = new ArrayList<>();
+            for (Ref ref : refs) {
+                branches.add(Repository.shortenRefName(ref.getName()));
+            }
+            return branches;
+        }
+    }
+
+    public static String getCurrentBranch(Path projectFolderPath) throws Exception {
+        try (Git git = getGit(projectFolderPath)) {
+            return git.getRepository().getBranch();
+        }
+    }
+
+    public static boolean createBranch(Path projectFolderPath, String branchName, String startPoint) throws Exception {
+        try (Git git = getGit(projectFolderPath)) {
+            CreateBranchCommand command = git.branchCreate().setName(branchName);
+            if (startPoint != null && !startPoint.isEmpty()) {
+                command.setStartPoint(startPoint);
+            }
+            command.call();
+            return true;
+        }
+    }
+
+    public static boolean checkoutBranch(Path projectFolderPath, String branchName) throws Exception {
+        try (Git git = getGit(projectFolderPath)) {
+            git.reset().setMode(ResetCommand.ResetType.HARD).call();
+            git.clean().setForce(true).setCleanDirectories(true).call();
+
+            List<Ref> localRefs = git.branchList().call();
+            boolean localExists = false;
+            for (Ref ref : localRefs) {
+                if (Repository.shortenRefName(ref.getName()).equals(branchName)) {
+                    localExists = true;
+                    break;
+                }
+            }
+
+            if (localExists) {
+                git.checkout().setName(branchName).call();
+            } else {
+                git.checkout()
+                        .setCreateBranch(true)
+                        .setName(branchName)
+                        .setUpstreamMode(CreateBranchCommand.SetupUpstreamMode.TRACK)
+                        .setStartPoint("origin/" + branchName)
+                        .call();
+            }
+            return true;
+        }
+    }
+
+    public static boolean deleteBranch(Path projectFolderPath, String branchName) throws Exception {
+        try (Git git = getGit(projectFolderPath)) {
+            String currentBranch = git.getRepository().getBranch();
+            if (branchName.equals(currentBranch)) {
+                throw new IllegalStateException("Cannot delete the currently checked out branch: " + branchName);
+            }
+            git.branchDelete().setBranchNames(branchName).setForce(true).call();
+            return true;
+        }
     }
 }
