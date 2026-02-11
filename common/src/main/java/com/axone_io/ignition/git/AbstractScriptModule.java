@@ -116,6 +116,37 @@ public abstract class AbstractScriptModule implements GitScriptInterface {
         return deleteBranchImpl(projectName, branchName);
     }
 
+    @Override
+    @ScriptFunction(docBundlePrefix = "AbstractScriptModule")
+    public boolean isSSHAuthentication(@ScriptArg("projectName") String projectName) {
+        return isSSHAuthenticationImpl(projectName);
+    }
+
+    @Override
+    @ScriptFunction(docBundlePrefix = "AbstractScriptModule")
+    public boolean saveUserCredentials(@ScriptArg("projectName") String projectName,
+                                       @ScriptArg("ignitionUser") String ignitionUser,
+                                       @ScriptArg("email") String email,
+                                       @ScriptArg("gitUsername") String gitUsername,
+                                       @ScriptArg("password") String password,
+                                       @ScriptArg("sshKey") String sshKey) {
+        return saveUserCredentialsImpl(projectName, ignitionUser, email, gitUsername, password, sshKey);
+    }
+
+    @Override
+    @ScriptFunction(docBundlePrefix = "AbstractScriptModule")
+    public String getUserEmail(@ScriptArg("projectName") String projectName,
+                               @ScriptArg("ignitionUser") String ignitionUser) {
+        return getUserEmailImpl(projectName, ignitionUser);
+    }
+
+    @Override
+    @ScriptFunction(docBundlePrefix = "AbstractScriptModule")
+    public String getUserGitUsername(@ScriptArg("projectName") String projectName,
+                                     @ScriptArg("ignitionUser") String ignitionUser) {
+        return getUserGitUsernameImpl(projectName, ignitionUser);
+    }
+
     protected abstract boolean pullImpl(String projectName, String userName, boolean importTags, boolean importTheme,
                                         boolean importImages) throws Exception;
     protected abstract boolean pushImpl(String projectName, String userName) throws Exception;
@@ -131,5 +162,10 @@ public abstract class AbstractScriptModule implements GitScriptInterface {
     protected abstract boolean createBranchImpl(String projectName, String branchName, String startPoint) throws Exception;
     protected abstract boolean checkoutBranchImpl(String projectName, String branchName) throws Exception;
     protected abstract boolean deleteBranchImpl(String projectName, String branchName) throws Exception;
+    protected abstract boolean isSSHAuthenticationImpl(String projectName);
+    protected abstract boolean saveUserCredentialsImpl(String projectName, String ignitionUser, String email,
+                                                       String gitUsername, String password, String sshKey);
+    protected abstract String getUserEmailImpl(String projectName, String ignitionUser);
+    protected abstract String getUserGitUsernameImpl(String projectName, String ignitionUser);
 
 }

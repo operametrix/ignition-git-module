@@ -2,6 +2,7 @@ package com.axone_io.ignition.git.managers;
 
 import com.axone_io.ignition.git.BranchPopup;
 import com.axone_io.ignition.git.CommitPopup;
+import com.axone_io.ignition.git.CredentialsPopup;
 import com.axone_io.ignition.git.DesignerHook;
 import com.axone_io.ignition.git.PullPopup;
 import com.inductiveautomation.ignition.common.Dataset;
@@ -24,6 +25,7 @@ public class GitActionManager {
     static CommitPopup commitPopup;
     static PullPopup pullPopup;
     static BranchPopup branchPopup;
+    static CredentialsPopup credentialsPopup;
     private static final Logger logger = LoggerFactory.getLogger(GitActionManager.class);
 
 
@@ -150,6 +152,36 @@ public class GitActionManager {
             }
         } catch (Exception e) {
             logger.error("Error showing branch popup", e);
+        }
+    }
+
+    public static void showCredentialsPopup(String projectName, String userName) {
+        try {
+            String authType = rpc.isSSHAuthentication(projectName) ? "SSH" : "HTTPS";
+            String currentEmail = rpc.getUserEmail(projectName, userName);
+            String currentGitUsername = rpc.getUserGitUsername(projectName, userName);
+
+            if (credentialsPopup != null) {
+                credentialsPopup.setData(authType, currentEmail, currentGitUsername);
+                credentialsPopup.setVisible(true);
+                credentialsPopup.toFront();
+            } else {
+                credentialsPopup = new CredentialsPopup(authType, currentEmail, currentGitUsername, context.getFrame()) {
+                    @Override
+                    public void onSave(String email, String gitUsername, String password, String sshKey) {
+                        boolean success = rpc.saveUserCredentials(projectName, userName, email, gitUsername, password, sshKey);
+                        if (success) {
+                            showConfirmPopup("Credentials saved successfully.", JOptionPane.INFORMATION_MESSAGE);
+                            dispose();
+                            credentialsPopup = null;
+                        } else {
+                            showConfirmPopup("Failed to save credentials.", JOptionPane.ERROR_MESSAGE);
+                        }
+                    }
+                };
+            }
+        } catch (Exception e) {
+            logger.error("Error showing credentials popup", e);
         }
     }
 

@@ -2,6 +2,7 @@ package com.axone_io.ignition.git;
 
 import com.axone_io.ignition.git.managers.*;
 import com.axone_io.ignition.git.records.GitProjectsConfigRecord;
+import com.axone_io.ignition.git.records.GitReposUsersRecord;
 import com.inductiveautomation.ignition.common.BasicDataset;
 import com.inductiveautomation.ignition.common.Dataset;
 import com.inductiveautomation.ignition.common.util.DatasetBuilder;
@@ -236,6 +237,68 @@ public class GatewayScriptModule extends AbstractScriptModule {
     @Override
     protected boolean deleteBranchImpl(String projectName, String branchName) throws Exception {
         return GitManager.deleteBranch(getProjectFolderPath(projectName), branchName);
+    }
+
+    @Override
+    protected boolean isSSHAuthenticationImpl(String projectName) {
+        try {
+            GitProjectsConfigRecord gitProjectsConfigRecord = getGitProjectConfigRecord(projectName);
+            return gitProjectsConfigRecord.isSSHAuthentication();
+        } catch (Exception e) {
+            logger.error("Error checking SSH authentication", e);
+            return false;
+        }
+    }
+
+    @Override
+    protected boolean saveUserCredentialsImpl(String projectName, String ignitionUser, String email,
+                                              String gitUsername, String password, String sshKey) {
+        try {
+            GitProjectsConfigRecord gitProjectsConfigRecord = getGitProjectConfigRecord(projectName);
+            GitReposUsersRecord user;
+            try {
+                user = getGitReposUserRecord(gitProjectsConfigRecord, ignitionUser);
+            } catch (Exception e) {
+                user = context.getPersistenceInterface().createNew(GitReposUsersRecord.META);
+                user.setProjectId(gitProjectsConfigRecord.getId());
+                user.setIgnitionUser(ignitionUser);
+            }
+            user.setEmail(email);
+            user.setUserName(gitUsername);
+            if (password != null && !password.isEmpty()) {
+                user.setPassword(password);
+            }
+            if (sshKey != null && !sshKey.isEmpty()) {
+                user.setSSHKey(sshKey);
+            }
+            context.getPersistenceInterface().save(user);
+            return true;
+        } catch (Exception e) {
+            logger.error("Error saving user credentials", e);
+            return false;
+        }
+    }
+
+    @Override
+    protected String getUserEmailImpl(String projectName, String ignitionUser) {
+        try {
+            GitProjectsConfigRecord gitProjectsConfigRecord = getGitProjectConfigRecord(projectName);
+            GitReposUsersRecord user = getGitReposUserRecord(gitProjectsConfigRecord, ignitionUser);
+            return user.getEmail();
+        } catch (Exception e) {
+            return "";
+        }
+    }
+
+    @Override
+    protected String getUserGitUsernameImpl(String projectName, String ignitionUser) {
+        try {
+            GitProjectsConfigRecord gitProjectsConfigRecord = getGitProjectConfigRecord(projectName);
+            GitReposUsersRecord user = getGitReposUserRecord(gitProjectsConfigRecord, ignitionUser);
+            return user.getUserName();
+        } catch (Exception e) {
+            return "";
+        }
     }
 
     private void setupGitFromCurrentFolder(String projectName, String userName, Git git) throws Exception {

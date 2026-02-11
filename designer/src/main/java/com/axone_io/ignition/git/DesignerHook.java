@@ -1,6 +1,7 @@
 package com.axone_io.ignition.git;
 
 import com.axone_io.ignition.git.actions.GitBaseAction;
+import com.axone_io.ignition.git.managers.GitActionManager;
 import com.axone_io.ignition.git.utils.IconUtils;
 import com.inductiveautomation.ignition.client.gateway_interface.ModuleRPCFactory;
 import com.inductiveautomation.ignition.common.BundleUtil;
@@ -88,9 +89,15 @@ public class DesignerHook extends AbstractDesignerModuleHook {
 
         boolean userValid = rpc.isRegisteredUser(projectName, userName);
         String userIconPath = userValid ? "/com/axone_io/ignition/git/icons/ic_verified_user.svg" : "/com/axone_io/ignition/git/icons/ic_unregister_user.svg";
-        JLabel labelUserIcon = new JLabel(IconUtils.getIcon(userIconPath));
-        labelUserIcon.setSize(35,35);
-        gitStatusBar.add(labelUserIcon);
+        JButton userButton = new JButton(IconUtils.getIcon(userIconPath));
+        userButton.setToolTipText("Manage Git Credentials");
+        userButton.setContentAreaFilled(false);
+        userButton.setBorderPainted(false);
+        userButton.setFocusPainted(false);
+        userButton.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        userButton.setMargin(new Insets(0, 0, 0, 0));
+        userButton.addActionListener(e -> GitActionManager.showCredentialsPopup(projectName, userName));
+        gitStatusBar.add(userButton);
 
         gitStatusBar.add(new JLabel(userName));
 
@@ -99,7 +106,7 @@ public class DesignerHook extends AbstractDesignerModuleHook {
         gitUserTimer = new Timer(10000, e -> {
             boolean valid = rpc.isRegisteredUser(projectName, userName);
             String userIconPath1 = valid ? "/com/axone_io/ignition/git/icons/ic_verified_user.svg" : "/com/axone_io/ignition/git/icons/ic_unregister_user.svg";
-            labelUserIcon.setIcon(IconUtils.getIcon(userIconPath1));
+            userButton.setIcon(IconUtils.getIcon(userIconPath1));
 
             try {
                 branchButton.setText(rpc.getCurrentBranch(projectName));

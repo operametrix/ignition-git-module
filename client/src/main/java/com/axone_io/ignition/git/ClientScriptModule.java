@@ -86,4 +86,25 @@ public class ClientScriptModule extends AbstractScriptModule {
     protected boolean deleteBranchImpl(String projectName, String branchName) throws Exception {
         return rpc.deleteBranch(projectName, branchName);
     }
+
+    @Override
+    protected boolean isSSHAuthenticationImpl(String projectName) {
+        return rpc.isSSHAuthentication(projectName);
+    }
+
+    @Override
+    protected boolean saveUserCredentialsImpl(String projectName, String ignitionUser, String email,
+                                              String gitUsername, String password, String sshKey) {
+        return rpc.saveUserCredentials(projectName, ignitionUser, email, gitUsername, password, sshKey);
+    }
+
+    @Override
+    protected String getUserEmailImpl(String projectName, String ignitionUser) {
+        return rpc.getUserEmail(projectName, ignitionUser);
+    }
+
+    @Override
+    protected String getUserGitUsernameImpl(String projectName, String ignitionUser) {
+        return rpc.getUserGitUsername(projectName, ignitionUser);
+    }
 }
