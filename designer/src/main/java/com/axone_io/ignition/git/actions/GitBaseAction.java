@@ -11,6 +11,8 @@ import javax.swing.*;
 import java.awt.event.ActionEvent;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
 import static com.axone_io.ignition.git.DesignerHook.*;
@@ -102,6 +104,7 @@ public class GitBaseAction extends BaseAction {
         int messageType = JOptionPane.INFORMATION_MESSAGE;
 
         try {
+            closeAllEditorTabs();
             rpc.checkoutBranch(projectName, branchName);
             pullProjectFromGateway();
             SwingUtilities.invokeLater(new Thread(() -> showConfirmPopup(message, messageType)));
@@ -110,10 +113,61 @@ public class GitBaseAction extends BaseAction {
         }
     }
 
+    private static void closeAllEditorTabs() {
+        try {
+            java.awt.Frame frame = context.getFrame();
+            Method getWorkspace = frame.getClass().getMethod("getWorkspace");
+            Object workspaceManager = getWorkspace.invoke(frame);
+
+            Method getCount = workspaceManager.getClass().getMethod("getWorkspaceCount");
+            Method getWs = workspaceManager.getClass().getMethod("getWorkspace", int.class);
+
+            int count = (int) getCount.invoke(workspaceManager);
+            for (int i = 0; i < count; i++) {
+                Object ws = getWs.invoke(workspaceManager, i);
+                Class<?> tabbedClass;
+                try {
+                    tabbedClass = Class.forName(
+                            "com.inductiveautomation.ignition.designer.tabbedworkspace.TabbedResourceWorkspace");
+                } catch (ClassNotFoundException e) {
+                    return;
+                }
+                if (tabbedClass.isInstance(ws)) {
+                    Method getEditors = tabbedClass.getMethod("getEditors");
+                    Collection<?> editors = (Collection<?>) getEditors.invoke(ws);
+                    List<?> editorsCopy = new ArrayList<>(editors);
+
+                    Method closeMethod = tabbedClass.getMethod("close",
+                            com.inductiveautomation.ignition.common.project.resource.ResourcePath.class,
+                            boolean.class);
+
+                    for (Object editor : editorsCopy) {
+                        Method getResourcePath = editor.getClass().getMethod("getResourcePath");
+                        Object path = getResourcePath.invoke(editor);
+                        closeMethod.invoke(ws, path, false);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            logger.error("Failed to close editor tabs", e);
+        }
+    }
+
     private static void pullProjectFromGateway() {
         try {
             java.awt.Frame frame = context.getFrame();
             Class<?> frameClass = frame.getClass();
+
+            // Clear all local "dirty" flags so pullAndResolve() won't detect conflicts.
+            // After a branch checkout the gateway has the correct state; any local
+            // modifications are stale and must not trigger conflict resolution.
+            Object project = context.getProject();
+            Method getChanges = project.getClass().getMethod("getChanges");
+            List<?> changes = (List<?>) getChanges.invoke(project);
+            if (changes != null && !changes.isEmpty()) {
+                Method notifyPushComplete = project.getClass().getMethod("notifyPushComplete", List.class);
+                notifyPushComplete.invoke(project, changes);
+            }
 
             // Call pullAndResolve() directly, skipping commitAll() which would
             // push stale open-editor content back to the gateway and cause conflicts

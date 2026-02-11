@@ -35,6 +35,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 import java.util.Optional;
@@ -385,10 +386,14 @@ public class GitManager {
         }
     }
 
+    private static final String STASH_PREFIX = "auto-stash: ";
+
     public static boolean checkoutBranch(Path projectFolderPath, String branchName) throws Exception {
         try (Git git = getGit(projectFolderPath)) {
-            git.reset().setMode(ResetCommand.ResetType.HARD).call();
-            git.clean().setForce(true).setCleanDirectories(true).call();
+            String currentBranch = git.getRepository().getBranch();
+
+            // Stash uncommitted changes on the current branch
+            stashChanges(git, currentBranch);
 
             List<Ref> localRefs = git.branchList().call();
             boolean localExists = false;
@@ -409,7 +414,40 @@ public class GitManager {
                         .setStartPoint("origin/" + branchName)
                         .call();
             }
+
+            // Apply stashed changes for the target branch if any exist
+            applyStash(git, branchName);
+
             return true;
+        }
+    }
+
+    private static void stashChanges(Git git, String branchName) throws Exception {
+        Status status = git.status().call();
+        boolean hasChanges = !status.getUncommittedChanges().isEmpty()
+                || !status.getUntracked().isEmpty()
+                || !status.getModified().isEmpty()
+                || !status.getMissing().isEmpty();
+
+        if (hasChanges) {
+            git.stashCreate()
+                    .setIncludeUntracked(true)
+                    .setWorkingDirectoryMessage(STASH_PREFIX + branchName)
+                    .call();
+        }
+    }
+
+    private static void applyStash(Git git, String branchName) throws Exception {
+        String targetMessage = STASH_PREFIX + branchName;
+        Collection<RevCommit> stashes = git.stashList().call();
+        int index = 0;
+        for (RevCommit stash : stashes) {
+            if (stash.getFullMessage().contains(targetMessage)) {
+                git.stashApply().setStashRef("stash@{" + index + "}").call();
+                git.stashDrop().setStashRef(index).call();
+                return;
+            }
+            index++;
         }
     }
 

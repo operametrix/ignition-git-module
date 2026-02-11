@@ -43,7 +43,7 @@ The root `build.gradle.kts` uses the `io.ia.sdk.modl` Gradle plugin to assemble 
 **Script interface pattern**: `GitScriptInterface` (common) defines the API. `AbstractScriptModule` (common) decorates it with Ignition annotations. `GatewayScriptModule` (gateway) provides the real implementation. Designer calls gateway methods via RPC.
 
 **Manager classes** in `gateway` encapsulate domain logic:
-- `GitManager` — core JGit operations (clone, fetch, pull, push, commit, status, branch list/create/checkout/delete)
+- `GitManager` — core JGit operations (clone, fetch, pull, push, commit, status, branch list/create/checkout/delete with per-branch stash/restore)
 - `GitProjectManager`, `GitTagManager`, `GitThemeManager`, `GitImageManager` — resource import/export
 - `GitCommissioningUtils` — file-based config loading for automated deployment
 
