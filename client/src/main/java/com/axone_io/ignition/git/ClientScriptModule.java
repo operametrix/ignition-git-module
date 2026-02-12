@@ -119,4 +119,9 @@ public class ClientScriptModule extends AbstractScriptModule {
                                              String sshKey) throws Exception {
         return rpc.initializeProject(projectName, repoUri, ignitionUser, email, gitUsername, password, sshKey);
     }
+
+    @Override
+    protected List<String> getResourceDiffImpl(String projectName, String resourcePath) {
+        return rpc.getResourceDiff(projectName, resourcePath);
+    }
 }

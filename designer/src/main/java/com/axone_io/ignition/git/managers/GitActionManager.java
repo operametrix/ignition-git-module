@@ -4,6 +4,7 @@ import com.axone_io.ignition.git.BranchPopup;
 import com.axone_io.ignition.git.CommitPopup;
 import com.axone_io.ignition.git.CredentialsPopup;
 import com.axone_io.ignition.git.DesignerHook;
+import com.axone_io.ignition.git.DiffViewerPopup;
 import com.axone_io.ignition.git.InitRepoPopup;
 import com.axone_io.ignition.git.PullPopup;
 import com.inductiveautomation.ignition.common.Dataset;
@@ -78,6 +79,11 @@ public class GitActionManager {
                 public void onActionPerformed(List<String> changes, String commitMessage) {
                     handleCommitAction(changes, commitMessage);
                     resetMessage();
+                }
+
+                @Override
+                public void onDiffRequested(String resource, String type) {
+                    showDiffViewer(projectName, resource, type);
                 }
             };
         }
@@ -208,6 +214,20 @@ public class GitActionManager {
                     }
                 }
             };
+        }
+    }
+
+    public static void showDiffViewer(String projectName, String resource, String type) {
+        try {
+            List<String> diff = rpc.getResourceDiff(projectName, resource);
+            String oldContent = diff.get(0);
+            String newContent = diff.get(1);
+            new DiffViewerPopup(resource, oldContent, newContent, context.getFrame());
+        } catch (Exception e) {
+            logger.error("Error showing diff viewer", e);
+            JOptionPane.showMessageDialog(context.getFrame(),
+                    "Failed to load diff: " + e.getMessage(),
+                    "Error", JOptionPane.ERROR_MESSAGE);
         }
     }
 

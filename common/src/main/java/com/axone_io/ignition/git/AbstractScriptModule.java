@@ -165,6 +165,13 @@ public abstract class AbstractScriptModule implements GitScriptInterface {
         return initializeProjectImpl(projectName, repoUri, ignitionUser, email, gitUsername, password, sshKey);
     }
 
+    @Override
+    @ScriptFunction(docBundlePrefix = "AbstractScriptModule")
+    public List<String> getResourceDiff(@ScriptArg("projectName") String projectName,
+                                        @ScriptArg("resourcePath") String resourcePath) {
+        return getResourceDiffImpl(projectName, resourcePath);
+    }
+
     protected abstract boolean pullImpl(String projectName, String userName, boolean importTags, boolean importTheme,
                                         boolean importImages) throws Exception;
     protected abstract boolean pushImpl(String projectName, String userName) throws Exception;
@@ -189,5 +196,6 @@ public abstract class AbstractScriptModule implements GitScriptInterface {
     protected abstract boolean initializeProjectImpl(String projectName, String repoUri, String ignitionUser,
                                                       String email, String gitUsername, String password,
                                                       String sshKey) throws Exception;
+    protected abstract List<String> getResourceDiffImpl(String projectName, String resourcePath);
 
 }

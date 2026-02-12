@@ -312,6 +312,11 @@ public class GatewayScriptModule extends AbstractScriptModule {
     }
 
     @Override
+    protected List<String> getResourceDiffImpl(String projectName, String resourcePath) {
+        return GitManager.getResourceDiffContent(projectName, resourcePath);
+    }
+
+    @Override
     protected boolean initializeProjectImpl(String projectName, String repoUri, String ignitionUser,
                                              String email, String gitUsername, String password,
                                              String sshKey) throws Exception {

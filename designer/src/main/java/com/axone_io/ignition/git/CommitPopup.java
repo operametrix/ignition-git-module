@@ -16,6 +16,8 @@ import javax.swing.table.DefaultTableModel;
 import javax.swing.table.TableColumn;
 import javax.swing.text.StyleContext;
 import java.awt.*;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
@@ -50,6 +52,20 @@ public class CommitPopup extends JFrame {
         changesTable.getTableHeader().setReorderingAllowed(false);
 
         setData(data);
+
+        changesTable.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                if (e.getClickCount() == 2) {
+                    int row = changesTable.rowAtPoint(e.getPoint());
+                    if (row >= 0) {
+                        String resource = (String) changesTable.getValueAt(row, 1);
+                        String type = (String) changesTable.getValueAt(row, 2);
+                        onDiffRequested(resource, type);
+                    }
+                }
+            }
+        });
 
         commitBtn.addActionListener(e -> {
             List<String> changes = new ArrayList<>();
@@ -89,6 +105,11 @@ public class CommitPopup extends JFrame {
                         return String.class;
                 }
             }
+
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                return column == 0;
+            }
         };
 
         changesTable.setModel(model);
@@ -104,6 +125,10 @@ public class CommitPopup extends JFrame {
 
 
     public void onActionPerformed(List<String> changes, String message) {
+
+    }
+
+    public void onDiffRequested(String resource, String type) {
 
     }
 

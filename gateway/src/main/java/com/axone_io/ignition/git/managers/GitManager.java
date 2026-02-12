@@ -475,6 +475,84 @@ public class GitManager {
         }
     }
 
+    public static List<String> getResourceDiffContent(String projectName, String resourcePath) {
+        Path projectPath = getProjectFolderPath(projectName);
+        String oldContent = "";
+        String newContent = "";
+
+        // For Ignition resources, the directory contains resource.json (metadata) plus
+        // one or more data files (view.json, data.bin, code.py, etc.).
+        // We want the data files, not the metadata.
+        String filePath = resourcePath;
+        if (hasActor(resourcePath)) {
+            filePath = findDataFile(projectPath, resourcePath);
+        }
+
+        // Read old content from HEAD
+        try (Repository repository = getGit(projectPath).getRepository()) {
+            ObjectId headId = repository.resolve("HEAD");
+            if (headId != null) {
+                try (RevWalk revWalk = new RevWalk(repository)) {
+                    RevCommit commit = revWalk.parseCommit(headId);
+                    RevTree tree = commit.getTree();
+
+                    try (TreeWalk treeWalk = new TreeWalk(repository)) {
+                        treeWalk.addTree(tree);
+                        treeWalk.setRecursive(true);
+                        treeWalk.setFilter(PathFilter.create(filePath));
+
+                        if (treeWalk.next()) {
+                            ObjectId objectId = treeWalk.getObjectId(0);
+                            ByteArrayOutputStream out = new ByteArrayOutputStream();
+                            try (ObjectReader reader = repository.newObjectReader()) {
+                                reader.open(objectId).copyTo(out);
+                            }
+                            oldContent = out.toString();
+                        }
+                    }
+                }
+            }
+        } catch (IOException e) {
+            logger.error("Error reading HEAD content for diff", e);
+        }
+
+        // Read new content from working tree
+        Path workingTreeFile = projectPath.resolve(filePath.replace("/", File.separator));
+        if (Files.exists(workingTreeFile)) {
+            try {
+                newContent = new String(Files.readAllBytes(workingTreeFile));
+            } catch (IOException e) {
+                logger.error("Error reading working tree content for diff", e);
+            }
+        }
+
+        return Arrays.asList(oldContent, newContent);
+    }
+
+    /**
+     * Find the primary data file inside an Ignition resource directory,
+     * skipping resource.json (which is metadata).
+     * Falls back to resource.json if no other files exist.
+     */
+    private static String findDataFile(Path projectPath, String resourcePath) {
+        Path resourceDir = projectPath.resolve(resourcePath.replace("/", File.separator));
+        if (Files.isDirectory(resourceDir)) {
+            try {
+                java.util.Optional<Path> dataFile = Files.list(resourceDir)
+                        .filter(Files::isRegularFile)
+                        .filter(p -> !p.getFileName().toString().equals("resource.json"))
+                        .findFirst();
+                if (dataFile.isPresent()) {
+                    return resourcePath + "/" + dataFile.get().getFileName().toString();
+                }
+            } catch (IOException e) {
+                logger.error("Error listing resource directory", e);
+            }
+        }
+        // Fallback to resource.json if no data file found
+        return resourcePath + "/resource.json";
+    }
+
     public static boolean deleteBranch(Path projectFolderPath, String branchName) throws Exception {
         try (Git git = getGit(projectFolderPath)) {
             String currentBranch = git.getRepository().getBranch();

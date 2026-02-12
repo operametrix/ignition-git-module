@@ -54,4 +54,8 @@ public interface GitScriptInterface {
     boolean initializeProject(String projectName, String repoUri, String ignitionUser,
                               String email, String gitUsername, String password, String sshKey) throws Exception;
 
+    /** Get old (HEAD) and new (working tree) content for a resource, for diff viewing.
+     *  Returns a 2-element list: [oldContent, newContent]. */
+    List<String> getResourceDiff(String projectName, String resourcePath);
+
 }
