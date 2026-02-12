@@ -36,6 +36,7 @@ public class DesignerHook extends AbstractDesignerModuleHook {
     JPanel gitStatusBar;
     JButton branchButton;
     Timer gitUserTimer;
+    boolean toolBarInitialized;
     @Override
     public void initializeScriptManager(ScriptManager manager) {
         super.initializeScriptManager(manager);
@@ -63,10 +64,10 @@ public class DesignerHook extends AbstractDesignerModuleHook {
         if (registered) {
             rpc.setupLocalRepo(projectName, userName);
             initStatusBar();
+            initToolBar();
         } else {
             initStatusBarUnregistered();
         }
-        initToolBar();
 
     }
 
@@ -156,6 +157,7 @@ public class DesignerHook extends AbstractDesignerModuleHook {
         }
 
         initStatusBar();
+        initToolBar();
     }
 
     private void initToolBar() {
@@ -168,6 +170,7 @@ public class DesignerHook extends AbstractDesignerModuleHook {
         toolbar.add(new GitBaseAction(GitBaseAction.GitActionType.REPO));
 
         toolBarManager.addDockableBar(toolbar);
+        toolBarInitialized = true;
     }
 
     @Override
@@ -186,7 +189,9 @@ public class DesignerHook extends AbstractDesignerModuleHook {
         super.shutdown();
 
         DockableBarManager toolBarManager = context.getToolbarManager();
-        toolBarManager.removeDockableBar("Git");
+        if (toolBarInitialized) {
+            toolBarManager.removeDockableBar("Git");
+        }
 
         StatusBar statusBar = context.getStatusBar();
         if (gitStatusBar != null) {
