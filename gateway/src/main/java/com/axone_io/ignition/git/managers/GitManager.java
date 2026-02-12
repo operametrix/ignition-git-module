@@ -33,6 +33,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -155,8 +156,9 @@ public class GitManager {
                                                  List<String> changes,
                                                  DatasetBuilder builder) {
         for (String update : updates) {
-            String[] rowData = new String[3];
+            String[] rowData = new String[4];
             String actor = "unknown";
+            String timestamp = "";
             String path = update;
 
             if (hasActor(path)) {
@@ -164,12 +166,14 @@ public class GitManager {
                 path = String.join("/", Arrays.copyOf(pathSplitted, pathSplitted.length - 1));
 
                 actor = getActor(projectName, path);
+                timestamp = getTimestamp(projectName, path);
             }
 
             rowData[0] = path;
             rowData[1] = type;
             if (!changes.contains(path)) {
                 rowData[2] = actor;
+                rowData[3] = timestamp;
                 changes.add(path);
                 builder.addRow((Object[]) rowData);
             }
@@ -188,6 +192,26 @@ public class GitManager {
         }
 
         return hasActor;
+    }
+
+    public static String getTimestamp(String projectName, String path) {
+        ProjectManager projectManager = context.getProjectManager();
+        Optional<RuntimeProject> projectOpt = projectManager.getProject(projectName);
+
+        if (projectOpt.isPresent()) {
+            RuntimeProject project = projectOpt.get();
+            Optional<ProjectResource> resourceOpt = project.getResource(getResourcePath(path));
+
+            if (resourceOpt.isPresent()) {
+                ProjectResource projectResource = resourceOpt.get();
+                return LastModification.of(projectResource)
+                        .map(LastModification::getTimestamp)
+                        .map(date -> new SimpleDateFormat("yyyy-MM-dd HH:mm").format(date))
+                        .orElse("");
+            }
+        }
+
+        return "";
     }
 
     public static String getActor(String projectName, String path) {

@@ -54,7 +54,7 @@ public class GitActionManager {
             String resource = (String) ds.getValueAt(i, "resource");
 
             boolean toAdd = resourcesChangedId.contains(resource);
-            Object[] row = {toAdd, resource, ds.getValueAt(i, "type"), ds.getValueAt(i, "actor")};
+            Object[] row = {toAdd, resource, ds.getValueAt(i, "type"), ds.getValueAt(i, "actor"), ds.getValueAt(i, "timestamp")};
 
             // Log the decision to add or not add the resource to the commit popup
             logger.debug("Resource: {}, Add to commit popup: {}", resource, toAdd);

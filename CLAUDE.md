@@ -45,7 +45,7 @@ The root `build.gradle.kts` uses the `io.ia.sdk.modl` Gradle plugin to assemble 
 **Designer project refresh**: After any gateway-side operation that modifies the Ignition project (pull, checkout, init), the Designer must call `GitBaseAction.pullProjectFromGateway()` to sync its local project state with the gateway via reflection on the Designer frame's `pullAndResolve()` method. Without this call, gateway-side `GitProjectManager.importProject()` updates the gateway but the Designer UI won't reflect the changes.
 
 **Designer popups** (`designer` module) are Swing `JFrame` dialogs with abstract callbacks overridden via anonymous subclasses in `GitActionManager`:
-- `CommitPopup` — select changes and enter commit message
+- `CommitPopup` — select changes and enter commit message; displays resource name, type, author, and last-modification timestamp (formatted `yyyy-MM-dd HH:mm`)
 - `PullPopup` — toggle import of tags/themes/images
 - `BranchPopup` — list/create/checkout/delete branches
 - `CredentialsPopup` — manage email, username, password/SSH key for an already-registered project

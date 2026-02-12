@@ -16,7 +16,7 @@ Exporting gateway configuration is simplified or even automated.
 - Link an Ignition project with a remote repo, (Gateway Webpage)
 - Link an Ignition user to a git project, with ssh or user/password authentication, (Gateway Webpage)
 - Manage git credentials directly from the Designer by clicking the user icon in the status bar — supports both HTTPS (username/password) and SSH (private key) authentication
-- Commit resources, (Designer, on project saved or from git toolbar)
+- Commit resources with last-modification timestamps shown per resource, (Designer, on project saved or from git toolbar)
 - Push & Pull resources, (Designer, from git toolbar) — pulled changes are reflected immediately in the Designer
 - Branch management: list, create, checkout, and delete branches with automatic stash/restore of uncommitted changes, (Designer, from status bar branch button)
 - Export of the gateway configuration. Tags, images, theme... (Designer, from git toolbar)
@@ -58,7 +58,7 @@ That's it ! You're ready to start working with the project on your local machine
 
 - Project options for select which resources export on ExportGatewayConfig :
   - Tags, which tag provider, which folder…
-- Timestamp changes in commit popup,
+- ~~Timestamp changes in commit popup,~~ (Done)
 - Status page :
   - List commit,
   - Repos state.

@@ -75,7 +75,7 @@ public class CommitPopup extends JFrame {
     }
 
     public void setData(Object[][] data) {
-        String[] columnNames = {"", "Resource Name", "Type", "Author"};
+        String[] columnNames = {"", "Resource Name", "Type", "Author", "Timestamp"};
         DefaultTableModel model = new DefaultTableModel(data, columnNames) {
             public Class<?> getColumnClass(int column) {
                 switch (column) {
@@ -84,6 +84,7 @@ public class CommitPopup extends JFrame {
                     case 1:
                     case 2:
                     case 3:
+                    case 4:
                     default:
                         return String.class;
                 }
@@ -92,9 +93,10 @@ public class CommitPopup extends JFrame {
 
         changesTable.setModel(model);
         changesTable.getColumn("").setPreferredWidth(20);
-        changesTable.getColumn("Resource Name").setPreferredWidth(330);
+        changesTable.getColumn("Resource Name").setPreferredWidth(280);
         changesTable.getColumn("Type").setPreferredWidth(100);
         changesTable.getColumn("Author").setPreferredWidth(100);
+        changesTable.getColumn("Timestamp").setPreferredWidth(120);
 
         TableColumn tc = changesTable.getColumnModel().getColumn(0);
         tc.setHeaderRenderer(new SelectAllHeader(changesTable, 0));

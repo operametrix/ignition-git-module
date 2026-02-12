@@ -113,8 +113,8 @@ public class GatewayScriptModule extends AbstractScriptModule {
         Dataset ds;
         List<String> changes = new ArrayList<>();
         DatasetBuilder builder = new DatasetBuilder();
-        builder.colNames(List.of("resource", "type", "actor"));
-        builder.colTypes(List.of(String.class, String.class, String.class));
+        builder.colNames(List.of("resource", "type", "actor", "timestamp"));
+        builder.colTypes(List.of(String.class, String.class, String.class, String.class));
 
         try (Git git = getGit(projectPath)) {
             Status status = git.status().call();
