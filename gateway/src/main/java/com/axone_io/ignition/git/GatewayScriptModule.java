@@ -301,6 +301,70 @@ public class GatewayScriptModule extends AbstractScriptModule {
         }
     }
 
+    @Override
+    protected boolean isProjectRegisteredImpl(String projectName) {
+        try {
+            getGitProjectConfigRecord(projectName);
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    @Override
+    protected boolean initializeProjectImpl(String projectName, String repoUri, String ignitionUser,
+                                             String email, String gitUsername, String password,
+                                             String sshKey) throws Exception {
+        // Check project not already registered
+        if (isProjectRegisteredImpl(projectName)) {
+            throw new Exception("Project '" + projectName + "' is already registered.");
+        }
+
+        // Create project config record
+        GitProjectsConfigRecord projectRecord = context.getPersistenceInterface().createNew(GitProjectsConfigRecord.META);
+        projectRecord.setProjectName(projectName);
+        projectRecord.setURI(repoUri);
+        context.getPersistenceInterface().save(projectRecord);
+
+        // Re-query to get the generated ID
+        projectRecord = getGitProjectConfigRecord(projectName);
+
+        // Create user credentials record
+        GitReposUsersRecord userRecord = context.getPersistenceInterface().createNew(GitReposUsersRecord.META);
+        userRecord.setProjectId(projectRecord.getId());
+        userRecord.setIgnitionUser(ignitionUser);
+        userRecord.setEmail(email);
+        userRecord.setUserName(gitUsername);
+        if (!repoUri.toLowerCase().startsWith("http")) {
+            // SSH authentication
+            userRecord.setSSHKey(sshKey);
+        } else {
+            // HTTPS authentication
+            userRecord.setPassword(password);
+        }
+        context.getPersistenceInterface().save(userRecord);
+
+        // Attempt to initialize the local repo
+        try {
+            setupLocalRepoImpl(projectName, ignitionUser);
+        } catch (Exception e) {
+            // Rollback: delete both records on failure
+            try {
+                userRecord.deleteRecord();
+                context.getPersistenceInterface().save(userRecord);
+            } catch (Exception ignored) {
+            }
+            try {
+                projectRecord.deleteRecord();
+                context.getPersistenceInterface().save(projectRecord);
+            } catch (Exception ignored) {
+            }
+            throw e;
+        }
+
+        return true;
+    }
+
     private void setupGitFromCurrentFolder(String projectName, String userName, Git git) throws Exception {
         try {
             git.add().addFilepattern(".").call();
@@ -333,6 +397,8 @@ public class GatewayScriptModule extends AbstractScriptModule {
 
             git.clean().setForce(true).call();
             git.reset().setMode(ResetCommand.ResetType.HARD).call();
+
+            GitProjectManager.importProject(projectName);
 
             GitTagManager.importTagManager(projectName);
 

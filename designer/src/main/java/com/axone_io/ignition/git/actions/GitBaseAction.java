@@ -93,6 +93,7 @@ public class GitBaseAction extends BaseAction {
 
         try {
             rpc.pull(projectName, userName, importTags, importTheme, importImages);
+            pullProjectFromGateway();
             SwingUtilities.invokeLater(new Thread(() -> showConfirmPopup(message, messageType)));
         } catch (Exception ex) {
             ErrorUtil.showError(ex);
@@ -153,7 +154,7 @@ public class GitBaseAction extends BaseAction {
         }
     }
 
-    private static void pullProjectFromGateway() {
+    public static void pullProjectFromGateway() {
         try {
             java.awt.Frame frame = context.getFrame();
             Class<?> frameClass = frame.getClass();

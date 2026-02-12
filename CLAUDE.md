@@ -37,10 +37,19 @@ The root `build.gradle.kts` uses the `io.ia.sdk.modl` Gradle plugin to assemble 
 
 **Hook classes** are the entry points for each scope. Each implements the Ignition lifecycle (`setup`/`startup`/`shutdown`):
 - `ClientHook` — registers the script module on the client
-- `DesignerHook` — initializes toolbar actions, status bar (with clickable branch button), user verification timer; uses `ModuleRPCFactory` to call gateway methods remotely
+- `DesignerHook` — initializes toolbar actions, status bar (with clickable branch button), user verification timer; uses `ModuleRPCFactory` to call gateway methods remotely. On startup, checks `isProjectRegistered()` — if unregistered, shows a minimal "Not configured" status bar instead of the full git UI. After successful init via `InitRepoPopup`, calls `reinitializeAfterSetup()` to rebuild the full status bar. Exposes a static `instance` field for callbacks from `GitActionManager`.
 - `GatewayHook` — creates DB schema, loads commissioning config, registers web config pages
 
-**Script interface pattern**: `GitScriptInterface` (common) defines the API. `AbstractScriptModule` (common) decorates it with Ignition annotations. `GatewayScriptModule` (gateway) provides the real implementation. Designer calls gateway methods via RPC.
+**Script interface pattern**: `GitScriptInterface` (common) defines the API. `AbstractScriptModule` (common) decorates it with Ignition annotations. `GatewayScriptModule` (gateway) provides the real implementation. `ClientScriptModule` (client) proxies all calls via RPC. Designer calls gateway methods via RPC.
+
+**Designer project refresh**: After any gateway-side operation that modifies the Ignition project (pull, checkout, init), the Designer must call `GitBaseAction.pullProjectFromGateway()` to sync its local project state with the gateway via reflection on the Designer frame's `pullAndResolve()` method. Without this call, gateway-side `GitProjectManager.importProject()` updates the gateway but the Designer UI won't reflect the changes.
+
+**Designer popups** (`designer` module) are Swing `JFrame` dialogs with abstract callbacks overridden via anonymous subclasses in `GitActionManager`:
+- `CommitPopup` — select changes and enter commit message
+- `PullPopup` — toggle import of tags/themes/images
+- `BranchPopup` — list/create/checkout/delete branches
+- `CredentialsPopup` — manage email, username, password/SSH key for an already-registered project
+- `InitRepoPopup` — initialize a git repo for an unregistered project: enter repo URI (dynamic HTTPS/SSH field switching based on URI prefix), email, and credentials. On success, creates DB records + clones the repo + refreshes the Designer project.
 
 **Manager classes** in `gateway` encapsulate domain logic:
 - `GitManager` — core JGit operations (clone, fetch, pull, push, commit, status, branch list/create/checkout/delete with per-branch stash/restore)

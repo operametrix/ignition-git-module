@@ -43,4 +43,15 @@ public interface GitScriptInterface {
     /** Get the configured git username for a user, or empty string if not found. */
     String getUserGitUsername(String projectName, String ignitionUser);
 
+    /** Check whether the given project is registered in the gateway's git configuration. */
+    boolean isProjectRegistered(String projectName);
+
+    /**
+     * Register a project with git and initialize the local repository in one atomic operation.
+     * Creates the project config record, user credentials record, and calls setupLocalRepo.
+     * On failure, rolls back any created records.
+     */
+    boolean initializeProject(String projectName, String repoUri, String ignitionUser,
+                              String email, String gitUsername, String password, String sshKey) throws Exception;
+
 }

@@ -107,4 +107,16 @@ public class ClientScriptModule extends AbstractScriptModule {
     protected String getUserGitUsernameImpl(String projectName, String ignitionUser) {
         return rpc.getUserGitUsername(projectName, ignitionUser);
     }
+
+    @Override
+    protected boolean isProjectRegisteredImpl(String projectName) {
+        return rpc.isProjectRegistered(projectName);
+    }
+
+    @Override
+    protected boolean initializeProjectImpl(String projectName, String repoUri, String ignitionUser,
+                                             String email, String gitUsername, String password,
+                                             String sshKey) throws Exception {
+        return rpc.initializeProject(projectName, repoUri, ignitionUser, email, gitUsername, password, sshKey);
+    }
 }

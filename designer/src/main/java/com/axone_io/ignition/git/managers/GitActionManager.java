@@ -4,6 +4,7 @@ import com.axone_io.ignition.git.BranchPopup;
 import com.axone_io.ignition.git.CommitPopup;
 import com.axone_io.ignition.git.CredentialsPopup;
 import com.axone_io.ignition.git.DesignerHook;
+import com.axone_io.ignition.git.InitRepoPopup;
 import com.axone_io.ignition.git.PullPopup;
 import com.inductiveautomation.ignition.common.Dataset;
 import com.inductiveautomation.ignition.common.project.ChangeOperation;
@@ -26,6 +27,7 @@ public class GitActionManager {
     static PullPopup pullPopup;
     static BranchPopup branchPopup;
     static CredentialsPopup credentialsPopup;
+    static InitRepoPopup initRepoPopup;
     private static final Logger logger = LoggerFactory.getLogger(GitActionManager.class);
 
 
@@ -182,6 +184,30 @@ public class GitActionManager {
             }
         } catch (Exception e) {
             logger.error("Error showing credentials popup", e);
+        }
+    }
+
+    public static void showInitRepoPopup(String projectName, String userName) {
+        if (initRepoPopup != null) {
+            initRepoPopup.setVisible(true);
+            initRepoPopup.toFront();
+        } else {
+            initRepoPopup = new InitRepoPopup(context.getFrame()) {
+                @Override
+                public void onInitialize(String repoUri, String email, String gitUsername, String password, String sshKey) {
+                    try {
+                        rpc.initializeProject(projectName, repoUri, userName, email, gitUsername, password, sshKey);
+                        pullProjectFromGateway();
+                        showConfirmPopup("Repository initialized successfully.", JOptionPane.INFORMATION_MESSAGE);
+                        dispose();
+                        initRepoPopup = null;
+                        DesignerHook.instance.reinitializeAfterSetup();
+                    } catch (Exception e) {
+                        logger.error("Error initializing repository", e);
+                        showConfirmPopup("Failed to initialize repository: " + e.getMessage(), JOptionPane.ERROR_MESSAGE);
+                    }
+                }
+            };
         }
     }
 

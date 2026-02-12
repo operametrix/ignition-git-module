@@ -147,6 +147,24 @@ public abstract class AbstractScriptModule implements GitScriptInterface {
         return getUserGitUsernameImpl(projectName, ignitionUser);
     }
 
+    @Override
+    @ScriptFunction(docBundlePrefix = "AbstractScriptModule")
+    public boolean isProjectRegistered(@ScriptArg("projectName") String projectName) {
+        return isProjectRegisteredImpl(projectName);
+    }
+
+    @Override
+    @ScriptFunction(docBundlePrefix = "AbstractScriptModule")
+    public boolean initializeProject(@ScriptArg("projectName") String projectName,
+                                     @ScriptArg("repoUri") String repoUri,
+                                     @ScriptArg("ignitionUser") String ignitionUser,
+                                     @ScriptArg("email") String email,
+                                     @ScriptArg("gitUsername") String gitUsername,
+                                     @ScriptArg("password") String password,
+                                     @ScriptArg("sshKey") String sshKey) throws Exception {
+        return initializeProjectImpl(projectName, repoUri, ignitionUser, email, gitUsername, password, sshKey);
+    }
+
     protected abstract boolean pullImpl(String projectName, String userName, boolean importTags, boolean importTheme,
                                         boolean importImages) throws Exception;
     protected abstract boolean pushImpl(String projectName, String userName) throws Exception;
@@ -167,5 +185,9 @@ public abstract class AbstractScriptModule implements GitScriptInterface {
                                                        String gitUsername, String password, String sshKey);
     protected abstract String getUserEmailImpl(String projectName, String ignitionUser);
     protected abstract String getUserGitUsernameImpl(String projectName, String ignitionUser);
+    protected abstract boolean isProjectRegisteredImpl(String projectName);
+    protected abstract boolean initializeProjectImpl(String projectName, String repoUri, String ignitionUser,
+                                                      String email, String gitUsername, String password,
+                                                      String sshKey) throws Exception;
 
 }

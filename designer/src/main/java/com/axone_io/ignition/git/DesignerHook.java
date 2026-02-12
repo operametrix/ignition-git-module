@@ -24,6 +24,7 @@ import java.util.List;
 
 public class DesignerHook extends AbstractDesignerModuleHook {
 
+    public static DesignerHook instance;
     public static GitScriptInterface rpc = ModuleRPCFactory.create(
             "com.axone_io.ignition.git",
             GitScriptInterface.class
@@ -49,6 +50,7 @@ public class DesignerHook extends AbstractDesignerModuleHook {
     @Override
     public void startup(DesignerContext context, LicenseState activationState) throws Exception {
         super.startup(context, activationState);
+        instance = this;
         DesignerHook.context = context;
         BundleUtil.get().addBundle("DesignerHook", getClass(), "DesignerHook");
 
@@ -57,9 +59,13 @@ public class DesignerHook extends AbstractDesignerModuleHook {
         Optional<SessionInfo> sessionInfo = context.getResourceEditManager().getCurrentSessionInfo();
         userName = sessionInfo.isPresent() ? sessionInfo.get().getUsername() : "";
 
-        rpc.setupLocalRepo(projectName, userName);
-
-        initStatusBar();
+        boolean registered = rpc.isProjectRegistered(projectName);
+        if (registered) {
+            rpc.setupLocalRepo(projectName, userName);
+            initStatusBar();
+        } else {
+            initStatusBarUnregistered();
+        }
         initToolBar();
 
     }
@@ -118,6 +124,40 @@ public class DesignerHook extends AbstractDesignerModuleHook {
         gitUserTimer.start();
     }
 
+    private void initStatusBarUnregistered() {
+        StatusBar statusBar = context.getStatusBar();
+        gitStatusBar = new JPanel();
+
+        JLabel gitIconLabel = new JLabel(IconUtils.getIcon("/com/axone_io/ignition/git/icons/ic_git.svg"));
+        gitIconLabel.setSize(35, 35);
+        gitStatusBar.add(gitIconLabel);
+
+        JButton notConfiguredButton = new JButton("Not configured");
+        notConfiguredButton.setFont(notConfiguredButton.getFont().deriveFont(Font.ITALIC));
+        notConfiguredButton.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        notConfiguredButton.setContentAreaFilled(false);
+        notConfiguredButton.setBorderPainted(false);
+        notConfiguredButton.setFocusPainted(false);
+        notConfiguredButton.setMargin(new Insets(0, 0, 0, 0));
+        notConfiguredButton.addActionListener(e -> GitActionManager.showInitRepoPopup(projectName, userName));
+        gitStatusBar.add(notConfiguredButton);
+
+        statusBar.addDisplay(gitStatusBar);
+    }
+
+    public void reinitializeAfterSetup() {
+        if (gitUserTimer != null) {
+            gitUserTimer.stop();
+        }
+
+        StatusBar statusBar = context.getStatusBar();
+        if (gitStatusBar != null) {
+            statusBar.removeDisplay(gitStatusBar);
+        }
+
+        initStatusBar();
+    }
+
     private void initToolBar() {
         DockableBarManager toolBarManager = context.getToolbarManager();
         DesignerToolbar toolbar = new DesignerToolbar("Git", "DesignerHook.Toolbar.Name");
@@ -149,8 +189,12 @@ public class DesignerHook extends AbstractDesignerModuleHook {
         toolBarManager.removeDockableBar("Git");
 
         StatusBar statusBar = context.getStatusBar();
-        statusBar.removeDisplay(gitStatusBar);
+        if (gitStatusBar != null) {
+            statusBar.removeDisplay(gitStatusBar);
+        }
 
-        gitUserTimer.stop();
+        if (gitUserTimer != null) {
+            gitUserTimer.stop();
+        }
     }
 }
