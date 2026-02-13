@@ -15,7 +15,7 @@ Init, clone, commit (with file selection + timestamp), push (all branches+tags),
 | 1 | ~~**Diff viewer**~~ | ~~Can't preview what changed before committing~~ | **Implemented.** Double-click a resource in the commit popup to open a side-by-side diff viewer. |
 | 2 | ~~**Commit log / history**~~ | ~~No way to see past commits~~ | **Implemented.** History toolbar button opens paginated commit log; double-click a commit to see changed files; double-click a file to view its diff at that commit. |
 | 3 | **Fetch without merge** | Pull always merges, no way to just fetch | Useful for reviewing incoming changes first |
-| 4 | ~~**Discard / restore changes**~~ | ~~No way to revert a file to its last committed state~~ | **Implemented.** Right-click a resource in the Source Control panel and select "Discard Changes" to revert tracked files to HEAD or delete untracked files. Also available as `discardChanges` RPC method. |
+| 4 | ~~**Discard / restore changes**~~ | ~~No way to revert a file to its last committed state~~ | **Implemented.** Right-click a resource in the Changes panel and select "Discard Changes" to revert tracked files to HEAD or delete untracked files. Also available as `discardChanges` RPC method. |
 | 5 | **Staged vs unstaged distinction** | All changes shown as one flat list | Standard Git separates working tree from index |
 
 ### Tier 2 — Core branching and collaboration gaps

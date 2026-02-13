@@ -27,6 +27,7 @@ import java.util.*;
 import java.util.List;
 
 public class DesignerHook extends AbstractDesignerModuleHook {
+    private static final String PROJECT_BROWSER_KEY = "Project Browser";
 
     public static DesignerHook instance;
     public static GitScriptInterface rpc = ModuleRPCFactory.create(
@@ -190,20 +191,34 @@ public class DesignerHook extends AbstractDesignerModuleHook {
         sourceControlPanel = new SourceControlPanel();
         GitActionManager.wireSourceControlPanel(sourceControlPanel, projectName, userName);
 
-        sourceControlFrame = new DockableFrame("GitSourceControl",
+        sourceControlFrame = new DockableFrame("Changes",
                 IconUtils.getIcon("/com/operametrix/ignition/git/icons/ic_git.svg"));
-        sourceControlFrame.setTitle(BundleUtil.get().getStringLenient("DesignerHook.SourceControl.Title"));
+        sourceControlFrame.setTitle(BundleUtil.get().getStringLenient("DesignerHook.Changes.Title"));
         sourceControlFrame.getContentPane().add(sourceControlPanel);
         sourceControlFrame.setPreferredSize(new Dimension(525, 400));
         sourceControlFrame.setAutohideWidth(525);
         sourceControlFrame.setDockedWidth(525);
 
         DockingManager dockingManager = context.getDockingManager();
+
+        // Add frame initially hidden, then group it as a tab with the Project Browser
         sourceControlFrame.setInitSide(DockContext.DOCK_SIDE_WEST);
         sourceControlFrame.setInitIndex(0);
-        sourceControlFrame.setInitMode(DockContext.STATE_AUTOHIDE);
+        sourceControlFrame.setInitMode(DockContext.STATE_HIDDEN);
         dockingManager.addFrame(sourceControlFrame);
         sourceControlFrameInitialized = true;
+
+        // Defer tab grouping until the Designer layout is fully initialized
+        Timer dockTimer = new Timer(2000, e -> {
+            DockableFrame projectBrowser = dockingManager.getFrame(PROJECT_BROWSER_KEY);
+            dockingManager.showFrame(sourceControlFrame.getKey());
+            if (projectBrowser != null) {
+                dockingManager.moveFrame(sourceControlFrame.getKey(), PROJECT_BROWSER_KEY);
+                dockingManager.activateFrame(PROJECT_BROWSER_KEY);
+            }
+        });
+        dockTimer.setRepeats(false);
+        dockTimer.start();
 
         // Auto-refresh timer
         sourceControlRefreshTimer = new Timer(15000, e -> refreshSourceControlPanel());
@@ -233,7 +248,7 @@ public class DesignerHook extends AbstractDesignerModuleHook {
         if (sourceControlFrameInitialized) {
             try {
                 DockingManager dockingManager = context.getDockingManager();
-                dockingManager.removeFrame("GitSourceControl");
+                dockingManager.removeFrame("Changes");
             } catch (Exception ignored) {
             }
             sourceControlFrameInitialized = false;

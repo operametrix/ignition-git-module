@@ -54,7 +54,7 @@ The root `build.gradle.kts` uses the `io.ia.sdk.modl` Gradle plugin to assemble 
 - `CredentialsPopup` — manage email, username, password/SSH key for an already-registered project
 - `InitRepoPopup` — initialize a git repo for an unregistered project: enter repo URI (dynamic HTTPS/SSH field switching based on URI prefix), email, and credentials. On success, creates DB records + clones the repo + refreshes the Designer project.
 
-**Dockable Source Control panel** (`SourceControlPanel.java`) — a JIDE `DockableFrame`-based panel docked on the left (west) side, collapsed (auto-hide) by default. Provides an at-a-glance view of uncommitted changes without opening popups:
+**Dockable Changes panel** (`SourceControlPanel.java`) — a JIDE `DockableFrame`-based panel (key: `"Changes"`) tabbed alongside the Project Browser (key: `"Project Browser"`) on the left side, with Project Browser as the default active tab. Provides an at-a-glance view of uncommitted changes without opening popups:
 - Top toolbar: Refresh, Push, Pull buttons (reuses existing SVG icons)
 - Commit section: message text area + Commit button for inline commits
 - Changes table: checkbox + Resource + Type columns with `SelectAllHeader`; Type column shows color-coded single-letter badges (A=green/created, M=amber/modified, D=red/deleted, U=orange/uncommitted)
