@@ -2,7 +2,7 @@ import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
 plugins {
-    id("io.ia.sdk.modl") version("0.4.0")
+    id("io.ia.sdk.modl") version("0.4.1")
 }
 
 val sdk_version by extra("8.1.0")

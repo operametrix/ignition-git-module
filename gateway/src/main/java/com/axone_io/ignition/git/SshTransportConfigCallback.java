@@ -1,15 +1,23 @@
 package com.axone_io.ignition.git;
 
-import com.jcraft.jsch.JSch;
-import com.jcraft.jsch.JSchException;
-import com.jcraft.jsch.Session;
+import org.apache.sshd.common.util.security.SecurityUtils;
 import org.eclipse.jgit.api.TransportConfigCallback;
+import org.eclipse.jgit.transport.CredentialsProvider;
 import org.eclipse.jgit.transport.SshSessionFactory;
 import org.eclipse.jgit.transport.SshTransport;
 import org.eclipse.jgit.transport.Transport;
-import org.eclipse.jgit.transport.ssh.jsch.JschConfigSessionFactory;
-import org.eclipse.jgit.transport.ssh.jsch.OpenSshConfig;
-import org.eclipse.jgit.util.FS;
+import org.eclipse.jgit.transport.sshd.ServerKeyDatabase;
+import org.eclipse.jgit.transport.sshd.SshdSessionFactoryBuilder;
+
+import java.io.ByteArrayInputStream;
+import java.io.File;
+import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.security.GeneralSecurityException;
+import java.security.KeyPair;
+import java.security.PublicKey;
+import java.util.Collections;
+import java.util.List;
 
 public class SshTransportConfigCallback implements TransportConfigCallback {
     String sshKey;
@@ -18,23 +26,42 @@ public class SshTransportConfigCallback implements TransportConfigCallback {
         this.sshKey = sshKey;
     }
 
-    private final SshSessionFactory sshSessionFactory = new JschConfigSessionFactory() {
-        @Override
-        protected void configure(OpenSshConfig.Host hc, Session session) {
-            session.setConfig("StrictHostKeyChecking", "no");
-        }
+    private SshSessionFactory createSshSessionFactory() {
+        return new SshdSessionFactoryBuilder()
+                .setHomeDirectory(new File(System.getProperty("user.home")))
+                .setSshDirectory(new File(new File(System.getProperty("user.home")), ".ssh"))
+                .setDefaultKeysProvider(f -> {
+                    try {
+                        Iterable<KeyPair> keyPairs = SecurityUtils.loadKeyPairIdentities(
+                                null, null, new ByteArrayInputStream(sshKey.getBytes()), null);
+                        return keyPairs;
+                    } catch (IOException | GeneralSecurityException e) {
+                        throw new RuntimeException("Failed to load SSH key", e);
+                    }
+                })
+                .setServerKeyDatabase((homeDir, sshDir) -> new ServerKeyDatabase() {
+                    @Override
+                    public List<PublicKey> lookup(String connectAddress,
+                                                 InetSocketAddress remoteAddress,
+                                                 Configuration config) {
+                        return Collections.emptyList();
+                    }
 
-        @Override
-        protected JSch createDefaultJSch(FS fs) throws JSchException {
-            JSch jSch = super.createDefaultJSch(fs);
-            jSch.addIdentity("identity", sshKey.getBytes(), null, null);
-            return jSch;
-        }
-    };
+                    @Override
+                    public boolean accept(String connectAddress,
+                                          InetSocketAddress remoteAddress,
+                                          PublicKey serverKey,
+                                          Configuration config,
+                                          CredentialsProvider provider) {
+                        return true;
+                    }
+                })
+                .build(null);
+    }
 
     @Override
     public void configure(Transport transport) {
         SshTransport sshTransport = (SshTransport) transport;
-        sshTransport.setSshSessionFactory(sshSessionFactory);
+        sshTransport.setSshSessionFactory(createSshSessionFactory());
     }
 }

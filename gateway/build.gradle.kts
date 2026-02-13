@@ -14,5 +14,5 @@ dependencies {
     compileOnly("com.inductiveautomation.ignitionsdk:ignition-common:${rootProject.extra["sdk_version"]}")
     compileOnly("com.inductiveautomation.ignitionsdk:gateway-api:${rootProject.extra["sdk_version"]}")
 
-    modlImplementation("org.eclipse.jgit:org.eclipse.jgit.ssh.jsch:6.5.0.202303070854-r")
+    modlImplementation("org.eclipse.jgit:org.eclipse.jgit.ssh.apache:6.10.1.202505221210-r")
 }

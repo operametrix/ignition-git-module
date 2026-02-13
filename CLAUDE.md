@@ -63,14 +63,14 @@ The root `build.gradle.kts` uses the `io.ia.sdk.modl` Gradle plugin to assemble 
 
 ### Key Libraries
 
-- **Eclipse JGit 6.5.0** — all git operations
-- **JSch** (via JGit) — SSH transport
-- **Lombok 1.18.30** — annotation processing in designer module
+- **Eclipse JGit 6.10.1** — all git operations
+- **Apache MINA sshd** (via `org.eclipse.jgit.ssh.apache`) — SSH transport (replaced the deprecated JSch-based `org.eclipse.jgit.ssh.jsch` in favor of the actively maintained Apache MINA sshd backend)
+- **Lombok 1.18.42** — annotation processing in designer module
 - **IntelliJ forms_rt 7.0.3** — Swing form support for Designer popups
 
 ## Module Packaging
 
-The root `build.gradle.kts` uses `io.ia.sdk.modl` plugin (v0.4.0) to assemble the `.modl` file. Module ID is `com.axone_io.ignition.git`. The version includes a build timestamp (`yyyyMMddHH`). Module signing is disabled by default (`skipModlSigning = true`); to enable, copy `gradle.template.properties` to `gradle.properties` and fill in signing credentials.
+The root `build.gradle.kts` uses `io.ia.sdk.modl` plugin (v0.4.1) to assemble the `.modl` file. Module ID is `com.axone_io.ignition.git`. The version includes a build timestamp (`yyyyMMddHH`). Module signing is disabled by default (`skipModlSigning = true`); to enable, copy `gradle.template.properties` to `gradle.properties` and fill in signing credentials.
 
 ## Java Version
 
