@@ -16,7 +16,7 @@ allprojects {
 ignitionModule {
     name.set("Git")
     fileName.set("Git.modl")
-    id.set("com.axone_io.ignition.git")
+    id.set("com.operametrix.ignition.git")
     moduleVersion.set("${project.version}")
     moduleDescription.set("Adds a simple scripting function to the client and gateway")
     requiredIgnitionVersion.set(sdk_version)
@@ -31,9 +31,9 @@ ignitionModule {
     moduleDependencies.set(mapOf<String, String>())
 
     hooks.putAll(mapOf(
-        "com.axone_io.ignition.git.ClientHook" to "C",
-        "com.axone_io.ignition.git.DesignerHook" to "D",
-        "com.axone_io.ignition.git.GatewayHook" to "G"
+        "com.operametrix.ignition.git.ClientHook" to "C",
+        "com.operametrix.ignition.git.DesignerHook" to "D",
+        "com.operametrix.ignition.git.GatewayHook" to "G"
     ))
 
     skipModlSigning.set(true)

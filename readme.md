@@ -1,93 +1,61 @@
-# Ignition Git Module 
+# Ignition Git Module
 
 [![License](https://img.shields.io/badge/license-Beerware-green.svg)](LICENSE.md)
 
-Integrated git client in free Ignition module.
-
-## Presentation
-
-The Git module is an Ignition module embedding a Git client to make its integration easier into Ignition project development.<br/>
-It permits to manage project resources throughout the development process in the Ignition designer. <br/>
-Exporting gateway configuration is simplified or even automated.
+An Ignition module that embeds a Git client directly into the Ignition Designer, enabling version control of project resources without leaving the development environment.
 
 ## Features
 
 - Initialize a git repository directly from the Designer — enter the repo URI and credentials without needing Gateway admin access. The status bar shows "Not configured" for unregistered projects; click it to open the setup dialog. Supports both HTTPS and SSH repositories with dynamic field switching based on the URI.
-- Link an Ignition project with a remote repo, (Gateway Webpage)
-- Link an Ignition user to a git project, with ssh or user/password authentication, (Gateway Webpage)
+- Link an Ignition project with a remote repo (Gateway Webpage)
+- Link an Ignition user to a git project, with SSH or user/password authentication (Gateway Webpage)
 - Manage git credentials directly from the Designer by clicking the user icon in the status bar — supports both HTTPS (username/password) and SSH (private key) authentication
-- Commit resources with last-modification timestamps shown per resource, (Designer, on project saved or from git toolbar)
-- Push & Pull resources, (Designer, from git toolbar) — pulled changes are reflected immediately in the Designer
-- Branch management: list, create, checkout, and delete branches with automatic stash/restore of uncommitted changes, (Designer, from status bar branch button)
-- Export of the gateway configuration. Tags, images, theme... (Designer, from git toolbar)
-- Commit popup :<br/>
+- Commit resources with last-modification timestamps shown per resource (Designer, on project saved or from git toolbar)
+- Push & Pull resources (Designer, from git toolbar) — pulled changes are reflected immediately in the Designer
+- Branch management: list, create, checkout, and delete branches with automatic stash/restore of uncommitted changes (Designer, from status bar branch button)
+- Export of the gateway configuration: tags, images, themes (Designer, from git toolbar)
+- Side-by-side diff viewer for reviewing changes before committing
+- Commissioning configuration file for easy deployment
+
+### Screenshots
+
+- Commit popup:<br/>
 ![Commit Popup](./img/CommitPopup.png)
-- Toolbar :<br/>
+- Toolbar:<br/>
 ![Git Toolbar](./img/GitToolbar.png)
-- Status Bar :<br/>
-![Git Toolbar](./img/GitStatusBar.png)
-- Commissioning configuration file for easy deployment.<br/>
+- Status Bar:<br/>
+![Git Status Bar](./img/GitStatusBar.png)
 
-## Module Documentation
-You can find the documentation of the module [HERE](https://www.axone-io.com/Files/Modules/GIT/1.0.3/doc/index.html), depending on its version.
+## Installation
 
-You will also find a download link to the signed version of the module.
-
-## Installation for development
 ### Prerequisites
 
-Before installing and running this project on your local machine, make sure you have installed the following :
-
 - Java (JDK >= 11)
-- Java IDE (I recommend [Intellij](https://www.jetbrains.com/idea/download/))
+- An Ignition gateway (8.1.0+)
+
+### Building from source
+
+1. Clone the repository: `git clone <repo-url>`
+2. Build the module: `./gradlew build`
+3. Install the resulting `build/Git.modl` on your Ignition gateway.
 
 The Gradle wrapper is included in the project, so no separate Gradle installation is needed.
 
-### Installation Instructions
-
-To install and run this project on your local machine, follow these steps :
-
-1. Clone the repo to your local machine: `git clone https://github.com/your-username/your-project.git`.
-2. Open the project in your preferred IDE.
-3. Build the project using Gradle by running the following command: `./gradlew build`.
-4. Install the module on your gateway.
-
-That's it ! You're ready to start working with the project on your local machine.
-
-## Roadmap
-
-- Project options for select which resources export on ExportGatewayConfig :
-  - Tags, which tag provider, which folder…
-- ~~Timestamp changes in commit popup,~~ (Done)
-- Status page :
-  - List commit,
-  - Repos state.
-- SideDesignerBar for commit management like VisualStudioCode,
-- Find a way to find out who deleted the resources,
-- Vision project management :
-  - Auto export bin file to xml.
-- Make it impossible to create the same ignition user twice for the same project.
+**Note:** If you previously had the AXONE-IO version of this module installed (`com.axone_io.ignition.git`), you must uninstall it before installing this new version (`com.operametrix.ignition.git`), as Ignition treats them as separate modules.
 
 ## Contributing
 
-We're thrilled that you want to contribute to this project !<br/>
-Here are a few steps to get started :
-- Fork the repo and clone your fork to your local machine.
-- Create a branch for your feature : git checkout -b feature/describe-your-feature.
-- Make your changes or add the new feature.
-- Commit your changes, clearly explaining what you did : git commit -m "Added a new feature: describe your feature".
-- Push your changes to your fork : git push origin feature/describe-your-feature.
-- Open a pull request, explaining the changes you made and why they should be included in the project.
+Contributions are welcome! To get started:
 
-We'll review your contribution as soon as possible and provide feedback.<br/>
-Thanks for participating !
+1. Fork the repo and clone your fork.
+2. Create a branch for your feature: `git checkout -b feature/describe-your-feature`
+3. Make your changes and commit with a clear message.
+4. Push to your fork and open a pull request.
 
-## Contact
+## Acknowledgements
 
-Enzo Sagnelonge - e.sagnelonge@axone-io.com
-
-AXONE-IO - contact@axone-io.com - https://www.axone-io.com/
+This module was originally created by [AXONE-IO](https://www.axone-io.com/) (Enzo Sagnelonge). We are grateful to AXONE-IO for their work in building and open-sourcing this project.
 
 ## License
 
-This project is licensed by Beerware. Please see the LICENSE.md file for more information.
+This project is licensed under the Beerware license. See [LICENSE.md](LICENSE.md) for details.

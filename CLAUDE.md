@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Ignition Git Module — a Java module for the Inductive Automation Ignition SCADA platform (8.1.0+) that embeds a Git client into the Ignition Designer. It enables committing, pushing, pulling project resources, branch management, and exporting gateway configuration directly from the Designer toolbar and status bar. Built by AXONE-IO, version 1.0.3.
+Ignition Git Module — a Java module for the Inductive Automation Ignition SCADA platform (8.1.0+) that embeds a Git client into the Ignition Designer. It enables committing, pushing, pulling project resources, branch management, and exporting gateway configuration directly from the Designer toolbar and status bar. Originally built by AXONE-IO, maintained by Operametrix. Version 1.0.3.
 
 ## Build Commands
 
@@ -70,7 +70,7 @@ The root `build.gradle.kts` uses the `io.ia.sdk.modl` Gradle plugin to assemble 
 
 ## Module Packaging
 
-The root `build.gradle.kts` uses `io.ia.sdk.modl` plugin (v0.4.1) to assemble the `.modl` file. Module ID is `com.axone_io.ignition.git`. The version includes a build timestamp (`yyyyMMddHH`). Module signing is disabled by default (`skipModlSigning = true`); to enable, copy `gradle.template.properties` to `gradle.properties` and fill in signing credentials.
+The root `build.gradle.kts` uses `io.ia.sdk.modl` plugin (v0.4.1) to assemble the `.modl` file. Module ID is `com.operametrix.ignition.git`. The version includes a build timestamp (`yyyyMMddHH`). Module signing is disabled by default (`skipModlSigning = true`); to enable, copy `gradle.template.properties` to `gradle.properties` and fill in signing credentials.
 
 ## Java Version
 
