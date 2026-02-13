@@ -340,6 +340,15 @@ public class GatewayScriptModule extends AbstractScriptModule {
     }
 
     @Override
+    protected boolean discardChangesImpl(String projectName, List<String> paths) {
+        boolean result = GitManager.discardChanges(getProjectFolderPath(projectName), paths);
+        if (result) {
+            GitProjectManager.importProject(projectName);
+        }
+        return result;
+    }
+
+    @Override
     protected boolean initializeProjectImpl(String projectName, String repoUri, String ignitionUser,
                                              String email, String gitUsername, String password,
                                              String sshKey) throws Exception {

@@ -195,6 +195,13 @@ public abstract class AbstractScriptModule implements GitScriptInterface {
         return getCommitFileDiffImpl(projectName, commitHash, filePath);
     }
 
+    @Override
+    @ScriptFunction(docBundlePrefix = "AbstractScriptModule")
+    public boolean discardChanges(@ScriptArg("projectName") String projectName,
+                                  @ScriptArg("paths") List<String> paths) {
+        return discardChangesImpl(projectName, paths);
+    }
+
     protected abstract boolean pullImpl(String projectName, String userName, boolean importTags, boolean importTheme,
                                         boolean importImages) throws Exception;
     protected abstract boolean pushImpl(String projectName, String userName) throws Exception;
@@ -223,5 +230,6 @@ public abstract class AbstractScriptModule implements GitScriptInterface {
     protected abstract Dataset getCommitHistoryImpl(String projectName, int skip, int limit);
     protected abstract List<String> getCommitFilesImpl(String projectName, String commitHash);
     protected abstract List<String> getCommitFileDiffImpl(String projectName, String commitHash, String filePath);
+    protected abstract boolean discardChangesImpl(String projectName, List<String> paths);
 
 }

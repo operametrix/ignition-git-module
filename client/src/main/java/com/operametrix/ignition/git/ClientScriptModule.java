@@ -139,4 +139,9 @@ public class ClientScriptModule extends AbstractScriptModule {
     protected List<String> getCommitFileDiffImpl(String projectName, String commitHash, String filePath) {
         return rpc.getCommitFileDiff(projectName, commitHash, filePath);
     }
+
+    @Override
+    protected boolean discardChangesImpl(String projectName, List<String> paths) {
+        return rpc.discardChanges(projectName, paths);
+    }
 }

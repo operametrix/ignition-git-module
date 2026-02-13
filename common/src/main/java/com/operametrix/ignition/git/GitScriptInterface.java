@@ -70,4 +70,8 @@ public interface GitScriptInterface {
      *  Returns a 2-element list: [oldContent, newContent]. */
     List<String> getCommitFileDiff(String projectName, String commitHash, String filePath);
 
+    /** Discard uncommitted changes for the given resource paths, reverting them to HEAD state.
+     *  Tracked files are checked out from HEAD; untracked files are deleted. */
+    boolean discardChanges(String projectName, List<String> paths);
+
 }

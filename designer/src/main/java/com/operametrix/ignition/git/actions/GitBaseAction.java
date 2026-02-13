@@ -87,6 +87,9 @@ public class GitBaseAction extends BaseAction {
         try {
             rpc.commit(projectName, userName, changes, commitMessage);
             SwingUtilities.invokeLater(new Thread(() -> showConfirmPopup(message, messageType)));
+            if (instance != null) {
+                instance.refreshSourceControlPanel();
+            }
         } catch (Exception ex) {
             ErrorUtil.showError(ex);
         }
@@ -100,6 +103,9 @@ public class GitBaseAction extends BaseAction {
             rpc.pull(projectName, userName, importTags, importTheme, importImages);
             pullProjectFromGateway();
             SwingUtilities.invokeLater(new Thread(() -> showConfirmPopup(message, messageType)));
+            if (instance != null) {
+                instance.refreshSourceControlPanel();
+            }
         } catch (Exception ex) {
             ErrorUtil.showError(ex);
         }
@@ -114,6 +120,9 @@ public class GitBaseAction extends BaseAction {
             rpc.checkoutBranch(projectName, branchName);
             pullProjectFromGateway();
             SwingUtilities.invokeLater(new Thread(() -> showConfirmPopup(message, messageType)));
+            if (instance != null) {
+                instance.refreshSourceControlPanel();
+            }
         } catch (Exception ex) {
             ErrorUtil.showError(ex);
         }
@@ -255,6 +264,9 @@ public class GitBaseAction extends BaseAction {
                     break;
             }
             if(confirmPopup) SwingUtilities.invokeLater(new Thread(() -> showConfirmPopup(message, messageType)));
+            if (instance != null) {
+                instance.refreshSourceControlPanel();
+            }
         } catch (Exception ex) {
             ErrorUtil.showError(ex);
         }

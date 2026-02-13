@@ -9,6 +9,7 @@ import com.operametrix.ignition.git.DiffViewerPopup;
 import com.operametrix.ignition.git.HistoryPopup;
 import com.operametrix.ignition.git.InitRepoPopup;
 import com.operametrix.ignition.git.PullPopup;
+import com.operametrix.ignition.git.SourceControlPanel;
 import com.inductiveautomation.ignition.common.Dataset;
 import com.inductiveautomation.ignition.common.project.ChangeOperation;
 import com.inductiveautomation.ignition.common.project.resource.ProjectResourceId;
@@ -303,6 +304,47 @@ public class GitActionManager {
                     "Failed to load diff: " + e.getMessage(),
                     "Error", JOptionPane.ERROR_MESSAGE);
         }
+    }
+
+    public static void wireSourceControlPanel(SourceControlPanel panel, String projectName, String userName) {
+        panel.setOnRefreshRequested(() -> {
+            if (DesignerHook.instance != null) {
+                DesignerHook.instance.refreshSourceControlPanel();
+            }
+        });
+
+        panel.setOnDiffRequested((resource, type) -> showDiffViewer(projectName, resource, type));
+
+        panel.setOnDiscardRequested(paths -> new Thread(() -> {
+            try {
+                rpc.discardChanges(projectName, paths);
+                pullProjectFromGateway();
+                if (DesignerHook.instance != null) {
+                    DesignerHook.instance.refreshSourceControlPanel();
+                }
+            } catch (Exception e) {
+                logger.error("Error discarding changes", e);
+                SwingUtilities.invokeLater(() ->
+                        JOptionPane.showMessageDialog(context.getFrame(),
+                                "Failed to discard changes: " + e.getMessage(),
+                                "Error", JOptionPane.ERROR_MESSAGE));
+            }
+        }).start());
+
+        panel.setOnCommitRequested((changes, message) -> new Thread(() -> {
+            try {
+                handleCommitAction(changes, message);
+                if (DesignerHook.instance != null) {
+                    DesignerHook.instance.refreshSourceControlPanel();
+                }
+            } catch (Exception e) {
+                logger.error("Error committing from panel", e);
+            }
+        }).start());
+
+        panel.setOnPushRequested(() -> handleAction(GitActionType.PUSH));
+
+        panel.setOnPullRequested(() -> showPullPopup(projectName, userName));
     }
 
     public static void showConfirmPopup(String message, int messageType) {

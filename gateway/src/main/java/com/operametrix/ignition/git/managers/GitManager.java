@@ -43,6 +43,7 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.Optional;
@@ -705,5 +706,62 @@ public class GitManager {
             logger.error("Error reading file content at commit", e);
         }
         return "";
+    }
+
+    /**
+     * Discard uncommitted changes for the given paths.
+     * Tracked (modified/deleted) files are checked out from HEAD.
+     * Untracked (created) files are deleted via git clean.
+     *
+     * @param projectFolderPath path to the git working directory
+     * @param paths             list of resource paths to discard
+     * @return true if discard succeeded
+     */
+    public static boolean discardChanges(Path projectFolderPath, List<String> paths) {
+        try (Git git = getGit(projectFolderPath)) {
+            Status status = git.status().call();
+            Set<String> untracked = status.getUntracked();
+
+            List<String> trackedPaths = new ArrayList<>();
+            Set<String> untrackedPaths = new HashSet<>();
+
+            for (String path : paths) {
+                boolean isUntracked = false;
+                for (String u : untracked) {
+                    if (u.equals(path) || u.startsWith(path + "/")) {
+                        isUntracked = true;
+                        break;
+                    }
+                }
+                if (isUntracked) {
+                    untrackedPaths.add(path);
+                } else {
+                    trackedPaths.add(path);
+                }
+            }
+
+            // Revert tracked files to HEAD
+            if (!trackedPaths.isEmpty()) {
+                CheckoutCommand checkout = git.checkout();
+                for (String path : trackedPaths) {
+                    checkout.addPath(path);
+                }
+                checkout.call();
+            }
+
+            // Remove untracked files
+            if (!untrackedPaths.isEmpty()) {
+                git.clean()
+                        .setPaths(untrackedPaths)
+                        .setCleanDirectories(true)
+                        .setForce(true)
+                        .call();
+            }
+
+            return true;
+        } catch (Exception e) {
+            logger.error("Error discarding changes", e);
+            return false;
+        }
     }
 }

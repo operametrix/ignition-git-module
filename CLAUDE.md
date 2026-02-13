@@ -54,8 +54,17 @@ The root `build.gradle.kts` uses the `io.ia.sdk.modl` Gradle plugin to assemble 
 - `CredentialsPopup` — manage email, username, password/SSH key for an already-registered project
 - `InitRepoPopup` — initialize a git repo for an unregistered project: enter repo URI (dynamic HTTPS/SSH field switching based on URI prefix), email, and credentials. On success, creates DB records + clones the repo + refreshes the Designer project.
 
+**Dockable Source Control panel** (`SourceControlPanel.java`) — a JIDE `DockableFrame`-based panel docked on the left (west) side, collapsed (auto-hide) by default. Provides an at-a-glance view of uncommitted changes without opening popups:
+- Top toolbar: Refresh, Push, Pull buttons (reuses existing SVG icons)
+- Commit section: message text area + Commit button for inline commits
+- Changes table: checkbox + Resource + Type columns with `SelectAllHeader`; Type column shows color-coded single-letter badges (A=green/created, M=amber/modified, D=red/deleted, U=orange/uncommitted)
+- Double-click a row to view diff; right-click context menu for "View Diff" and "Discard Changes" (with confirmation dialog)
+- Uses `java.util.function` callback setters wired by `GitActionManager.wireSourceControlPanel()`
+- Auto-refreshes every 15 seconds via a `Timer`, plus immediate refresh after any git operation (commit, pull, push, checkout)
+- Thread-safe: `setChangesData(Dataset)` posts updates to EDT via `SwingUtilities.invokeLater()`
+
 **Manager classes** in `gateway` encapsulate domain logic:
-- `GitManager` — core JGit operations (clone, fetch, pull, push, commit, status, branch list/create/checkout/delete with per-branch stash/restore, resource diff content extraction, commit history log, commit file list, commit file diff)
+- `GitManager` — core JGit operations (clone, fetch, pull, push, commit, status, branch list/create/checkout/delete with per-branch stash/restore, resource diff content extraction, commit history log, commit file list, commit file diff, discard changes)
 - `GitProjectManager`, `GitTagManager`, `GitThemeManager`, `GitImageManager` — resource import/export
 - `GitCommissioningUtils` — file-based config loading for automated deployment
 

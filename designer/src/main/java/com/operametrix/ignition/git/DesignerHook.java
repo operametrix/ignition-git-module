@@ -5,6 +5,7 @@ import com.operametrix.ignition.git.managers.GitActionManager;
 import com.operametrix.ignition.git.utils.IconUtils;
 import com.inductiveautomation.ignition.client.gateway_interface.ModuleRPCFactory;
 import com.inductiveautomation.ignition.common.BundleUtil;
+import com.inductiveautomation.ignition.common.Dataset;
 import com.inductiveautomation.ignition.common.SessionInfo;
 import com.inductiveautomation.ignition.common.licensing.LicenseState;
 import com.inductiveautomation.ignition.common.project.ChangeOperation;
@@ -15,6 +16,9 @@ import com.inductiveautomation.ignition.common.script.ScriptManager;
 import com.inductiveautomation.ignition.designer.model.AbstractDesignerModuleHook;
 import com.inductiveautomation.ignition.designer.model.SaveContext;
 import com.jidesoft.action.DockableBarManager;
+import com.jidesoft.docking.DockContext;
+import com.jidesoft.docking.DockableFrame;
+import com.jidesoft.docking.DockingManager;
 
 import javax.swing.*;
 import javax.swing.Timer;
@@ -37,6 +41,10 @@ public class DesignerHook extends AbstractDesignerModuleHook {
     JButton branchButton;
     Timer gitUserTimer;
     boolean toolBarInitialized;
+    SourceControlPanel sourceControlPanel;
+    DockableFrame sourceControlFrame;
+    boolean sourceControlFrameInitialized;
+    Timer sourceControlRefreshTimer;
     @Override
     public void initializeScriptManager(ScriptManager manager) {
         super.initializeScriptManager(manager);
@@ -65,6 +73,7 @@ public class DesignerHook extends AbstractDesignerModuleHook {
             rpc.setupLocalRepo(projectName, userName);
             initStatusBar();
             initToolBar();
+            initSourceControlPanel();
         } else {
             initStatusBarUnregistered();
         }
@@ -156,8 +165,11 @@ public class DesignerHook extends AbstractDesignerModuleHook {
             statusBar.removeDisplay(gitStatusBar);
         }
 
+        cleanupSourceControlPanel();
+
         initStatusBar();
         initToolBar();
+        initSourceControlPanel();
     }
 
     private void initToolBar() {
@@ -172,6 +184,62 @@ public class DesignerHook extends AbstractDesignerModuleHook {
 
         toolBarManager.addDockableBar(toolbar);
         toolBarInitialized = true;
+    }
+
+    private void initSourceControlPanel() {
+        sourceControlPanel = new SourceControlPanel();
+        GitActionManager.wireSourceControlPanel(sourceControlPanel, projectName, userName);
+
+        sourceControlFrame = new DockableFrame("GitSourceControl",
+                IconUtils.getIcon("/com/operametrix/ignition/git/icons/ic_git.svg"));
+        sourceControlFrame.setTitle(BundleUtil.get().getStringLenient("DesignerHook.SourceControl.Title"));
+        sourceControlFrame.getContentPane().add(sourceControlPanel);
+        sourceControlFrame.setPreferredSize(new Dimension(525, 400));
+        sourceControlFrame.setAutohideWidth(525);
+        sourceControlFrame.setDockedWidth(525);
+
+        DockingManager dockingManager = context.getDockingManager();
+        sourceControlFrame.setInitSide(DockContext.DOCK_SIDE_WEST);
+        sourceControlFrame.setInitIndex(0);
+        sourceControlFrame.setInitMode(DockContext.STATE_AUTOHIDE);
+        dockingManager.addFrame(sourceControlFrame);
+        sourceControlFrameInitialized = true;
+
+        // Auto-refresh timer
+        sourceControlRefreshTimer = new Timer(15000, e -> refreshSourceControlPanel());
+        sourceControlRefreshTimer.start();
+
+        // Initial refresh
+        refreshSourceControlPanel();
+    }
+
+    public void refreshSourceControlPanel() {
+        if (sourceControlPanel == null) return;
+        new Thread(() -> {
+            try {
+                Dataset ds = rpc.getUncommitedChanges(projectName, userName);
+                sourceControlPanel.setChangesData(ds);
+            } catch (Exception e) {
+                // Silently ignore refresh errors
+            }
+        }).start();
+    }
+
+    private void cleanupSourceControlPanel() {
+        if (sourceControlRefreshTimer != null) {
+            sourceControlRefreshTimer.stop();
+            sourceControlRefreshTimer = null;
+        }
+        if (sourceControlFrameInitialized) {
+            try {
+                DockingManager dockingManager = context.getDockingManager();
+                dockingManager.removeFrame("GitSourceControl");
+            } catch (Exception ignored) {
+            }
+            sourceControlFrameInitialized = false;
+        }
+        sourceControlPanel = null;
+        sourceControlFrame = null;
     }
 
     @Override
@@ -202,5 +270,7 @@ public class DesignerHook extends AbstractDesignerModuleHook {
         if (gitUserTimer != null) {
             gitUserTimer.stop();
         }
+
+        cleanupSourceControlPanel();
     }
 }

@@ -2,7 +2,7 @@
 
 ## Current capabilities
 
-Init, clone, commit (with file selection + timestamp), push (all branches+tags), pull (merge only), branch list/create/checkout/delete, auto-stash on checkout, status (uncommitted changes), SSH + HTTPS auth, credential management UI, resource import/export, commissioning automation, Designer toolbar + status bar.
+Init, clone, commit (with file selection + timestamp), push (all branches+tags), pull (merge only), branch list/create/checkout/delete, auto-stash on checkout, status (uncommitted changes), SSH + HTTPS auth, credential management UI, resource import/export, commissioning automation, Designer toolbar + status bar, side-by-side diff viewer, commit history browser with per-commit file list and historical diff, dockable Source Control panel with inline commit/discard/diff, discard (revert) uncommitted changes.
 
 ---
 
@@ -13,9 +13,9 @@ Init, clone, commit (with file selection + timestamp), push (all branches+tags),
 | # | Feature | Impact | Notes |
 |---|---------|--------|-------|
 | 1 | ~~**Diff viewer**~~ | ~~Can't preview what changed before committing~~ | **Implemented.** Double-click a resource in the commit popup to open a side-by-side diff viewer. |
-| 2 | **Commit log / history** | No way to see past commits | Listed in the readme roadmap as planned |
+| 2 | ~~**Commit log / history**~~ | ~~No way to see past commits~~ | **Implemented.** History toolbar button opens paginated commit log; double-click a commit to see changed files; double-click a file to view its diff at that commit. |
 | 3 | **Fetch without merge** | Pull always merges, no way to just fetch | Useful for reviewing incoming changes first |
-| 4 | **Discard / restore changes** | No way to revert a file to its last committed state | Users must commit or lose changes |
+| 4 | ~~**Discard / restore changes**~~ | ~~No way to revert a file to its last committed state~~ | **Implemented.** Right-click a resource in the Source Control panel and select "Discard Changes" to revert tracked files to HEAD or delete untracked files. Also available as `discardChanges` RPC method. |
 | 5 | **Staged vs unstaged distinction** | All changes shown as one flat list | Standard Git separates working tree from index |
 
 ### Tier 2 — Core branching and collaboration gaps
@@ -78,7 +78,7 @@ Init, clone, commit (with file selection + timestamp), push (all branches+tags),
 |---|---------|--------|-------|
 | 40 | **AI commit message generation** | Must write messages manually | GitKraken generates from diff |
 | 41 | **Hunk/line-level staging** | All-or-nothing file selection | Can't commit part of a file |
-| 42 | **Syntax-highlighted diffs** | No diff viewer at all | |
+| 42 | **Syntax-highlighted diffs** | Diff viewer exists but without syntax highlighting | |
 | 43 | **Drag-and-drop operations** | N/A without a commit graph | |
 | 44 | **Multi-repo workspace** | One project = one repo, no bulk ops | |
 | 45 | **Issue tracker integration** | No Jira/Trello/GitHub Issues link | |
@@ -91,6 +91,6 @@ Top 5 highest-impact additions for this module's use case (Ignition Designer tea
 
 1. ~~**Diff viewer** (#1)~~ — **Done.** Side-by-side diff viewer in commit popup.
 2. **Merge conflict resolution UI** (#7) — pull silently fails on conflicts, blocks teams
-3. **Commit log/history** (#2) — already on the roadmap, essential for any Git workflow
+3. ~~**Commit log/history** (#2)~~ — **Done.** Paginated history browser with per-commit file list and historical diff.
 4. **Selective push** (#21) — pushing all branches every time is dangerous in team settings
 5. **Revert commit** (#15) — no way to undo mistakes without manual intervention
