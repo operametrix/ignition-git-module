@@ -124,4 +124,19 @@ public class ClientScriptModule extends AbstractScriptModule {
     protected List<String> getResourceDiffImpl(String projectName, String resourcePath) {
         return rpc.getResourceDiff(projectName, resourcePath);
     }
+
+    @Override
+    protected Dataset getCommitHistoryImpl(String projectName, int skip, int limit) {
+        return rpc.getCommitHistory(projectName, skip, limit);
+    }
+
+    @Override
+    protected List<String> getCommitFilesImpl(String projectName, String commitHash) {
+        return rpc.getCommitFiles(projectName, commitHash);
+    }
+
+    @Override
+    protected List<String> getCommitFileDiffImpl(String projectName, String commitHash, String filePath) {
+        return rpc.getCommitFileDiff(projectName, commitHash, filePath);
+    }
 }

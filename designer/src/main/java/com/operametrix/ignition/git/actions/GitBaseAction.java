@@ -47,6 +47,11 @@ public class GitBaseAction extends BaseAction {
         BRANCH(
             "DesignerHook.Actions.Branch",
             "/com/operametrix/ignition/git/icons/ic_branch.svg"
+        ),
+
+        HISTORY(
+            "DesignerHook.Actions.History",
+            "/com/operametrix/ignition/git/icons/ic_history.svg"
         );
 
         private final String baseBundleKey;
@@ -243,6 +248,10 @@ public class GitBaseAction extends BaseAction {
                 case BRANCH:
                     confirmPopup = Boolean.FALSE;
                     showBranchPopup(projectName, userName);
+                    break;
+                case HISTORY:
+                    confirmPopup = Boolean.FALSE;
+                    showHistoryPopup(projectName);
                     break;
             }
             if(confirmPopup) SwingUtilities.invokeLater(new Thread(() -> showConfirmPopup(message, messageType)));

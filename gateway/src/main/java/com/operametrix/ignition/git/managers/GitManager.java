@@ -20,11 +20,17 @@ import org.eclipse.jgit.lib.*;
 import org.eclipse.jgit.revwalk.RevCommit;
 import org.eclipse.jgit.revwalk.RevTree;
 import org.eclipse.jgit.revwalk.RevWalk;
+import org.eclipse.jgit.diff.DiffEntry;
+import org.eclipse.jgit.diff.DiffFormatter;
+import org.eclipse.jgit.treewalk.AbstractTreeIterator;
+import org.eclipse.jgit.treewalk.CanonicalTreeParser;
+import org.eclipse.jgit.treewalk.EmptyTreeIterator;
 import org.eclipse.jgit.transport.RefSpec;
 import org.eclipse.jgit.transport.URIish;
 import org.eclipse.jgit.transport.UsernamePasswordCredentialsProvider;
 import org.eclipse.jgit.treewalk.TreeWalk;
 import org.eclipse.jgit.treewalk.filter.PathFilter;
+import org.eclipse.jgit.util.io.DisabledOutputStream;
 import simpleorm.dataset.SQuery;
 
 import java.io.ByteArrayOutputStream;
@@ -562,5 +568,142 @@ public class GitManager {
             git.branchDelete().setBranchNames(branchName).setForce(true).call();
             return true;
         }
+    }
+
+    /**
+     * Get paginated commit history from the repository log.
+     *
+     * @param projectFolderPath path to the git working directory
+     * @param skip              number of commits to skip (for pagination)
+     * @param limit             maximum number of commits to return
+     * @return list of String arrays: [fullHash, shortHash, author, date, message]
+     */
+    public static List<String[]> getCommitLog(Path projectFolderPath, int skip, int limit) {
+        List<String[]> commits = new ArrayList<>();
+        try (Git git = getGit(projectFolderPath)) {
+            Iterable<RevCommit> log = git.log().setSkip(skip).setMaxCount(limit).call();
+            SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm");
+            for (RevCommit commit : log) {
+                String fullHash = commit.getName();
+                String shortHash = fullHash.substring(0, 7);
+                String authorName = commit.getAuthorIdent().getName();
+                String authorEmail = commit.getAuthorIdent().getEmailAddress();
+                String author = (authorName == null || authorName.isEmpty()) ? authorEmail : authorName;
+                String date = dateFormat.format(commit.getAuthorIdent().getWhen());
+                String message = commit.getShortMessage();
+                commits.add(new String[]{fullHash, shortHash, author, date, message});
+            }
+        } catch (Exception e) {
+            logger.error("Error getting commit log", e);
+        }
+        return commits;
+    }
+
+    /**
+     * List files changed in a specific commit by diffing against its parent tree.
+     * Handles initial commits (no parent) via {@link EmptyTreeIterator}.
+     *
+     * @param projectFolderPath path to the git working directory
+     * @param commitHash        full SHA-1 hash of the commit
+     * @return list of strings in format "CHANGE_TYPE:path" (e.g. "ADD:src/Foo.java")
+     */
+    public static List<String> getCommitFileList(Path projectFolderPath, String commitHash) {
+        List<String> files = new ArrayList<>();
+        try (Git git = getGit(projectFolderPath);
+             Repository repository = git.getRepository()) {
+
+            ObjectId commitId = repository.resolve(commitHash);
+            try (RevWalk revWalk = new RevWalk(repository)) {
+                RevCommit commit = revWalk.parseCommit(commitId);
+
+                AbstractTreeIterator parentTreeIter;
+                if (commit.getParentCount() > 0) {
+                    RevCommit parent = revWalk.parseCommit(commit.getParent(0).getId());
+                    parentTreeIter = prepareTreeParser(repository, parent);
+                } else {
+                    parentTreeIter = new EmptyTreeIterator();
+                }
+
+                AbstractTreeIterator commitTreeIter = prepareTreeParser(repository, commit);
+
+                try (DiffFormatter diffFormatter = new DiffFormatter(DisabledOutputStream.INSTANCE)) {
+                    diffFormatter.setRepository(repository);
+                    List<DiffEntry> diffs = diffFormatter.scan(parentTreeIter, commitTreeIter);
+                    for (DiffEntry entry : diffs) {
+                        String path = entry.getChangeType() == DiffEntry.ChangeType.DELETE
+                                ? entry.getOldPath()
+                                : entry.getNewPath();
+                        files.add(entry.getChangeType().name() + ":" + path);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            logger.error("Error getting commit file list", e);
+        }
+        return files;
+    }
+
+    /**
+     * Get the old (parent) and new (commit) content for a specific file at a given commit.
+     *
+     * @param projectFolderPath path to the git working directory
+     * @param commitHash        full SHA-1 hash of the commit
+     * @param filePath          repository-relative file path
+     * @return two-element list: [oldContent, newContent]; empty strings for missing content
+     */
+    public static List<String> getCommitFileDiffContent(Path projectFolderPath, String commitHash, String filePath) {
+        String oldContent = "";
+        String newContent = "";
+
+        try (Git git = getGit(projectFolderPath);
+             Repository repository = git.getRepository()) {
+
+            ObjectId commitId = repository.resolve(commitHash);
+            try (RevWalk revWalk = new RevWalk(repository)) {
+                RevCommit commit = revWalk.parseCommit(commitId);
+
+                // Get new content from the commit
+                newContent = getFileContentAtCommit(repository, commit, filePath);
+
+                // Get old content from parent (if exists)
+                if (commit.getParentCount() > 0) {
+                    RevCommit parent = revWalk.parseCommit(commit.getParent(0).getId());
+                    oldContent = getFileContentAtCommit(repository, parent, filePath);
+                }
+            }
+        } catch (Exception e) {
+            logger.error("Error getting commit file diff content", e);
+        }
+        return Arrays.asList(oldContent, newContent);
+    }
+
+    /** Create a {@link CanonicalTreeParser} positioned at the root of a commit's tree. */
+    private static CanonicalTreeParser prepareTreeParser(Repository repository, RevCommit commit) throws IOException {
+        try (ObjectReader reader = repository.newObjectReader()) {
+            CanonicalTreeParser treeParser = new CanonicalTreeParser();
+            treeParser.reset(reader, commit.getTree().getId());
+            return treeParser;
+        }
+    }
+
+    /** Read the UTF-8 content of a file at a specific commit, or empty string if not found. */
+    private static String getFileContentAtCommit(Repository repository, RevCommit commit, String filePath) {
+        try (TreeWalk treeWalk = new TreeWalk(repository)) {
+            treeWalk.addTree(commit.getTree());
+            treeWalk.setRecursive(true);
+            treeWalk.setFilter(PathFilter.create(filePath));
+
+            if (treeWalk.next()) {
+                ObjectId objectId = treeWalk.getObjectId(0);
+                ByteArrayOutputStream out = new ByteArrayOutputStream();
+                try (ObjectReader reader = repository.newObjectReader()) {
+                    reader.open(objectId).copyTo(out);
+                }
+                return out.toString();
+            }
+        } catch (IOException e) {
+            logger.error("Error reading file content at commit", e);
+        }
+        return "";
     }
 }

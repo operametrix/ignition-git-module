@@ -172,6 +172,29 @@ public abstract class AbstractScriptModule implements GitScriptInterface {
         return getResourceDiffImpl(projectName, resourcePath);
     }
 
+    @Override
+    @ScriptFunction(docBundlePrefix = "AbstractScriptModule")
+    public Dataset getCommitHistory(@ScriptArg("projectName") String projectName,
+                                    @ScriptArg("skip") int skip,
+                                    @ScriptArg("limit") int limit) {
+        return getCommitHistoryImpl(projectName, skip, limit);
+    }
+
+    @Override
+    @ScriptFunction(docBundlePrefix = "AbstractScriptModule")
+    public List<String> getCommitFiles(@ScriptArg("projectName") String projectName,
+                                       @ScriptArg("commitHash") String commitHash) {
+        return getCommitFilesImpl(projectName, commitHash);
+    }
+
+    @Override
+    @ScriptFunction(docBundlePrefix = "AbstractScriptModule")
+    public List<String> getCommitFileDiff(@ScriptArg("projectName") String projectName,
+                                          @ScriptArg("commitHash") String commitHash,
+                                          @ScriptArg("filePath") String filePath) {
+        return getCommitFileDiffImpl(projectName, commitHash, filePath);
+    }
+
     protected abstract boolean pullImpl(String projectName, String userName, boolean importTags, boolean importTheme,
                                         boolean importImages) throws Exception;
     protected abstract boolean pushImpl(String projectName, String userName) throws Exception;
@@ -197,5 +220,8 @@ public abstract class AbstractScriptModule implements GitScriptInterface {
                                                       String email, String gitUsername, String password,
                                                       String sshKey) throws Exception;
     protected abstract List<String> getResourceDiffImpl(String projectName, String resourcePath);
+    protected abstract Dataset getCommitHistoryImpl(String projectName, int skip, int limit);
+    protected abstract List<String> getCommitFilesImpl(String projectName, String commitHash);
+    protected abstract List<String> getCommitFileDiffImpl(String projectName, String commitHash, String filePath);
 
 }

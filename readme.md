@@ -15,6 +15,7 @@ An Ignition module that embeds a Git client directly into the Ignition Designer,
 - Branch management: list, create, checkout, and delete branches with automatic stash/restore of uncommitted changes (Designer, from status bar branch button)
 - Export of the gateway configuration: tags, images, themes (Designer, from git toolbar)
 - Side-by-side diff viewer for reviewing changes before committing
+- Commit history browser: paginated log viewer accessible from the toolbar, with drill-down into changed files per commit and side-by-side diff of historical changes
 - Commissioning configuration file for easy deployment
 
 ### Screenshots

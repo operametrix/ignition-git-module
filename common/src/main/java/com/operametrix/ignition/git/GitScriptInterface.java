@@ -58,4 +58,16 @@ public interface GitScriptInterface {
      *  Returns a 2-element list: [oldContent, newContent]. */
     List<String> getResourceDiff(String projectName, String resourcePath);
 
+    /** Get paginated commit history for the project repository.
+     *  Returns a Dataset with columns: hash, shortHash, author, date, message. */
+    Dataset getCommitHistory(String projectName, int skip, int limit);
+
+    /** Get the list of files changed in a specific commit.
+     *  Returns a list of strings in format "CHANGE_TYPE:path". */
+    List<String> getCommitFiles(String projectName, String commitHash);
+
+    /** Get the old and new content for a file at a specific commit.
+     *  Returns a 2-element list: [oldContent, newContent]. */
+    List<String> getCommitFileDiff(String projectName, String commitHash, String filePath);
+
 }

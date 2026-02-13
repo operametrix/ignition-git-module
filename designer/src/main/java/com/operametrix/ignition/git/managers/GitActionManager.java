@@ -1,10 +1,12 @@
 package com.operametrix.ignition.git.managers;
 
 import com.operametrix.ignition.git.BranchPopup;
+import com.operametrix.ignition.git.CommitDetailPopup;
 import com.operametrix.ignition.git.CommitPopup;
 import com.operametrix.ignition.git.CredentialsPopup;
 import com.operametrix.ignition.git.DesignerHook;
 import com.operametrix.ignition.git.DiffViewerPopup;
+import com.operametrix.ignition.git.HistoryPopup;
 import com.operametrix.ignition.git.InitRepoPopup;
 import com.operametrix.ignition.git.PullPopup;
 import com.inductiveautomation.ignition.common.Dataset;
@@ -29,6 +31,7 @@ public class GitActionManager {
     static BranchPopup branchPopup;
     static CredentialsPopup credentialsPopup;
     static InitRepoPopup initRepoPopup;
+    static HistoryPopup historyPopup;
     private static final Logger logger = LoggerFactory.getLogger(GitActionManager.class);
 
 
@@ -225,6 +228,77 @@ public class GitActionManager {
             new DiffViewerPopup(resource, oldContent, newContent, context.getFrame());
         } catch (Exception e) {
             logger.error("Error showing diff viewer", e);
+            JOptionPane.showMessageDialog(context.getFrame(),
+                    "Failed to load diff: " + e.getMessage(),
+                    "Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    public static void showHistoryPopup(String projectName) {
+        try {
+            Dataset data = rpc.getCommitHistory(projectName, 0, HistoryPopup.PAGE_SIZE);
+            if (historyPopup != null) {
+                historyPopup.setData(data, false);
+                historyPopup.setVisible(true);
+                historyPopup.toFront();
+            } else {
+                historyPopup = new HistoryPopup(data, context.getFrame()) {
+                    @Override
+                    public void onCommitSelected(String fullHash, String shortHash, String message) {
+                        showCommitDetailPopup(projectName, fullHash, shortHash, message);
+                    }
+
+                    @Override
+                    public void onLoadMore() {
+                        try {
+                            Dataset moreData = rpc.getCommitHistory(projectName, getCurrentOffset(), getPageSize());
+                            setData(moreData, true);
+                        } catch (Exception ex) {
+                            logger.error("Error loading more commits", ex);
+                        }
+                    }
+
+                    @Override
+                    public void onRefresh() {
+                        try {
+                            Dataset freshData = rpc.getCommitHistory(projectName, 0, HistoryPopup.PAGE_SIZE);
+                            setData(freshData, false);
+                        } catch (Exception ex) {
+                            logger.error("Error refreshing commit history", ex);
+                        }
+                    }
+                };
+            }
+        } catch (Exception e) {
+            logger.error("Error showing history popup", e);
+        }
+    }
+
+    public static void showCommitDetailPopup(String projectName, String fullHash, String shortHash, String message) {
+        try {
+            List<String> files = rpc.getCommitFiles(projectName, fullHash);
+            new CommitDetailPopup(fullHash, shortHash, message, files, context.getFrame()) {
+                @Override
+                public void onFileDiffRequested(String commitHash, String filePath, String changeType) {
+                    showCommitFileDiff(projectName, commitHash, filePath, shortHash);
+                }
+            };
+        } catch (Exception e) {
+            logger.error("Error showing commit detail popup", e);
+            JOptionPane.showMessageDialog(context.getFrame(),
+                    "Failed to load commit details: " + e.getMessage(),
+                    "Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    public static void showCommitFileDiff(String projectName, String commitHash, String filePath, String shortHash) {
+        try {
+            List<String> diff = rpc.getCommitFileDiff(projectName, commitHash, filePath);
+            String oldContent = diff.get(0);
+            String newContent = diff.get(1);
+            new DiffViewerPopup(filePath + " @ " + shortHash, oldContent, newContent, context.getFrame());
+        } catch (Exception e) {
+            logger.error("Error showing commit file diff", e);
             JOptionPane.showMessageDialog(context.getFrame(),
                     "Failed to load diff: " + e.getMessage(),
                     "Error", JOptionPane.ERROR_MESSAGE);

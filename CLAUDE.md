@@ -46,14 +46,16 @@ The root `build.gradle.kts` uses the `io.ia.sdk.modl` Gradle plugin to assemble 
 
 **Designer popups** (`designer` module) are Swing `JFrame` dialogs with abstract callbacks overridden via anonymous subclasses in `GitActionManager`:
 - `CommitPopup` — select changes and enter commit message; displays resource name, type, author, and last-modification timestamp (formatted `yyyy-MM-dd HH:mm`). Double-clicking a resource row opens the `DiffViewerPopup` via the `onDiffRequested` callback.
-- `DiffViewerPopup` — side-by-side diff viewer comparing HEAD (committed) vs working tree content. Uses an LCS-based line diff algorithm with color-coded backgrounds (green for added, red for removed) and synchronized scrolling. Opened from `CommitPopup` via `GitActionManager.showDiffViewer()`, which calls `rpc.getResourceDiff()` to fetch content from the gateway.
+- `DiffViewerPopup` — side-by-side diff viewer comparing HEAD (committed) vs working tree content. Uses an LCS-based line diff algorithm with color-coded backgrounds (green for added, red for removed) and synchronized scrolling. Opened from `CommitPopup` via `GitActionManager.showDiffViewer()`, which calls `rpc.getResourceDiff()` to fetch content from the gateway. Also reused by `CommitDetailPopup` for viewing historical diffs at a specific commit.
+- `HistoryPopup` — paginated commit log table (short hash, author, date, message) with Load More/Refresh/Close buttons. Cached like other popups. Double-clicking a row opens `CommitDetailPopup`. Wired by `GitActionManager.showHistoryPopup()`.
+- `CommitDetailPopup` — shows files changed in a single commit (change type + path) with commit hash and message at top. Not cached (allows multiple side-by-side). Double-clicking a file opens `DiffViewerPopup` with old/new content at that commit via `rpc.getCommitFileDiff()`.
 - `PullPopup` — toggle import of tags/themes/images
 - `BranchPopup` — list/create/checkout/delete branches
 - `CredentialsPopup` — manage email, username, password/SSH key for an already-registered project
 - `InitRepoPopup` — initialize a git repo for an unregistered project: enter repo URI (dynamic HTTPS/SSH field switching based on URI prefix), email, and credentials. On success, creates DB records + clones the repo + refreshes the Designer project.
 
 **Manager classes** in `gateway` encapsulate domain logic:
-- `GitManager` — core JGit operations (clone, fetch, pull, push, commit, status, branch list/create/checkout/delete with per-branch stash/restore, resource diff content extraction)
+- `GitManager` — core JGit operations (clone, fetch, pull, push, commit, status, branch list/create/checkout/delete with per-branch stash/restore, resource diff content extraction, commit history log, commit file list, commit file diff)
 - `GitProjectManager`, `GitTagManager`, `GitThemeManager`, `GitImageManager` — resource import/export
 - `GitCommissioningUtils` — file-based config loading for automated deployment
 

@@ -317,6 +317,29 @@ public class GatewayScriptModule extends AbstractScriptModule {
     }
 
     @Override
+    protected Dataset getCommitHistoryImpl(String projectName, int skip, int limit) {
+        java.util.List<String[]> commits = GitManager.getCommitLog(getProjectFolderPath(projectName), skip, limit);
+        DatasetBuilder builder = new DatasetBuilder();
+        builder.colNames(java.util.List.of("hash", "shortHash", "author", "date", "message"));
+        builder.colTypes(java.util.List.of(String.class, String.class, String.class, String.class, String.class));
+        for (String[] row : commits) {
+            builder.addRow((Object[]) row);
+        }
+        Dataset ds = builder.build();
+        return ds != null ? ds : new BasicDataset();
+    }
+
+    @Override
+    protected List<String> getCommitFilesImpl(String projectName, String commitHash) {
+        return GitManager.getCommitFileList(getProjectFolderPath(projectName), commitHash);
+    }
+
+    @Override
+    protected List<String> getCommitFileDiffImpl(String projectName, String commitHash, String filePath) {
+        return GitManager.getCommitFileDiffContent(getProjectFolderPath(projectName), commitHash, filePath);
+    }
+
+    @Override
     protected boolean initializeProjectImpl(String projectName, String repoUri, String ignitionUser,
                                              String email, String gitUsername, String password,
                                              String sshKey) throws Exception {
