@@ -23,8 +23,8 @@ public class ClientScriptModule extends AbstractScriptModule {
     }
 
     @Override
-    protected boolean pushImpl(String projectName, String userName) throws Exception {
-        return rpc.push(projectName, userName);
+    protected boolean pushImpl(String projectName, String userName, boolean pushAllBranches, boolean pushTags) throws Exception {
+        return rpc.push(projectName, userName, pushAllBranches, pushTags);
     }
 
     @Override

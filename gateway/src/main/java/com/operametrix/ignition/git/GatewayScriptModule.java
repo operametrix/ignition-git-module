@@ -71,13 +71,19 @@ public class GatewayScriptModule extends AbstractScriptModule {
     }
 
     @Override
-    public boolean pushImpl(String projectName, String userName) throws Exception {
+    public boolean pushImpl(String projectName, String userName, boolean pushAllBranches, boolean pushTags) throws Exception {
         try (Git git = getGit(getProjectFolderPath(projectName))) {
             PushCommand push = git.push();
 
             setAuthentication(push, projectName, userName);
 
-            Iterable<PushResult> results = push.setPushAll().setPushTags().call();
+            if (pushAllBranches) {
+                push.setPushAll();
+            }
+            if (pushTags) {
+                push.setPushTags();
+            }
+            Iterable<PushResult> results = push.call();
             for (PushResult result : results) {
                 logger.trace(result.getMessages());
             }

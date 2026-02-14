@@ -248,7 +248,7 @@ public class GitBaseAction extends BaseAction {
                     showPullPopup(projectName, userName);
                     break;
                 case PUSH:
-                    rpc.push(projectName, userName);
+                    rpc.push(projectName, userName, false, false);
                     break;
                 case COMMIT:
                     confirmPopup = Boolean.FALSE;

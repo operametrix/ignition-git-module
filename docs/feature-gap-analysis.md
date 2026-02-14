@@ -2,7 +2,7 @@
 
 ## Current capabilities
 
-Init, clone, commit (with file selection + timestamp), push (all branches+tags), pull (merge only), branch list/create/checkout/delete, auto-stash on checkout, status (uncommitted changes), SSH + HTTPS auth, credential management UI, resource import/export, commissioning automation, Designer toolbar + status bar, side-by-side diff viewer, commit history browser with per-commit file list and historical diff, dockable Source Control panel with inline commit/discard/diff, discard (revert) uncommitted changes.
+Init, clone, commit (with file selection + timestamp), push (current branch only by default), pull (merge only), branch list/create/checkout/delete, auto-stash on checkout, status (uncommitted changes), SSH + HTTPS auth, credential management UI, resource import/export, commissioning automation, Designer toolbar + status bar, side-by-side diff viewer, commit history browser with per-commit file list and historical diff, dockable Commit panel with inline commit/discard/diff, dockable History panel with commit log/ref badges/push/pull, discard (revert) uncommitted changes.
 
 ---
 
@@ -42,8 +42,8 @@ Init, clone, commit (with file selection + timestamp), push (all branches+tags),
 | 18 | **Commit search / filter** | No way to search history by author, date, or message | |
 | 19 | **Stash management UI** | Auto-stash exists on checkout but no manual stash/list/apply/drop | Users can't manually shelve work |
 | 20 | **Reset (soft/mixed/hard)** | No way to undo commits or unstage files | Only hard reset exists during initial setup |
-| 21 | **Selective push** | Pushes ALL branches + ALL tags every time | Can't push just the current branch |
-| 22 | ~~**Visual commit graph**~~ | ~~No DAG/tree visualization of branch history~~ | **Implemented.** Dockable Graph panel (tabbed with Project Browser and Changes) shows a VS Code-style commit DAG with colored lanes, commit dots, and merge lines. Push/Pull buttons live on the Graph toolbar. Double-click a commit to view details. |
+| 21 | ~~**Selective push**~~ | ~~Pushes ALL branches + ALL tags every time~~ | **Implemented.** Push now sends only the current branch with no tags by default, matching standard `git push` behavior. The RPC method accepts `pushAllBranches` and `pushTags` flags for callers that need the old behavior. |
+| 22 | **Visual commit graph** | No DAG/tree visualization of branch history | The original Graph panel was replaced with a simplified History panel (commit table with ref badges). A true DAG with colored lanes and merge lines does not exist. |
 | 23 | **Multiple remotes** | Hardcoded to single remote (origin) | Blocks fork-based workflows |
 
 ### Tier 4 — Advanced workflow and team gaps
@@ -89,8 +89,9 @@ Init, clone, commit (with file selection + timestamp), push (all branches+tags),
 
 Top 5 highest-impact additions for this module's use case (Ignition Designer teams):
 
-1. ~~**Diff viewer** (#1)~~ — **Done.** Side-by-side diff viewer in commit popup.
-2. **Merge conflict resolution UI** (#7) — pull silently fails on conflicts, blocks teams
-3. ~~**Commit log/history** (#2)~~ — **Done.** Paginated history browser with per-commit file list and historical diff.
-4. **Selective push** (#21) — pushing all branches every time is dangerous in team settings
-5. **Revert commit** (#15) — no way to undo mistakes without manual intervention
+1. ~~**Diff viewer** (#1)~~ — **Done.**
+2. ~~**Commit log/history** (#2)~~ — **Done.**
+3. ~~**Discard changes** (#4)~~ — **Done.**
+4. **Merge conflict resolution UI** (#7) — pull silently fails on conflicts, blocks teams
+5. ~~**Selective push** (#21)~~ — **Done.**
+6. **Revert commit** (#15) — no way to undo mistakes without manual intervention

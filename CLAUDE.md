@@ -74,7 +74,7 @@ The root `build.gradle.kts` uses the `io.ia.sdk.modl` Gradle plugin to assemble 
 - Thread-safe: `setData(Dataset, boolean append)` posts updates to EDT via `SwingUtilities.invokeLater()`
 
 **Manager classes** in `gateway` encapsulate domain logic:
-- `GitManager` — core JGit operations (clone, fetch, pull, push, commit, status, branch list/create/checkout/delete with per-branch stash/restore, resource diff content extraction, commit history log with ref decorations for current branch, commit file list, commit file diff, discard changes)
+- `GitManager` — core JGit operations (clone, fetch, pull, push (current branch only by default; `pushAllBranches`/`pushTags` flags available), commit, status, branch list/create/checkout/delete with per-branch stash/restore, resource diff content extraction, commit history log with ref decorations for current branch, commit file list, commit file diff, discard changes)
 - `GitProjectManager`, `GitTagManager`, `GitThemeManager`, `GitImageManager` — resource import/export
 - `GitCommissioningUtils` — file-based config loading for automated deployment
 

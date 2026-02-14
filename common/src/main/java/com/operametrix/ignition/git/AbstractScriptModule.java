@@ -30,8 +30,10 @@ public abstract class AbstractScriptModule implements GitScriptInterface {
     @Override
     @ScriptFunction(docBundlePrefix = "AbstractScriptModule")
     public boolean push(@ScriptArg("projectName") String projectName,
-                        @ScriptArg("userName")String userName) throws Exception {
-        return pushImpl(projectName,userName);
+                        @ScriptArg("userName") String userName,
+                        @ScriptArg("pushAllBranches") boolean pushAllBranches,
+                        @ScriptArg("pushTags") boolean pushTags) throws Exception {
+        return pushImpl(projectName, userName, pushAllBranches, pushTags);
     }
 
     @Override
@@ -204,7 +206,7 @@ public abstract class AbstractScriptModule implements GitScriptInterface {
 
     protected abstract boolean pullImpl(String projectName, String userName, boolean importTags, boolean importTheme,
                                         boolean importImages) throws Exception;
-    protected abstract boolean pushImpl(String projectName, String userName) throws Exception;
+    protected abstract boolean pushImpl(String projectName, String userName, boolean pushAllBranches, boolean pushTags) throws Exception;
     protected abstract boolean commitImpl(String projectName, String userName, List<String> changes, String message);
     protected abstract Dataset getUncommitedChangesImpl(String projectName, String userName);
     protected abstract boolean isRegisteredUserImpl(String projectName, String userName);
