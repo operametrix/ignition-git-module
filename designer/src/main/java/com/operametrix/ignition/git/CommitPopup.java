@@ -33,6 +33,7 @@ public class CommitPopup extends JFrame {
     private JButton cancelBtn;
     private JLabel changesLabel;
     private JTable changesTable;
+    private JCheckBox amendCheckBox;
 
     public CommitPopup(Object[][] data, Component parent) {
         try {
@@ -52,6 +53,12 @@ public class CommitPopup extends JFrame {
         changesTable.getTableHeader().setReorderingAllowed(false);
 
         setData(data);
+
+        // Amend checkbox — inserted between message area and buttons
+        amendCheckBox = new JCheckBox("Amend last commit");
+        amendCheckBox.addActionListener(e -> onAmendToggled(amendCheckBox.isSelected()));
+        panel.add(amendCheckBox, new GridConstraints(4, 0, 1, 2, GridConstraints.ANCHOR_WEST, GridConstraints.FILL_NONE,
+                GridConstraints.SIZEPOLICY_FIXED, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
 
         changesTable.addMouseListener(new MouseAdapter() {
             @Override
@@ -75,7 +82,14 @@ public class CommitPopup extends JFrame {
                 }
             }
 
-            onActionPerformed(changes, messageTextArea.getText());
+            boolean amend = amendCheckBox.isSelected();
+            String message = messageTextArea.getText();
+            boolean canCommit = amend
+                    ? !message.trim().isEmpty()
+                    : !changes.isEmpty() && !message.trim().isEmpty();
+            if (!canCommit) return;
+
+            onActionPerformed(changes, message, amend);
             this.dispose();
         });
 
@@ -124,12 +138,20 @@ public class CommitPopup extends JFrame {
     }
 
 
-    public void onActionPerformed(List<String> changes, String message) {
+    public void onActionPerformed(List<String> changes, String message, boolean amend) {
 
     }
 
     public void onDiffRequested(String resource, String type) {
 
+    }
+
+    public void onAmendToggled(boolean amend) {
+
+    }
+
+    public void setCommitMessage(String message) {
+        messageTextArea.setText(message);
     }
 
     {
@@ -148,7 +170,7 @@ public class CommitPopup extends JFrame {
      */
     private void $$$setupUI$$$() {
         panel = new JPanel();
-        panel.setLayout(new GridLayoutManager(5, 2, new Insets(5, 5, 5, 5), -1, -1));
+        panel.setLayout(new GridLayoutManager(6, 2, new Insets(5, 5, 5, 5), -1, -1));
         panel.setPreferredSize(new Dimension(500, 500));
         messageLabel = new JLabel();
         Font messageLabelFont = this.$$$getFont$$$(null, Font.BOLD, -1, messageLabel.getFont());
@@ -159,10 +181,10 @@ public class CommitPopup extends JFrame {
         commitBtn.setBackground(new Color(-11555609));
         commitBtn.setForeground(new Color(-1));
         commitBtn.setText("Commit");
-        panel.add(commitBtn, new GridConstraints(4, 0, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_HORIZONTAL, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
+        panel.add(commitBtn, new GridConstraints(5, 0, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_HORIZONTAL, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
         cancelBtn = new JButton();
         cancelBtn.setText("Cancel");
-        panel.add(cancelBtn, new GridConstraints(4, 1, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_HORIZONTAL, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
+        panel.add(cancelBtn, new GridConstraints(5, 1, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_HORIZONTAL, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
         changesLabel = new JLabel();
         Font changesLabelFont = this.$$$getFont$$$(null, Font.BOLD, -1, changesLabel.getFont());
         if (changesLabelFont != null) changesLabel.setFont(changesLabelFont);

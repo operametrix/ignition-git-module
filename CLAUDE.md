@@ -45,7 +45,7 @@ The root `build.gradle.kts` uses the `io.ia.sdk.modl` Gradle plugin to assemble 
 **Designer project refresh**: After any gateway-side operation that modifies the Ignition project (pull, checkout, init), the Designer must call `GitBaseAction.pullProjectFromGateway()` to sync its local project state with the gateway via reflection on the Designer frame's `pullAndResolve()` method. Without this call, gateway-side `GitProjectManager.importProject()` updates the gateway but the Designer UI won't reflect the changes.
 
 **Designer popups** (`designer` module) are Swing `JFrame` dialogs with abstract callbacks overridden via anonymous subclasses in `GitActionManager`:
-- `CommitPopup` — select changes and enter commit message; displays resource name, type, author, and last-modification timestamp (formatted `yyyy-MM-dd HH:mm`). Double-clicking a resource row opens the `DiffViewerPopup` via the `onDiffRequested` callback.
+- `CommitPopup` — select changes and enter commit message; displays resource name, type, author, and last-modification timestamp (formatted `yyyy-MM-dd HH:mm`). Includes an "Amend last commit" checkbox that pre-fills the last commit message (via `onAmendToggled` callback) and allows committing with no files selected (message-only amend). Double-clicking a resource row opens the `DiffViewerPopup` via the `onDiffRequested` callback.
 - `DiffViewerPopup` — side-by-side diff viewer comparing HEAD (committed) vs working tree content. Uses an LCS-based line diff algorithm with color-coded backgrounds (green for added, red for removed) and synchronized scrolling. Opened from `CommitPopup` via `GitActionManager.showDiffViewer()`, which calls `rpc.getResourceDiff()` to fetch content from the gateway. Also reused by `CommitDetailPopup` for viewing historical diffs at a specific commit.
 - `HistoryPopup` — paginated commit log table (short hash, author, date, message) with Load More/Refresh/Close buttons. Cached like other popups. Double-clicking a row opens `CommitDetailPopup`. Wired by `GitActionManager.showHistoryPopup()`.
 - `CommitDetailPopup` — shows files changed in a single commit (change type + path) with commit hash, author, date, and message at top. Not cached (allows multiple side-by-side). Double-clicking a file opens `DiffViewerPopup` with old/new content at that commit via `rpc.getCommitFileDiff()`.
@@ -56,7 +56,7 @@ The root `build.gradle.kts` uses the `io.ia.sdk.modl` Gradle plugin to assemble 
 
 **Dockable Commit panel** (`CommitPanel.java`) — a JIDE `DockableFrame`-based panel (key: `"Commit"`, icon: `ic_commit.svg`) tabbed alongside the Project Browser (key: `"Project Browser"`) on the left side, with Project Browser as the default active tab. Provides an at-a-glance view of uncommitted changes without opening popups:
 - Top toolbar: Refresh button
-- Commit section: message text area + Commit button for inline commits
+- Commit section: message text area + "Amend last commit" checkbox + Commit button for inline commits; amend checkbox pre-fills last commit message and allows message-only amend (no files selected)
 - Changes table: checkbox + Resource + Type columns with `SelectAllHeader`; Type column shows color-coded single-letter badges (A=green/created, M=amber/modified, D=red/deleted, U=orange/uncommitted)
 - Double-click a row to view diff; right-click context menu for "View Diff" and "Discard Changes" (with confirmation dialog)
 - Uses `java.util.function` callback setters wired by `GitActionManager.wireCommitPanel()`
@@ -74,7 +74,7 @@ The root `build.gradle.kts` uses the `io.ia.sdk.modl` Gradle plugin to assemble 
 - Thread-safe: `setData(Dataset, boolean append)` posts updates to EDT via `SwingUtilities.invokeLater()`
 
 **Manager classes** in `gateway` encapsulate domain logic:
-- `GitManager` — core JGit operations (clone, fetch, pull, push (current branch only by default; `pushAllBranches`/`pushTags` flags available), commit, status, branch list/create/checkout/delete with per-branch stash/restore, resource diff content extraction, commit history log with ref decorations for current branch, commit file list, commit file diff, discard changes)
+- `GitManager` — core JGit operations (clone, fetch, pull, push (current branch only by default; `pushAllBranches`/`pushTags`/`forcePush` flags available; push results are checked for `RemoteRefUpdate.Status` — non-fast-forward rejections trigger a force-push confirmation dialog in the Designer), commit (with `amend` flag for replacing the last commit via `CommitCommand.setAmend(true)`), status, branch list/create/checkout/delete with per-branch stash/restore, resource diff content extraction, commit history log with ref decorations for current branch, commit file list, commit file diff, discard changes)
 - `GitProjectManager`, `GitTagManager`, `GitThemeManager`, `GitImageManager` — resource import/export
 - `GitCommissioningUtils` — file-based config loading for automated deployment
 

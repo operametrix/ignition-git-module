@@ -71,7 +71,7 @@ public class GatewayScriptModule extends AbstractScriptModule {
     }
 
     @Override
-    public boolean pushImpl(String projectName, String userName, boolean pushAllBranches, boolean pushTags) throws Exception {
+    public boolean pushImpl(String projectName, String userName, boolean pushAllBranches, boolean pushTags, boolean forcePush) throws Exception {
         try (Git git = getGit(getProjectFolderPath(projectName))) {
             PushCommand push = git.push();
 
@@ -83,9 +83,23 @@ public class GatewayScriptModule extends AbstractScriptModule {
             if (pushTags) {
                 push.setPushTags();
             }
+            if (forcePush) {
+                push.setForce(true);
+            }
             Iterable<PushResult> results = push.call();
             for (PushResult result : results) {
                 logger.trace(result.getMessages());
+                for (org.eclipse.jgit.transport.RemoteRefUpdate update : result.getRemoteUpdates()) {
+                    org.eclipse.jgit.transport.RemoteRefUpdate.Status status = update.getStatus();
+                    if (status == org.eclipse.jgit.transport.RemoteRefUpdate.Status.REJECTED_NONFASTFORWARD) {
+                        throw new RuntimeException("REJECTED_NONFASTFORWARD: Push rejected — the remote contains commits that the local branch does not have. "
+                                + "This typically happens after amending a commit that was already pushed.");
+                    } else if (status == org.eclipse.jgit.transport.RemoteRefUpdate.Status.REJECTED_NODELETE
+                            || status == org.eclipse.jgit.transport.RemoteRefUpdate.Status.REJECTED_REMOTE_CHANGED
+                            || status == org.eclipse.jgit.transport.RemoteRefUpdate.Status.REJECTED_OTHER_REASON) {
+                        throw new RuntimeException("Push rejected: " + update.getMessage());
+                    }
+                }
             }
 
         } catch (GitAPIException e) {
@@ -96,7 +110,7 @@ public class GatewayScriptModule extends AbstractScriptModule {
     }
 
     @Override
-    protected boolean commitImpl(String projectName, String userName, List<String> changes, String message) {
+    protected boolean commitImpl(String projectName, String userName, List<String> changes, String message, boolean amend) {
         try (Git git = getGit(getProjectFolderPath(projectName))) {
             for (String change : changes) {
                 git.add().addFilepattern(change).call();
@@ -104,6 +118,9 @@ public class GatewayScriptModule extends AbstractScriptModule {
             }
 
             CommitCommand commit = git.commit().setMessage(message);
+            if (amend) {
+                commit.setAmend(true);
+            }
             setCommitAuthor(commit, projectName, userName);
             commit.call();
         } catch (GitAPIException e) {

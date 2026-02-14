@@ -23,13 +23,13 @@ public class ClientScriptModule extends AbstractScriptModule {
     }
 
     @Override
-    protected boolean pushImpl(String projectName, String userName, boolean pushAllBranches, boolean pushTags) throws Exception {
-        return rpc.push(projectName, userName, pushAllBranches, pushTags);
+    protected boolean pushImpl(String projectName, String userName, boolean pushAllBranches, boolean pushTags, boolean forcePush) throws Exception {
+        return rpc.push(projectName, userName, pushAllBranches, pushTags, forcePush);
     }
 
     @Override
-    protected boolean commitImpl(String projectName, String userName, List<String> changes, String message) {
-        return rpc.commit(projectName, userName, changes, message);
+    protected boolean commitImpl(String projectName, String userName, List<String> changes, String message, boolean amend) {
+        return rpc.commit(projectName, userName, changes, message, amend);
     }
 
     @Override

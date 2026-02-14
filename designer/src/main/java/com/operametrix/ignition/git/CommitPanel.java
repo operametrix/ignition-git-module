@@ -19,6 +19,7 @@ import java.util.function.Consumer;
 public class CommitPanel extends JPanel {
 
     private final JTextArea commitMessageArea;
+    private final JCheckBox amendCheckBox;
     private final JButton commitButton;
     private final JTable changesTable;
     private final JLabel changesCountLabel;
@@ -27,6 +28,8 @@ public class CommitPanel extends JPanel {
     private BiConsumer<String, String> onDiffRequested;
     private Consumer<List<String>> onDiscardRequested;
     private BiConsumer<List<String>, String> onCommitRequested;
+    private Consumer<Boolean> onAmendToggled;
+    private boolean amendSelected;
 
     public CommitPanel() {
         setLayout(new BorderLayout(0, 4));
@@ -51,6 +54,17 @@ public class CommitPanel extends JPanel {
         messageScroll.setPreferredSize(new Dimension(0, 60));
         commitSection.add(messageScroll, BorderLayout.CENTER);
 
+        // Bottom controls: amend checkbox + commit button
+        JPanel bottomControls = new JPanel(new BorderLayout(4, 0));
+        amendCheckBox = new JCheckBox("Amend last commit");
+        amendCheckBox.addActionListener(e -> {
+            amendSelected = amendCheckBox.isSelected();
+            if (onAmendToggled != null) {
+                onAmendToggled.accept(amendSelected);
+            }
+        });
+        bottomControls.add(amendCheckBox, BorderLayout.WEST);
+
         commitButton = new JButton("Commit");
         commitButton.setBackground(new Color(0x4E8EF7));
         commitButton.setForeground(Color.WHITE);
@@ -59,13 +73,19 @@ public class CommitPanel extends JPanel {
             if (onCommitRequested != null) {
                 List<String> selected = getSelectedResources();
                 String message = commitMessageArea.getText().trim();
-                if (!selected.isEmpty() && !message.isEmpty()) {
+                boolean canCommit = amendSelected
+                        ? !message.isEmpty()
+                        : !selected.isEmpty() && !message.isEmpty();
+                if (canCommit) {
                     onCommitRequested.accept(selected, message);
                     commitMessageArea.setText("");
+                    amendCheckBox.setSelected(false);
+                    amendSelected = false;
                 }
             }
         });
-        commitSection.add(commitButton, BorderLayout.SOUTH);
+        bottomControls.add(commitButton, BorderLayout.EAST);
+        commitSection.add(bottomControls, BorderLayout.SOUTH);
         centerPanel.add(commitSection, BorderLayout.NORTH);
 
         // Changes count label
@@ -256,6 +276,18 @@ public class CommitPanel extends JPanel {
 
     public void setOnCommitRequested(BiConsumer<List<String>, String> onCommitRequested) {
         this.onCommitRequested = onCommitRequested;
+    }
+
+    public void setOnAmendToggled(Consumer<Boolean> onAmendToggled) {
+        this.onAmendToggled = onAmendToggled;
+    }
+
+    public boolean isAmendSelected() {
+        return amendSelected;
+    }
+
+    public void setCommitMessage(String message) {
+        SwingUtilities.invokeLater(() -> commitMessageArea.setText(message));
     }
 
     /**

@@ -80,12 +80,12 @@ public class GitBaseAction extends BaseAction {
     }
 
     // Todo : Find a way to refactor with handleAction
-    public static void handleCommitAction(List<String> changes, String commitMessage) {
+    public static void handleCommitAction(List<String> changes, String commitMessage, boolean amend) {
         String message = BundleUtil.get().getStringLenient(GitActionType.COMMIT.baseBundleKey + ".ConfirmMessage");
         int messageType = JOptionPane.INFORMATION_MESSAGE;
 
         try {
-            rpc.commit(projectName, userName, changes, commitMessage);
+            rpc.commit(projectName, userName, changes, commitMessage, amend);
             SwingUtilities.invokeLater(new Thread(() -> showConfirmPopup(message, messageType)));
             if (instance != null) {
                 instance.refreshCommitPanel();
@@ -93,6 +93,44 @@ public class GitBaseAction extends BaseAction {
             }
         } catch (Exception ex) {
             ErrorUtil.showError(ex);
+        }
+    }
+
+    public static void handlePushAction() {
+        String message = BundleUtil.get().getStringLenient(GitActionType.PUSH.baseBundleKey + ".ConfirmMessage");
+        int messageType = JOptionPane.INFORMATION_MESSAGE;
+
+        try {
+            rpc.push(projectName, userName, false, false, false);
+            SwingUtilities.invokeLater(new Thread(() -> showConfirmPopup(message, messageType)));
+        } catch (Exception ex) {
+            String exMsg = ex.getMessage() != null ? ex.getMessage() : "";
+            if (exMsg.contains("REJECTED_NONFASTFORWARD")) {
+                int choice = JOptionPane.showConfirmDialog(
+                        context.getFrame(),
+                        "Push was rejected because the remote contains commits not present locally.\n"
+                                + "This typically happens after amending a pushed commit.\n\n"
+                                + "Do you want to force push? This will overwrite the remote branch.",
+                        "Push Rejected",
+                        JOptionPane.YES_NO_OPTION,
+                        JOptionPane.WARNING_MESSAGE
+                );
+                if (choice == JOptionPane.YES_OPTION) {
+                    try {
+                        rpc.push(projectName, userName, false, false, true);
+                        SwingUtilities.invokeLater(new Thread(() -> showConfirmPopup(message, messageType)));
+                    } catch (Exception ex2) {
+                        ErrorUtil.showError(ex2);
+                    }
+                }
+            } else {
+                ErrorUtil.showError(ex);
+            }
+        } finally {
+            if (instance != null) {
+                instance.refreshCommitPanel();
+                instance.refreshHistoryPanel();
+            }
         }
     }
 
@@ -248,7 +286,8 @@ public class GitBaseAction extends BaseAction {
                     showPullPopup(projectName, userName);
                     break;
                 case PUSH:
-                    rpc.push(projectName, userName, false, false);
+                    confirmPopup = Boolean.FALSE;
+                    handlePushAction();
                     break;
                 case COMMIT:
                     confirmPopup = Boolean.FALSE;

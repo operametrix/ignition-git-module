@@ -10,8 +10,8 @@ An Ignition module that embeds a Git client directly into the Ignition Designer,
 - Link an Ignition project with a remote repo (Gateway Webpage)
 - Link an Ignition user to a git project, with SSH or user/password authentication (Gateway Webpage)
 - Manage git credentials directly from the Designer by clicking the user icon in the status bar — supports both HTTPS (username/password) and SSH (private key) authentication
-- Commit resources with last-modification timestamps shown per resource (Designer, on project saved or from git toolbar)
-- Push & Pull resources (Designer, from git toolbar) — push sends only the current branch by default (no surprise pushes of experimental branches); pulled changes are reflected immediately in the Designer
+- Commit resources with last-modification timestamps shown per resource (Designer, on project saved or from git toolbar); supports amending the last commit (fix the message or add forgotten files) via an "Amend last commit" checkbox in both the Commit popup and Commit panel
+- Push & Pull resources (Designer, from git toolbar) — push sends only the current branch by default (no surprise pushes of experimental branches); if the remote rejects the push (e.g. after amending a pushed commit), a confirmation dialog offers force push; pulled changes are reflected immediately in the Designer
 - Branch management: list, create, checkout, and delete branches with automatic stash/restore of uncommitted changes (Designer, from status bar branch button)
 - Export of the gateway configuration: tags, images, themes (Designer, from git toolbar)
 - Side-by-side diff viewer for reviewing changes before committing

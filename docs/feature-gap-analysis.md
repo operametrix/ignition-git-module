@@ -2,7 +2,7 @@
 
 ## Current capabilities
 
-Init, clone, commit (with file selection + timestamp), push (current branch only by default), pull (merge only), branch list/create/checkout/delete, auto-stash on checkout, status (uncommitted changes), SSH + HTTPS auth, credential management UI, resource import/export, commissioning automation, Designer toolbar + status bar, side-by-side diff viewer, commit history browser with per-commit file list and historical diff, dockable Commit panel with inline commit/discard/diff, dockable History panel with commit log/ref badges/push/pull, discard (revert) uncommitted changes.
+Init, clone, commit (with file selection + timestamp + amend), push (current branch only by default; force push with confirmation on rejection), pull (merge only), branch list/create/checkout/delete, auto-stash on checkout, status (uncommitted changes), SSH + HTTPS auth, credential management UI, resource import/export, commissioning automation, Designer toolbar + status bar, side-by-side diff viewer, commit history browser with per-commit file list and historical diff, dockable Commit panel with inline commit/discard/diff/amend, dockable History panel with commit log/ref badges/push/pull, discard (revert) uncommitted changes.
 
 ---
 
@@ -27,7 +27,7 @@ Init, clone, commit (with file selection + timestamp), push (current branch only
 | 8 | **Branch rename** | Must delete and recreate | Minor but standard |
 | 9 | **Delete remote branches** | Only deletes local branches | Stale remote branches accumulate |
 | 10 | **.gitignore management** | No UI for ignoring files | Users must manually edit .gitignore |
-| 11 | **Amend last commit** | No way to fix a typo in the last commit | Very common workflow |
+| 11 | ~~**Amend last commit**~~ | ~~No way to fix a typo in the last commit~~ | **Implemented.** "Amend last commit" checkbox in both CommitPopup and CommitPanel pre-fills the last commit message and allows message-only or message+files amend. |
 | 12 | **Tag management** | Tags are imported/exported as Ignition resources only, no Git tag create/delete/annotate | Confusing overlap between Git tags and Ignition tags |
 
 ### Tier 3 — Intermediate workflow gaps
@@ -52,7 +52,7 @@ Init, clone, commit (with file selection + timestamp), push (current branch only
 |---|---------|--------|-------|
 | 24 | **Interactive rebase** | Can't squash, reorder, or edit commits | Needed for clean history |
 | 25 | **Pull request integration** | No GitHub/GitLab/Bitbucket PR creation or review | Teams must switch to browser |
-| 26 | **Force push (with lease)** | No way to push after rebase or amend | Even if rebase were added, can't push the result |
+| 26 | ~~**Force push (with lease)**~~ | ~~No way to push after rebase or amend~~ | **Implemented.** Push result checking detects `REJECTED_NONFASTFORWARD` and offers a force-push confirmation dialog. Also surfaces other push rejection types as errors. |
 | 27 | **Branch comparison** | Can't compare two branches side-by-side | |
 | 28 | **Commit templates** | No standardized commit message format | |
 | 29 | **Background auto-fetch** | Status bar shows branch name but not ahead/behind counts | GitKraken shows unsynced indicators |

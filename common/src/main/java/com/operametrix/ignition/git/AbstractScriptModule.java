@@ -32,8 +32,9 @@ public abstract class AbstractScriptModule implements GitScriptInterface {
     public boolean push(@ScriptArg("projectName") String projectName,
                         @ScriptArg("userName") String userName,
                         @ScriptArg("pushAllBranches") boolean pushAllBranches,
-                        @ScriptArg("pushTags") boolean pushTags) throws Exception {
-        return pushImpl(projectName, userName, pushAllBranches, pushTags);
+                        @ScriptArg("pushTags") boolean pushTags,
+                        @ScriptArg("forcePush") boolean forcePush) throws Exception {
+        return pushImpl(projectName, userName, pushAllBranches, pushTags, forcePush);
     }
 
     @Override
@@ -41,8 +42,9 @@ public abstract class AbstractScriptModule implements GitScriptInterface {
     public boolean commit(@ScriptArg("projectName") String projectName,
                           @ScriptArg("userName") String userName,
                           @ScriptArg("changes") List<String> changes,
-                          @ScriptArg("message") String message) {
-        return commitImpl(projectName, userName, changes, message);
+                          @ScriptArg("message") String message,
+                          @ScriptArg("amend") boolean amend) {
+        return commitImpl(projectName, userName, changes, message, amend);
     }
 
     @Override
@@ -206,8 +208,8 @@ public abstract class AbstractScriptModule implements GitScriptInterface {
 
     protected abstract boolean pullImpl(String projectName, String userName, boolean importTags, boolean importTheme,
                                         boolean importImages) throws Exception;
-    protected abstract boolean pushImpl(String projectName, String userName, boolean pushAllBranches, boolean pushTags) throws Exception;
-    protected abstract boolean commitImpl(String projectName, String userName, List<String> changes, String message);
+    protected abstract boolean pushImpl(String projectName, String userName, boolean pushAllBranches, boolean pushTags, boolean forcePush) throws Exception;
+    protected abstract boolean commitImpl(String projectName, String userName, List<String> changes, String message, boolean amend);
     protected abstract Dataset getUncommitedChangesImpl(String projectName, String userName);
     protected abstract boolean isRegisteredUserImpl(String projectName, String userName);
     protected abstract boolean exportConfigImpl(String projectName);

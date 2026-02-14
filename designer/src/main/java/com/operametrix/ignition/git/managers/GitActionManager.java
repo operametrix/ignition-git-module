@@ -81,14 +81,33 @@ public class GitActionManager {
         } else {
             commitPopup = new CommitPopup(data, context.getFrame()) {
                 @Override
-                public void onActionPerformed(List<String> changes, String commitMessage) {
-                    handleCommitAction(changes, commitMessage);
+                public void onActionPerformed(List<String> changes, String commitMessage, boolean amend) {
+                    handleCommitAction(changes, commitMessage, amend);
                     resetMessage();
                 }
 
                 @Override
                 public void onDiffRequested(String resource, String type) {
                     showDiffViewer(projectName, resource, type);
+                }
+
+                @Override
+                public void onAmendToggled(boolean amend) {
+                    if (amend) {
+                        new Thread(() -> {
+                            try {
+                                Dataset history = rpc.getCommitHistory(projectName, 0, 1);
+                                if (history.getRowCount() > 0) {
+                                    String lastMessage = (String) history.getValueAt(0, "message");
+                                    SwingUtilities.invokeLater(() -> setCommitMessage(lastMessage));
+                                }
+                            } catch (Exception e) {
+                                logger.error("Error fetching last commit message", e);
+                            }
+                        }).start();
+                    } else {
+                        setCommitMessage("");
+                    }
                 }
             };
         }
@@ -336,7 +355,7 @@ public class GitActionManager {
 
         panel.setOnCommitRequested((changes, message) -> new Thread(() -> {
             try {
-                handleCommitAction(changes, message);
+                handleCommitAction(changes, message, panel.isAmendSelected());
                 if (DesignerHook.instance != null) {
                     DesignerHook.instance.refreshCommitPanel();
                 }
@@ -344,10 +363,28 @@ public class GitActionManager {
                 logger.error("Error committing from panel", e);
             }
         }).start());
+
+        panel.setOnAmendToggled(amend -> {
+            if (amend) {
+                new Thread(() -> {
+                    try {
+                        Dataset history = rpc.getCommitHistory(projectName, 0, 1);
+                        if (history.getRowCount() > 0) {
+                            String lastMessage = (String) history.getValueAt(0, "message");
+                            panel.setCommitMessage(lastMessage);
+                        }
+                    } catch (Exception e) {
+                        logger.error("Error fetching last commit message", e);
+                    }
+                }).start();
+            } else {
+                panel.setCommitMessage("");
+            }
+        });
     }
 
     public static void wireHistoryPanel(HistoryPanel panel, String projectName, String userName) {
-        panel.setOnPushRequested(() -> handleAction(GitActionType.PUSH));
+        panel.setOnPushRequested(() -> handlePushAction());
 
         panel.setOnPullRequested(() -> showPullPopup(projectName, userName));
 
