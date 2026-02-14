@@ -48,14 +48,14 @@ The root `build.gradle.kts` uses the `io.ia.sdk.modl` Gradle plugin to assemble 
 - `CommitPopup` — select changes and enter commit message; displays resource name, type, author, and last-modification timestamp (formatted `yyyy-MM-dd HH:mm`). Double-clicking a resource row opens the `DiffViewerPopup` via the `onDiffRequested` callback.
 - `DiffViewerPopup` — side-by-side diff viewer comparing HEAD (committed) vs working tree content. Uses an LCS-based line diff algorithm with color-coded backgrounds (green for added, red for removed) and synchronized scrolling. Opened from `CommitPopup` via `GitActionManager.showDiffViewer()`, which calls `rpc.getResourceDiff()` to fetch content from the gateway. Also reused by `CommitDetailPopup` for viewing historical diffs at a specific commit.
 - `HistoryPopup` — paginated commit log table (short hash, author, date, message) with Load More/Refresh/Close buttons. Cached like other popups. Double-clicking a row opens `CommitDetailPopup`. Wired by `GitActionManager.showHistoryPopup()`.
-- `CommitDetailPopup` — shows files changed in a single commit (change type + path) with commit hash and message at top. Not cached (allows multiple side-by-side). Double-clicking a file opens `DiffViewerPopup` with old/new content at that commit via `rpc.getCommitFileDiff()`.
+- `CommitDetailPopup` — shows files changed in a single commit (change type + path) with commit hash, author, date, and message at top. Not cached (allows multiple side-by-side). Double-clicking a file opens `DiffViewerPopup` with old/new content at that commit via `rpc.getCommitFileDiff()`.
 - `PullPopup` — toggle import of tags/themes/images
 - `BranchPopup` — list/create/checkout/delete branches
 - `CredentialsPopup` — manage email, username, password/SSH key for an already-registered project
 - `InitRepoPopup` — initialize a git repo for an unregistered project: enter repo URI (dynamic HTTPS/SSH field switching based on URI prefix), email, and credentials. On success, creates DB records + clones the repo + refreshes the Designer project.
 
 **Dockable Changes panel** (`SourceControlPanel.java`) — a JIDE `DockableFrame`-based panel (key: `"Changes"`) tabbed alongside the Project Browser (key: `"Project Browser"`) on the left side, with Project Browser as the default active tab. Provides an at-a-glance view of uncommitted changes without opening popups:
-- Top toolbar: Refresh, Push, Pull buttons (reuses existing SVG icons)
+- Top toolbar: Refresh button (Push/Pull moved to Graph panel)
 - Commit section: message text area + Commit button for inline commits
 - Changes table: checkbox + Resource + Type columns with `SelectAllHeader`; Type column shows color-coded single-letter badges (A=green/created, M=amber/modified, D=red/deleted, U=orange/uncommitted)
 - Double-click a row to view diff; right-click context menu for "View Diff" and "Discard Changes" (with confirmation dialog)
@@ -63,8 +63,19 @@ The root `build.gradle.kts` uses the `io.ia.sdk.modl` Gradle plugin to assemble 
 - Auto-refreshes every 15 seconds via a `Timer`, plus immediate refresh after any git operation (commit, pull, push, checkout)
 - Thread-safe: `setChangesData(Dataset)` posts updates to EDT via `SwingUtilities.invokeLater()`
 
+**Dockable Graph panel** (`GraphPanel.java`) — a JIDE `DockableFrame`-based panel (key: `"Graph"`) tabbed alongside the Project Browser and Changes panel on the left side. VS Code-style visual commit graph with colored lane lines, commit dots, and merge diagonals:
+- Top toolbar: Push, Pull, Refresh buttons (Push/Pull moved here from Changes panel)
+- Graph table: columns [Graph, Message, Author]; the Graph column uses a custom `GraphCellRenderer` that paints lane lines, commit dots, merge/convergence diagonals, and branch ref labels as colored rounded badges
+- Commit log uses `git log` with all local (`refs/heads/`) and remote (`refs/remotes/`) branch refs (excludes stashes); each commit includes parent hashes and ref decorations from the gateway
+- Lane computation: maintains active lane slots tracking expected next hashes; assigns lanes top-to-bottom, handles merges (allocating lanes for extra parents) and convergences (detecting multiple lanes expecting the same hash at fork points, drawing diagonals and closing lanes)
+- 8-color cycling palette for lane colors
+- Double-click a commit row to open `CommitDetailPopup` (with author and date) via `onCommitSelected` callback
+- "Load More" button for pagination (appends rows, recomputes lanes)
+- Wired by `GitActionManager.wireGraphPanel()`; auto-refreshes after any git operation
+- Thread-safe: `setData(Dataset, boolean append)` posts updates to EDT via `SwingUtilities.invokeLater()`
+
 **Manager classes** in `gateway` encapsulate domain logic:
-- `GitManager` — core JGit operations (clone, fetch, pull, push, commit, status, branch list/create/checkout/delete with per-branch stash/restore, resource diff content extraction, commit history log, commit file list, commit file diff, discard changes)
+- `GitManager` — core JGit operations (clone, fetch, pull, push, commit, status, branch list/create/checkout/delete with per-branch stash/restore, resource diff content extraction, commit history log with parent hashes and ref decorations across all branches, commit file list, commit file diff, discard changes)
 - `GitProjectManager`, `GitTagManager`, `GitThemeManager`, `GitImageManager` — resource import/export
 - `GitCommissioningUtils` — file-based config loading for automated deployment
 

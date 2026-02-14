@@ -43,8 +43,10 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.Optional;
 
@@ -577,12 +579,34 @@ public class GitManager {
      * @param projectFolderPath path to the git working directory
      * @param skip              number of commits to skip (for pagination)
      * @param limit             maximum number of commits to return
-     * @return list of String arrays: [fullHash, shortHash, author, date, message]
+     * @return list of String arrays: [fullHash, shortHash, author, date, message, parents, refs]
      */
     public static List<String[]> getCommitLog(Path projectFolderPath, int skip, int limit) {
         List<String[]> commits = new ArrayList<>();
         try (Git git = getGit(projectFolderPath)) {
-            Iterable<RevCommit> log = git.log().setSkip(skip).setMaxCount(limit).call();
+            Repository repo = git.getRepository();
+
+            // Build a map of commit hash → branch names for ref decorations
+            Map<String, List<String>> refMap = new HashMap<>();
+            for (Ref ref : repo.getRefDatabase().getRefsByPrefix(Constants.R_HEADS)) {
+                ObjectId id = ref.getPeeledObjectId() != null ? ref.getPeeledObjectId() : ref.getObjectId();
+                String name = ref.getName().substring(Constants.R_HEADS.length());
+                refMap.computeIfAbsent(id.getName(), k -> new ArrayList<>()).add(name);
+            }
+            for (Ref ref : repo.getRefDatabase().getRefsByPrefix(Constants.R_REMOTES)) {
+                ObjectId id = ref.getPeeledObjectId() != null ? ref.getPeeledObjectId() : ref.getObjectId();
+                String name = ref.getName().substring(Constants.R_REMOTES.length());
+                refMap.computeIfAbsent(id.getName(), k -> new ArrayList<>()).add(name);
+            }
+
+            LogCommand logCmd = git.log();
+            for (Ref ref : repo.getRefDatabase().getRefsByPrefix(Constants.R_HEADS)) {
+                logCmd.add(ref.getObjectId());
+            }
+            for (Ref ref : repo.getRefDatabase().getRefsByPrefix(Constants.R_REMOTES)) {
+                logCmd.add(ref.getObjectId());
+            }
+            Iterable<RevCommit> log = logCmd.setSkip(skip).setMaxCount(limit).call();
             SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm");
             for (RevCommit commit : log) {
                 String fullHash = commit.getName();
@@ -592,7 +616,14 @@ public class GitManager {
                 String author = (authorName == null || authorName.isEmpty()) ? authorEmail : authorName;
                 String date = dateFormat.format(commit.getAuthorIdent().getWhen());
                 String message = commit.getShortMessage();
-                commits.add(new String[]{fullHash, shortHash, author, date, message});
+                StringBuilder parents = new StringBuilder();
+                for (int i = 0; i < commit.getParentCount(); i++) {
+                    if (i > 0) parents.append(",");
+                    parents.append(commit.getParent(i).getName());
+                }
+                List<String> refs = refMap.getOrDefault(fullHash, java.util.Collections.emptyList());
+                String refsStr = String.join(",", refs);
+                commits.add(new String[]{fullHash, shortHash, author, date, message, parents.toString(), refsStr});
             }
         } catch (Exception e) {
             logger.error("Error getting commit log", e);

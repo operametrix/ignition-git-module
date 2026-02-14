@@ -33,6 +33,7 @@ public class CommitDetailPopup extends JFrame {
     private JTable table;
 
     public CommitDetailPopup(String commitHash, String shortHash, String message,
+                             String author, String date,
                              List<String> files, Component parent) {
         this.commitHash = commitHash;
 
@@ -48,7 +49,7 @@ public class CommitDetailPopup extends JFrame {
 
         setTitle("Commit: " + shortHash);
         setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
-        setContentPane(buildUI(shortHash, message, files));
+        setContentPane(buildUI(shortHash, message, author, date, files));
 
         setSize(700, 500);
         setMinimumSize(new Dimension(500, 350));
@@ -58,7 +59,8 @@ public class CommitDetailPopup extends JFrame {
         toFront();
     }
 
-    private JPanel buildUI(String shortHash, String message, List<String> files) {
+    private JPanel buildUI(String shortHash, String message, String author, String date,
+                           List<String> files) {
         JPanel main = new JPanel(new BorderLayout(5, 5));
         main.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
@@ -81,6 +83,16 @@ public class CommitDetailPopup extends JFrame {
         detailsPanel.add(hashLabel, gbc);
 
         gbc.gridx = 0; gbc.gridy = 1; gbc.fill = GridBagConstraints.NONE; gbc.weightx = 0;
+        detailsPanel.add(new JLabel("Author:"), gbc);
+        gbc.gridx = 1; gbc.fill = GridBagConstraints.HORIZONTAL; gbc.weightx = 1.0;
+        detailsPanel.add(new JLabel(author != null ? author : ""), gbc);
+
+        gbc.gridx = 0; gbc.gridy = 2; gbc.fill = GridBagConstraints.NONE; gbc.weightx = 0;
+        detailsPanel.add(new JLabel("Date:"), gbc);
+        gbc.gridx = 1; gbc.fill = GridBagConstraints.HORIZONTAL; gbc.weightx = 1.0;
+        detailsPanel.add(new JLabel(date != null ? date : ""), gbc);
+
+        gbc.gridx = 0; gbc.gridy = 3; gbc.fill = GridBagConstraints.NONE; gbc.weightx = 0;
         detailsPanel.add(new JLabel("Message:"), gbc);
         gbc.gridx = 1; gbc.fill = GridBagConstraints.HORIZONTAL; gbc.weightx = 1.0;
         JLabel messageLabel = new JLabel("<html>" + escapeHtml(message) + "</html>");

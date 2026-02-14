@@ -84,8 +84,10 @@ public class HistoryPopup extends JFrame {
                     if (row >= 0 && row < fullHashes.size()) {
                         String fullHash = fullHashes.get(row);
                         String shortHash = (String) tableModel.getValueAt(row, 0);
+                        String author = (String) tableModel.getValueAt(row, 1);
+                        String date = (String) tableModel.getValueAt(row, 2);
                         String message = (String) tableModel.getValueAt(row, 3);
-                        onCommitSelected(fullHash, shortHash, message);
+                        onCommitSelected(fullHash, shortHash, message, author, date);
                     }
                 }
             }
@@ -161,7 +163,8 @@ public class HistoryPopup extends JFrame {
         return PAGE_SIZE;
     }
 
-    public void onCommitSelected(String fullHash, String shortHash, String message) {
+    public void onCommitSelected(String fullHash, String shortHash, String message,
+                                  String author, String date) {
     }
 
     public void onLoadMore() {

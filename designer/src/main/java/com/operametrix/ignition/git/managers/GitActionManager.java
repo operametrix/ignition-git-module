@@ -10,6 +10,7 @@ import com.operametrix.ignition.git.HistoryPopup;
 import com.operametrix.ignition.git.InitRepoPopup;
 import com.operametrix.ignition.git.PullPopup;
 import com.operametrix.ignition.git.SourceControlPanel;
+import com.operametrix.ignition.git.GraphPanel;
 import com.inductiveautomation.ignition.common.Dataset;
 import com.inductiveautomation.ignition.common.project.ChangeOperation;
 import com.inductiveautomation.ignition.common.project.resource.ProjectResourceId;
@@ -245,8 +246,9 @@ public class GitActionManager {
             } else {
                 historyPopup = new HistoryPopup(data, context.getFrame()) {
                     @Override
-                    public void onCommitSelected(String fullHash, String shortHash, String message) {
-                        showCommitDetailPopup(projectName, fullHash, shortHash, message);
+                    public void onCommitSelected(String fullHash, String shortHash, String message,
+                                                  String author, String date) {
+                        showCommitDetailPopup(projectName, fullHash, shortHash, message, author, date);
                     }
 
                     @Override
@@ -275,10 +277,11 @@ public class GitActionManager {
         }
     }
 
-    public static void showCommitDetailPopup(String projectName, String fullHash, String shortHash, String message) {
+    public static void showCommitDetailPopup(String projectName, String fullHash, String shortHash,
+                                               String message, String author, String date) {
         try {
             List<String> files = rpc.getCommitFiles(projectName, fullHash);
-            new CommitDetailPopup(fullHash, shortHash, message, files, context.getFrame()) {
+            new CommitDetailPopup(fullHash, shortHash, message, author, date, files, context.getFrame()) {
                 @Override
                 public void onFileDiffRequested(String commitHash, String filePath, String changeType) {
                     showCommitFileDiff(projectName, commitHash, filePath, shortHash);
@@ -341,10 +344,31 @@ public class GitActionManager {
                 logger.error("Error committing from panel", e);
             }
         }).start());
+    }
+
+    public static void wireGraphPanel(GraphPanel panel, String projectName, String userName) {
+        panel.setOnRefreshRequested(() -> {
+            if (DesignerHook.instance != null) {
+                DesignerHook.instance.refreshGraphPanel();
+            }
+        });
 
         panel.setOnPushRequested(() -> handleAction(GitActionType.PUSH));
 
         panel.setOnPullRequested(() -> showPullPopup(projectName, userName));
+
+        panel.setOnCommitSelected(node ->
+                showCommitDetailPopup(projectName, node.hash, node.shortHash, node.message,
+                        node.author, node.date));
+
+        panel.setOnLoadMore(() -> new Thread(() -> {
+            try {
+                Dataset moreData = rpc.getCommitHistory(projectName, panel.getCurrentOffset(), GraphPanel.PAGE_SIZE);
+                panel.setData(moreData, true);
+            } catch (Exception e) {
+                logger.error("Error loading more commits for graph", e);
+            }
+        }).start());
     }
 
     public static void showConfirmPopup(String message, int messageType) {

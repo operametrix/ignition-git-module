@@ -43,7 +43,7 @@ Init, clone, commit (with file selection + timestamp), push (all branches+tags),
 | 19 | **Stash management UI** | Auto-stash exists on checkout but no manual stash/list/apply/drop | Users can't manually shelve work |
 | 20 | **Reset (soft/mixed/hard)** | No way to undo commits or unstage files | Only hard reset exists during initial setup |
 | 21 | **Selective push** | Pushes ALL branches + ALL tags every time | Can't push just the current branch |
-| 22 | **Visual commit graph** | No DAG/tree visualization of branch history | Core feature of every GUI client |
+| 22 | ~~**Visual commit graph**~~ | ~~No DAG/tree visualization of branch history~~ | **Implemented.** Dockable Graph panel (tabbed with Project Browser and Changes) shows a VS Code-style commit DAG with colored lanes, commit dots, and merge lines. Push/Pull buttons live on the Graph toolbar. Double-click a commit to view details. |
 | 23 | **Multiple remotes** | Hardcoded to single remote (origin) | Blocks fork-based workflows |
 
 ### Tier 4 — Advanced workflow and team gaps

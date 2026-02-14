@@ -27,8 +27,6 @@ public class SourceControlPanel extends JPanel {
     private BiConsumer<String, String> onDiffRequested;
     private Consumer<List<String>> onDiscardRequested;
     private BiConsumer<List<String>, String> onCommitRequested;
-    private Runnable onPushRequested;
-    private Runnable onPullRequested;
 
     public SourceControlPanel() {
         setLayout(new BorderLayout(0, 4));
@@ -38,12 +36,6 @@ public class SourceControlPanel extends JPanel {
         JPanel toolbar = new JPanel(new FlowLayout(FlowLayout.LEFT, 2, 0));
         toolbar.add(createToolbarButton("/com/operametrix/ignition/git/icons/ic_history.svg", "Refresh", () -> {
             if (onRefreshRequested != null) onRefreshRequested.run();
-        }));
-        toolbar.add(createToolbarButton("/com/operametrix/ignition/git/icons/ic_push.svg", "Push", () -> {
-            if (onPushRequested != null) onPushRequested.run();
-        }));
-        toolbar.add(createToolbarButton("/com/operametrix/ignition/git/icons/ic_pull.svg", "Pull", () -> {
-            if (onPullRequested != null) onPullRequested.run();
         }));
         add(toolbar, BorderLayout.NORTH);
 
@@ -264,14 +256,6 @@ public class SourceControlPanel extends JPanel {
 
     public void setOnCommitRequested(BiConsumer<List<String>, String> onCommitRequested) {
         this.onCommitRequested = onCommitRequested;
-    }
-
-    public void setOnPushRequested(Runnable onPushRequested) {
-        this.onPushRequested = onPushRequested;
-    }
-
-    public void setOnPullRequested(Runnable onPullRequested) {
-        this.onPullRequested = onPullRequested;
     }
 
     /**
