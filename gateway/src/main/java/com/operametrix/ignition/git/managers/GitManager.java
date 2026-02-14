@@ -476,7 +476,14 @@ public class GitManager {
         int index = 0;
         for (RevCommit stash : stashes) {
             if (stash.getFullMessage().contains(targetMessage)) {
-                git.stashApply().setStashRef("stash@{" + index + "}").call();
+                try {
+                    git.stashApply().setStashRef("stash@{" + index + "}").call();
+                } catch (org.eclipse.jgit.api.errors.StashApplyFailureException e) {
+                    // Stash conflicts with the current branch state — reset the
+                    // failed merge and discard the stash so checkout can proceed.
+                    logger.warn("Stash for branch '" + branchName + "' could not be applied cleanly; discarding stashed changes.", e);
+                    git.reset().setMode(ResetCommand.ResetType.HARD).call();
+                }
                 git.stashDrop().setStashRef(index).call();
                 return;
             }
