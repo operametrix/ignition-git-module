@@ -17,14 +17,14 @@ public class ClientScriptModule extends AbstractScriptModule {
     }
 
     @Override
-    protected boolean pullImpl(String projectName, String userName, boolean importTags, boolean importTheme,
+    protected boolean pullImpl(String projectName, String userName, String remoteName, boolean importTags, boolean importTheme,
                                boolean importImages) throws Exception {
-        return rpc.pull(projectName, userName, importTags, importTheme, importImages);
+        return rpc.pull(projectName, userName, remoteName, importTags, importTheme, importImages);
     }
 
     @Override
-    protected boolean pushImpl(String projectName, String userName, boolean pushAllBranches, boolean pushTags, boolean forcePush) throws Exception {
-        return rpc.push(projectName, userName, pushAllBranches, pushTags, forcePush);
+    protected boolean pushImpl(String projectName, String userName, String remoteName, boolean pushAllBranches, boolean pushTags, boolean forcePush) throws Exception {
+        return rpc.push(projectName, userName, remoteName, pushAllBranches, pushTags, forcePush);
     }
 
     @Override

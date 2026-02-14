@@ -20,10 +20,11 @@ public abstract class AbstractScriptModule implements GitScriptInterface {
     @ScriptFunction(docBundlePrefix = "AbstractScriptModule")
     public boolean pull(@ScriptArg("projectName") String projectName,
                         @ScriptArg("userName") String userName,
+                        @ScriptArg("remoteName") String remoteName,
                         @ScriptArg("importTags") boolean importTags,
                         @ScriptArg("importTheme") boolean importTheme,
                         @ScriptArg("importImages") boolean importImages) throws Exception {
-        return pullImpl(projectName, userName, importTags, importTheme, importImages);
+        return pullImpl(projectName, userName, remoteName, importTags, importTheme, importImages);
     }
 
 
@@ -31,10 +32,11 @@ public abstract class AbstractScriptModule implements GitScriptInterface {
     @ScriptFunction(docBundlePrefix = "AbstractScriptModule")
     public boolean push(@ScriptArg("projectName") String projectName,
                         @ScriptArg("userName") String userName,
+                        @ScriptArg("remoteName") String remoteName,
                         @ScriptArg("pushAllBranches") boolean pushAllBranches,
                         @ScriptArg("pushTags") boolean pushTags,
                         @ScriptArg("forcePush") boolean forcePush) throws Exception {
-        return pushImpl(projectName, userName, pushAllBranches, pushTags, forcePush);
+        return pushImpl(projectName, userName, remoteName, pushAllBranches, pushTags, forcePush);
     }
 
     @Override
@@ -206,9 +208,9 @@ public abstract class AbstractScriptModule implements GitScriptInterface {
         return discardChangesImpl(projectName, paths);
     }
 
-    protected abstract boolean pullImpl(String projectName, String userName, boolean importTags, boolean importTheme,
+    protected abstract boolean pullImpl(String projectName, String userName, String remoteName, boolean importTags, boolean importTheme,
                                         boolean importImages) throws Exception;
-    protected abstract boolean pushImpl(String projectName, String userName, boolean pushAllBranches, boolean pushTags, boolean forcePush) throws Exception;
+    protected abstract boolean pushImpl(String projectName, String userName, String remoteName, boolean pushAllBranches, boolean pushTags, boolean forcePush) throws Exception;
     protected abstract boolean commitImpl(String projectName, String userName, List<String> changes, String message, boolean amend);
     protected abstract Dataset getUncommitedChangesImpl(String projectName, String userName);
     protected abstract boolean isRegisteredUserImpl(String projectName, String userName);

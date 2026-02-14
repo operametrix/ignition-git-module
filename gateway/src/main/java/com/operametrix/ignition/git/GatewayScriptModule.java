@@ -40,6 +40,7 @@ public class GatewayScriptModule extends AbstractScriptModule {
     @Override
     public boolean pullImpl(String projectName,
                             String userName,
+                            String remoteName,
                             boolean importTags,
                             boolean importTheme,
                             boolean importImages) throws Exception {
@@ -51,7 +52,8 @@ public class GatewayScriptModule extends AbstractScriptModule {
 
         try (Git git = getGit(getProjectFolderPath(projectName))) {
             PullCommand pull = git.pull();
-            setAuthentication(pull, projectName, userName, "origin");
+            pull.setRemote(remoteName);
+            setAuthentication(pull, projectName, userName, remoteName);
 
             PullResult result = pull.call();
             if (!result.isSuccessful()) {
@@ -79,7 +81,7 @@ public class GatewayScriptModule extends AbstractScriptModule {
     }
 
     @Override
-    public boolean pushImpl(String projectName, String userName, boolean pushAllBranches, boolean pushTags, boolean forcePush) throws Exception {
+    public boolean pushImpl(String projectName, String userName, String remoteName, boolean pushAllBranches, boolean pushTags, boolean forcePush) throws Exception {
         GitProjectsConfigRecord projectRecord = getGitProjectConfigRecord(projectName);
         if (!projectRecord.hasRemote()) {
             throw new RuntimeException("No remote repository configured. Add a remote before pushing.");
@@ -87,8 +89,8 @@ public class GatewayScriptModule extends AbstractScriptModule {
 
         try (Git git = getGit(getProjectFolderPath(projectName))) {
             PushCommand push = git.push();
-
-            setAuthentication(push, projectName, userName, "origin");
+            push.setRemote(remoteName);
+            setAuthentication(push, projectName, userName, remoteName);
 
             if (pushAllBranches) {
                 push.setPushAll();

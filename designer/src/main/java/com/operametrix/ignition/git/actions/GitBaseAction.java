@@ -96,7 +96,7 @@ public class GitBaseAction extends BaseAction {
         }
     }
 
-    public static void handlePushAction() {
+    public static void handlePushAction(String remoteName) {
         if (!rpc.hasRemoteRepository(projectName)) {
             JOptionPane.showMessageDialog(context.getFrame(),
                     "No remote repository configured. Add a remote before pushing.",
@@ -108,7 +108,7 @@ public class GitBaseAction extends BaseAction {
         int messageType = JOptionPane.INFORMATION_MESSAGE;
 
         try {
-            rpc.push(projectName, userName, false, false, false);
+            rpc.push(projectName, userName, remoteName, false, false, false);
             SwingUtilities.invokeLater(new Thread(() -> showConfirmPopup(message, messageType)));
         } catch (Exception ex) {
             String exMsg = ex.getMessage() != null ? ex.getMessage() : "";
@@ -124,7 +124,7 @@ public class GitBaseAction extends BaseAction {
                 );
                 if (choice == JOptionPane.YES_OPTION) {
                     try {
-                        rpc.push(projectName, userName, false, false, true);
+                        rpc.push(projectName, userName, remoteName, false, false, true);
                         SwingUtilities.invokeLater(new Thread(() -> showConfirmPopup(message, messageType)));
                     } catch (Exception ex2) {
                         ErrorUtil.showError(ex2);
@@ -141,7 +141,7 @@ public class GitBaseAction extends BaseAction {
         }
     }
 
-    public static void handlePullAction(boolean importTags, boolean importTheme, boolean importImages) {
+    public static void handlePullAction(String remoteName, boolean importTags, boolean importTheme, boolean importImages) {
         if (!rpc.hasRemoteRepository(projectName)) {
             JOptionPane.showMessageDialog(context.getFrame(),
                     "No remote repository configured. Add a remote before pulling.",
@@ -153,7 +153,7 @@ public class GitBaseAction extends BaseAction {
         int messageType = JOptionPane.INFORMATION_MESSAGE;
 
         try {
-            rpc.pull(projectName, userName, importTags, importTheme, importImages);
+            rpc.pull(projectName, userName, remoteName, importTags, importTheme, importImages);
             pullProjectFromGateway();
             SwingUtilities.invokeLater(new Thread(() -> showConfirmPopup(message, messageType)));
         } catch (Exception ex) {
@@ -301,7 +301,7 @@ public class GitBaseAction extends BaseAction {
                     break;
                 case PUSH:
                     confirmPopup = Boolean.FALSE;
-                    handlePushAction();
+                    showPushPopup(projectName, userName);
                     break;
                 case COMMIT:
                     confirmPopup = Boolean.FALSE;

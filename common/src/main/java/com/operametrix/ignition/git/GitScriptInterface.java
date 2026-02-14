@@ -6,9 +6,9 @@ import java.util.List;
 
 public interface GitScriptInterface {
 
-    boolean pull(String projectName, String userName, boolean importTags, boolean importTheme,
+    boolean pull(String projectName, String userName, String remoteName, boolean importTags, boolean importTheme,
                  boolean importImages) throws Exception;
-    boolean push(String projectName, String userName, boolean pushAllBranches, boolean pushTags, boolean forcePush) throws Exception;
+    boolean push(String projectName, String userName, String remoteName, boolean pushAllBranches, boolean pushTags, boolean forcePush) throws Exception;
     boolean commit(String projectName, String userName, List<String> changes, String message, boolean amend);
     Dataset getUncommitedChanges(String projectName, String userName);
     boolean isRegisteredUser(String projectName, String userName);

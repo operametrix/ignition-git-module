@@ -9,6 +9,7 @@ import com.operametrix.ignition.git.DiffViewerPopup;
 import com.operametrix.ignition.git.HistoryPopup;
 import com.operametrix.ignition.git.InitRepoPopup;
 import com.operametrix.ignition.git.PullPopup;
+import com.operametrix.ignition.git.PushPopup;
 import com.operametrix.ignition.git.RemotesPopup;
 import com.operametrix.ignition.git.CommitPanel;
 import com.operametrix.ignition.git.HistoryPanel;
@@ -31,6 +32,7 @@ public class GitActionManager {
 
     static CommitPopup commitPopup;
     static PullPopup pullPopup;
+    static PushPopup pushPopup;
     static BranchPopup branchPopup;
     static CredentialsPopup credentialsPopup;
     static InitRepoPopup initRepoPopup;
@@ -133,18 +135,72 @@ public class GitActionManager {
 
 
     public static void showPullPopup(String projectName, String userName) {
+        List<String> remoteNames = getRemoteNames(projectName);
+
         if (pullPopup != null) {
+            pullPopup.setRemotes(remoteNames);
+            pullPopup.resetCheckboxes();
             pullPopup.setVisible(true);
             pullPopup.toFront();
         } else {
             pullPopup = new PullPopup(context.getFrame()) {
                 @Override
-                public void onPullAction(boolean importTags, boolean importTheme, boolean importImages) {
-                    handlePullAction(importTags, importTheme, importImages);
+                public void onPullAction(String remoteName, boolean importTags, boolean importTheme, boolean importImages) {
+                    handlePullAction(remoteName, importTags, importTheme, importImages);
                     resetCheckboxes();
                 }
             };
+            pullPopup.setRemotes(remoteNames);
         }
+    }
+
+    public static void showPushPopup(String projectName, String userName) {
+        if (!rpc.hasRemoteRepository(projectName)) {
+            JOptionPane.showMessageDialog(context.getFrame(),
+                    "No remote repository configured. Add a remote before pushing.",
+                    "Push", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        List<String> remoteNames = getRemoteNames(projectName);
+
+        // Single remote: skip popup, push immediately
+        if (remoteNames.size() <= 1) {
+            String remote = remoteNames.isEmpty() ? "origin" : remoteNames.get(0);
+            handlePushAction(remote);
+            return;
+        }
+
+        // Multiple remotes: show popup
+        if (pushPopup != null) {
+            pushPopup.setRemotes(remoteNames);
+            pushPopup.setVisible(true);
+            pushPopup.toFront();
+        } else {
+            pushPopup = new PushPopup(context.getFrame()) {
+                @Override
+                public void onPush(String remoteName) {
+                    handlePushAction(remoteName);
+                }
+            };
+            pushPopup.setRemotes(remoteNames);
+        }
+    }
+
+    private static List<String> getRemoteNames(String projectName) {
+        List<String> remoteNames = new ArrayList<>();
+        try {
+            Dataset remotes = rpc.listRemotes(projectName);
+            for (int i = 0; i < remotes.getRowCount(); i++) {
+                remoteNames.add((String) remotes.getValueAt(i, "name"));
+            }
+        } catch (Exception e) {
+            logger.error("Error listing remotes", e);
+        }
+        if (remoteNames.isEmpty()) {
+            remoteNames.add("origin");
+        }
+        return remoteNames;
     }
 
     public static void showBranchPopup(String projectName, String userName) {
@@ -467,7 +523,7 @@ public class GitActionManager {
     }
 
     public static void wireHistoryPanel(HistoryPanel panel, String projectName, String userName) {
-        panel.setOnPushRequested(() -> handlePushAction());
+        panel.setOnPushRequested(() -> showPushPopup(projectName, userName));
 
         panel.setOnPullRequested(() -> showPullPopup(projectName, userName));
 
