@@ -240,6 +240,16 @@ public class DesignerHook extends AbstractDesignerModuleHook {
         refreshSourceControlPanel();
     }
 
+    public void refreshBranchLabel() {
+        if (branchButton == null) return;
+        try {
+            String branch = rpc.getCurrentBranch(projectName);
+            SwingUtilities.invokeLater(() -> branchButton.setText(branch));
+        } catch (Exception e) {
+            SwingUtilities.invokeLater(() -> branchButton.setText("unknown"));
+        }
+    }
+
     public void refreshSourceControlPanel() {
         if (sourceControlPanel == null) return;
         new Thread(() -> {

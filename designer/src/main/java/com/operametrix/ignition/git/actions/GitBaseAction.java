@@ -123,6 +123,7 @@ public class GitBaseAction extends BaseAction {
             pullProjectFromGateway();
             SwingUtilities.invokeLater(new Thread(() -> showConfirmPopup(message, messageType)));
             if (instance != null) {
+                instance.refreshBranchLabel();
                 instance.refreshSourceControlPanel();
                 instance.refreshHistoryPanel();
             }
