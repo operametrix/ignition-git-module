@@ -57,15 +57,12 @@ public class GitManager {
     private final static LoggerEx logger = LoggerEx.newBuilder().build(GitManager.class);
 
     static public Git getGit(Path projectFolderPath) {
-        Git git;
         try {
-            git = Git.open(projectFolderPath.resolve(".git").toFile());
-            disableSsl(git);
+            return Git.open(projectFolderPath.resolve(".git").toFile());
         } catch (IOException e) {
             logger.error("Unable to retrieve Git repository", e);
             throw new RuntimeException(e);
         }
-        return git;
     }
 
     public static Path getProjectFolderPath(String projectName) {
