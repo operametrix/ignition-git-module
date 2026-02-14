@@ -288,6 +288,29 @@ public class GitBaseAction extends BaseAction {
         }
     }
 
+    public static void handleRevertCommitAction(String commitHash, String shortHash, String message) {
+        int choice = JOptionPane.showConfirmDialog(context.getFrame(),
+                "Revert commit " + shortHash + "?\n\n\"" + message + "\"\n\n"
+                        + "This will create a new commit that undoes the changes.",
+                "Revert Commit", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+
+        if (choice != JOptionPane.YES_OPTION) return;
+
+        try {
+            rpc.revertCommit(projectName, commitHash);
+            pullProjectFromGateway();
+            SwingUtilities.invokeLater(new Thread(() ->
+                    showConfirmPopup("Commit reverted successfully.", JOptionPane.INFORMATION_MESSAGE)));
+        } catch (Exception ex) {
+            ErrorUtil.showError(ex);
+        } finally {
+            if (instance != null) {
+                instance.refreshCommitPanel();
+                instance.refreshHistoryPanel();
+            }
+        }
+    }
+
     public static void handleAction(GitActionType type) {
         String message = BundleUtil.get().getStringLenient(type.baseBundleKey + ".ConfirmMessage");
         int messageType = JOptionPane.INFORMATION_MESSAGE;

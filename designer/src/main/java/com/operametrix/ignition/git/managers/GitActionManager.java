@@ -444,6 +444,11 @@ public class GitActionManager {
                 public void onFileDiffRequested(String commitHash, String filePath, String changeType) {
                     showCommitFileDiff(projectName, commitHash, filePath, shortHash);
                 }
+
+                @Override
+                public void onRevertRequested(String commitHash, String shortHash, String message) {
+                    handleRevertCommitAction(commitHash, shortHash, message);
+                }
             };
         } catch (Exception e) {
             logger.error("Error showing commit detail popup", e);
@@ -536,6 +541,9 @@ public class GitActionManager {
         panel.setOnCommitSelected(node ->
                 showCommitDetailPopup(projectName, node.hash, node.shortHash, node.message,
                         node.author, node.date));
+
+        panel.setOnRevertRequested(node ->
+                handleRevertCommitAction(node.hash, node.shortHash, node.message));
 
         panel.setOnLoadMore(() -> new Thread(() -> {
             try {

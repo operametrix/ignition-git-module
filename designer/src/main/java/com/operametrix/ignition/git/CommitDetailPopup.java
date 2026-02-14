@@ -29,6 +29,8 @@ public class CommitDetailPopup extends JFrame {
     private final Logger logger = LoggerFactory.getLogger(getClass());
 
     private final String commitHash;
+    private final String shortHash;
+    private final String message;
     private DefaultTableModel tableModel;
     private JTable table;
 
@@ -36,6 +38,8 @@ public class CommitDetailPopup extends JFrame {
                              String author, String date,
                              List<String> files, Component parent) {
         this.commitHash = commitHash;
+        this.shortHash = shortHash;
+        this.message = message;
 
         try {
             InputStream iconStream = getClass().getResourceAsStream("/com/operametrix/ignition/git/icons/ic_history.svg");
@@ -138,8 +142,11 @@ public class CommitDetailPopup extends JFrame {
         JScrollPane scrollPane = new JScrollPane(table);
         main.add(scrollPane, BorderLayout.CENTER);
 
-        // Bottom: close button
+        // Bottom: revert + close buttons
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 5, 5));
+        JButton revertBtn = new JButton("Revert Commit");
+        revertBtn.addActionListener(e -> onRevertRequested(commitHash, shortHash, message));
+        buttonPanel.add(revertBtn);
         JButton closeBtn = new JButton("Close");
         closeBtn.addActionListener(e -> dispose());
         buttonPanel.add(closeBtn);
@@ -153,5 +160,8 @@ public class CommitDetailPopup extends JFrame {
     }
 
     public void onFileDiffRequested(String commitHash, String filePath, String changeType) {
+    }
+
+    public void onRevertRequested(String commitHash, String shortHash, String message) {
     }
 }

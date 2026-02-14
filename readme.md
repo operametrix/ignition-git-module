@@ -17,6 +17,7 @@ An Ignition module that embeds a Git client directly into the Ignition Designer,
 - Export of the gateway configuration: tags, images, themes (Designer, from git toolbar)
 - Side-by-side diff viewer for reviewing changes before committing
 - Commit history browser: paginated log viewer accessible from the toolbar, with drill-down into changed files per commit and side-by-side diff of historical changes
+- Revert commit: undo a specific past commit by creating a new commit that reverses its changes — accessible from the "Revert Commit" button in the commit detail view or via right-click context menu in the History panel. Conflicts are detected and the revert is aborted cleanly
 - Dockable Commit panel: an always-visible panel tabbed alongside the Project Browser for at-a-glance uncommitted changes, inline commits, diff viewing, and discarding changes
 - Dockable History panel: an always-visible panel showing commit log with ref badges, plus Push and Pull buttons
 - Commissioning configuration file for easy deployment

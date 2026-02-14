@@ -80,6 +80,9 @@ public interface GitScriptInterface {
      */
     boolean initializeLocalProject(String projectName, String ignitionUser, String email) throws Exception;
 
+    /** Create a new commit that reverses the changes of the specified commit (git revert). */
+    boolean revertCommit(String projectName, String commitHash) throws Exception;
+
     /** Check whether the given project has a remote repository configured. */
     boolean hasRemoteRepository(String projectName);
 

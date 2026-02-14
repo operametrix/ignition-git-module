@@ -240,6 +240,15 @@ public abstract class AbstractScriptModule implements GitScriptInterface {
 
     @Override
     @ScriptFunction(docBundlePrefix = "AbstractScriptModule")
+    public boolean revertCommit(@ScriptArg("projectName") String projectName,
+                                @ScriptArg("commitHash") String commitHash) throws Exception {
+        return revertCommitImpl(projectName, commitHash);
+    }
+
+    protected abstract boolean revertCommitImpl(String projectName, String commitHash) throws Exception;
+
+    @Override
+    @ScriptFunction(docBundlePrefix = "AbstractScriptModule")
     public boolean initializeLocalProject(@ScriptArg("projectName") String projectName,
                                            @ScriptArg("ignitionUser") String ignitionUser,
                                            @ScriptArg("email") String email) throws Exception {

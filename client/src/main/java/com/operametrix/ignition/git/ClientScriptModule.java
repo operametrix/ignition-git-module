@@ -146,6 +146,11 @@ public class ClientScriptModule extends AbstractScriptModule {
     }
 
     @Override
+    protected boolean revertCommitImpl(String projectName, String commitHash) throws Exception {
+        return rpc.revertCommit(projectName, commitHash);
+    }
+
+    @Override
     protected boolean initializeLocalProjectImpl(String projectName, String ignitionUser,
                                                   String email) throws Exception {
         return rpc.initializeLocalProject(projectName, ignitionUser, email);

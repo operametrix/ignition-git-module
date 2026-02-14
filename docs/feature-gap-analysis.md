@@ -2,7 +2,7 @@
 
 ## Current capabilities
 
-Init, clone, commit (with file selection + timestamp + amend), push (current branch only by default; force push with confirmation on rejection), pull (merge only), branch list/create/checkout/delete, auto-stash on checkout, status (uncommitted changes), SSH + HTTPS auth, credential management UI, resource import/export, commissioning automation, Designer toolbar + status bar, side-by-side diff viewer, commit history browser with per-commit file list and historical diff, dockable Commit panel with inline commit/discard/diff/amend, dockable History panel with commit log/ref badges/push/pull, discard (revert) uncommitted changes.
+Init, clone, commit (with file selection + timestamp + amend), push (current branch only by default; force push with confirmation on rejection), pull (merge only), branch list/create/checkout/delete, auto-stash on checkout, status (uncommitted changes), SSH + HTTPS auth, credential management UI, resource import/export, commissioning automation, Designer toolbar + status bar, side-by-side diff viewer, commit history browser with per-commit file list and historical diff, dockable Commit panel with inline commit/discard/diff/amend, dockable History panel with commit log/ref badges/push/pull, discard (revert) uncommitted changes, multi-remote management (add/edit/remove named remotes with per-remote credentials) with push/pull remote target selection.
 
 ---
 
@@ -36,7 +36,7 @@ Init, clone, commit (with file selection + timestamp + amend), push (current bra
 |---|---------|--------|-------|
 | 13 | **Rebase** | No linear history option; pull always merges | Many teams require rebase workflows |
 | 14 | **Cherry-pick** | Can't pick specific commits across branches | Common for hotfixes |
-| 15 | **Revert commit** | No way to undo a specific past commit | Must manually reverse changes |
+| 15 | ~~**Revert commit**~~ | ~~No way to undo a specific past commit~~ | **Implemented.** "Revert Commit" button in CommitDetailPopup and right-click context menu in HistoryPanel create a new commit that undoes the target commit's changes via `git revert`. Conflicts are detected and the revert is aborted cleanly. |
 | 16 | **Blame / annotate** | Can't see who changed which line and when | Useful for debugging and accountability |
 | 17 | **File history** | No way to track a single resource's change history | |
 | 18 | **Commit search / filter** | No way to search history by author, date, or message | |
@@ -44,7 +44,7 @@ Init, clone, commit (with file selection + timestamp + amend), push (current bra
 | 20 | **Reset (soft/mixed/hard)** | No way to undo commits or unstage files | Only hard reset exists during initial setup |
 | 21 | ~~**Selective push**~~ | ~~Pushes ALL branches + ALL tags every time~~ | **Implemented.** Push now sends only the current branch with no tags by default, matching standard `git push` behavior. The RPC method accepts `pushAllBranches` and `pushTags` flags for callers that need the old behavior. |
 | 22 | **Visual commit graph** | No DAG/tree visualization of branch history | The original Graph panel was replaced with a simplified History panel (commit table with ref badges). A true DAG with colored lanes and merge lines does not exist. |
-| 23 | **Multiple remotes** | Hardcoded to single remote (origin) | Blocks fork-based workflows |
+| 23 | ~~**Multiple remotes**~~ | ~~Hardcoded to single remote (origin)~~ | **Implemented.** Remotes popup (status bar button) manages named remotes with per-remote credentials. Push and pull accept a remote name parameter; when 2+ remotes exist, a dropdown lets the user choose the target. Single-remote projects behave as before. |
 
 ### Tier 4 — Advanced workflow and team gaps
 
@@ -87,11 +87,23 @@ Init, clone, commit (with file selection + timestamp + amend), push (current bra
 
 ## Priority recommendation
 
-Top 5 highest-impact additions for this module's use case (Ignition Designer teams):
+### Completed so far
 
 1. ~~**Diff viewer** (#1)~~ — **Done.**
 2. ~~**Commit log/history** (#2)~~ — **Done.**
 3. ~~**Discard changes** (#4)~~ — **Done.**
-4. **Merge conflict resolution UI** (#7) — pull silently fails on conflicts, blocks teams
+4. ~~**Amend last commit** (#11)~~ — **Done.**
 5. ~~**Selective push** (#21)~~ — **Done.**
-6. **Revert commit** (#15) — no way to undo mistakes without manual intervention
+6. ~~**Force push** (#26)~~ — **Done.**
+7. ~~**Multiple remotes** (#23)~~ — **Done.**
+8. ~~**Revert commit** (#15)~~ — **Done.**
+
+### Proposed next steps
+
+Top 5 highest-impact additions for Ignition Designer teams, ordered by urgency:
+
+1. **Merge conflict resolution UI** (#7) — pull silently fails on conflicts, which is the single biggest blocker for multi-developer teams. A minimal viable approach: detect `MergeResult.MergeStatus.CONFLICTING`, list conflicting files, and offer "Accept Ours" / "Accept Theirs" per file (full three-way merge editor is Tier 4 complexity).
+2. **Fetch without merge** (#3) — lets users review incoming changes before committing to a merge. Pairs naturally with #7; once conflicts are visible, users want to see what's coming before pulling. Could be a "Fetch" button in the History panel toolbar alongside Push/Pull.
+3. **Commit search / filter** (#18) — as commit history grows, finding a specific change becomes tedious. Add a search field to the History panel filtering by message text or author. Straightforward UI addition with high daily-use value.
+4. **Delete remote branches** (#9) — stale remote branches accumulate and clutter the branch popup. Add a delete option for `remotes/origin/*` entries using `git push --delete`. Small change, reduces branch management friction.
+5. **Cherry-pick** (#14) — can't pick specific commits across branches. Common for hotfixes. Add a "Cherry-pick" option alongside "Revert" in CommitDetailPopup and HistoryPanel context menu.

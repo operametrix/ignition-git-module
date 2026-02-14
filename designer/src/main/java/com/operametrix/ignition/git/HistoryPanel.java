@@ -44,6 +44,7 @@ public class HistoryPanel extends JPanel {
     private Runnable onRefreshRequested;
     private Runnable onLoadMore;
     private Consumer<CommitNode> onCommitSelected;
+    private Consumer<CommitNode> onRevertRequested;
 
     public HistoryPanel() {
         setLayout(new BorderLayout(0, 4));
@@ -72,7 +73,7 @@ public class HistoryPanel extends JPanel {
 
         configureColumns();
 
-        // Double-click to view commit detail
+        // Double-click to view commit detail; right-click for context menu
         historyTable.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
@@ -80,6 +81,32 @@ public class HistoryPanel extends JPanel {
                     int row = historyTable.rowAtPoint(e.getPoint());
                     if (row >= 0 && row < nodes.size() && onCommitSelected != null) {
                         onCommitSelected.accept(nodes.get(row));
+                    }
+                }
+            }
+
+            @Override
+            public void mousePressed(MouseEvent e) {
+                handlePopup(e);
+            }
+
+            @Override
+            public void mouseReleased(MouseEvent e) {
+                handlePopup(e);
+            }
+
+            private void handlePopup(MouseEvent e) {
+                if (e.isPopupTrigger()) {
+                    int row = historyTable.rowAtPoint(e.getPoint());
+                    if (row >= 0 && row < nodes.size()) {
+                        historyTable.setRowSelectionInterval(row, row);
+                        JPopupMenu menu = new JPopupMenu();
+                        JMenuItem revertItem = new JMenuItem("Revert Commit");
+                        revertItem.addActionListener(ev -> {
+                            if (onRevertRequested != null) onRevertRequested.accept(nodes.get(row));
+                        });
+                        menu.add(revertItem);
+                        menu.show(historyTable, e.getX(), e.getY());
                     }
                 }
             }
@@ -315,5 +342,9 @@ public class HistoryPanel extends JPanel {
 
     public void setOnCommitSelected(Consumer<CommitNode> onCommitSelected) {
         this.onCommitSelected = onCommitSelected;
+    }
+
+    public void setOnRevertRequested(Consumer<CommitNode> onRevertRequested) {
+        this.onRevertRequested = onRevertRequested;
     }
 }
