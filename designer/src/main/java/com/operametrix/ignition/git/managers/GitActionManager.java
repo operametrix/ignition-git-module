@@ -9,7 +9,7 @@ import com.operametrix.ignition.git.DiffViewerPopup;
 import com.operametrix.ignition.git.HistoryPopup;
 import com.operametrix.ignition.git.InitRepoPopup;
 import com.operametrix.ignition.git.PullPopup;
-import com.operametrix.ignition.git.SourceControlPanel;
+import com.operametrix.ignition.git.CommitPanel;
 import com.operametrix.ignition.git.HistoryPanel;
 import com.inductiveautomation.ignition.common.Dataset;
 import com.inductiveautomation.ignition.common.project.ChangeOperation;
@@ -309,10 +309,10 @@ public class GitActionManager {
         }
     }
 
-    public static void wireSourceControlPanel(SourceControlPanel panel, String projectName, String userName) {
+    public static void wireCommitPanel(CommitPanel panel, String projectName, String userName) {
         panel.setOnRefreshRequested(() -> {
             if (DesignerHook.instance != null) {
-                DesignerHook.instance.refreshSourceControlPanel();
+                DesignerHook.instance.refreshCommitPanel();
             }
         });
 
@@ -323,7 +323,7 @@ public class GitActionManager {
                 rpc.discardChanges(projectName, paths);
                 pullProjectFromGateway();
                 if (DesignerHook.instance != null) {
-                    DesignerHook.instance.refreshSourceControlPanel();
+                    DesignerHook.instance.refreshCommitPanel();
                 }
             } catch (Exception e) {
                 logger.error("Error discarding changes", e);
@@ -338,7 +338,7 @@ public class GitActionManager {
             try {
                 handleCommitAction(changes, message);
                 if (DesignerHook.instance != null) {
-                    DesignerHook.instance.refreshSourceControlPanel();
+                    DesignerHook.instance.refreshCommitPanel();
                 }
             } catch (Exception e) {
                 logger.error("Error committing from panel", e);

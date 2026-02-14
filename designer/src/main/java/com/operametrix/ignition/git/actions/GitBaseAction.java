@@ -88,7 +88,7 @@ public class GitBaseAction extends BaseAction {
             rpc.commit(projectName, userName, changes, commitMessage);
             SwingUtilities.invokeLater(new Thread(() -> showConfirmPopup(message, messageType)));
             if (instance != null) {
-                instance.refreshSourceControlPanel();
+                instance.refreshCommitPanel();
                 instance.refreshHistoryPanel();
             }
         } catch (Exception ex) {
@@ -108,7 +108,7 @@ public class GitBaseAction extends BaseAction {
             ErrorUtil.showError(ex);
         } finally {
             if (instance != null) {
-                instance.refreshSourceControlPanel();
+                instance.refreshCommitPanel();
                 instance.refreshHistoryPanel();
             }
         }
@@ -128,7 +128,7 @@ public class GitBaseAction extends BaseAction {
         } finally {
             if (instance != null) {
                 instance.refreshBranchLabel();
-                instance.refreshSourceControlPanel();
+                instance.refreshCommitPanel();
                 instance.refreshHistoryPanel();
             }
         }
@@ -271,7 +271,7 @@ public class GitBaseAction extends BaseAction {
             }
             if(confirmPopup) SwingUtilities.invokeLater(new Thread(() -> showConfirmPopup(message, messageType)));
             if (instance != null) {
-                instance.refreshSourceControlPanel();
+                instance.refreshCommitPanel();
                 instance.refreshHistoryPanel();
             }
         } catch (Exception ex) {

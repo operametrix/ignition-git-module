@@ -42,10 +42,10 @@ public class DesignerHook extends AbstractDesignerModuleHook {
     JButton branchButton;
     Timer gitUserTimer;
     boolean toolBarInitialized;
-    SourceControlPanel sourceControlPanel;
-    DockableFrame sourceControlFrame;
-    boolean sourceControlFrameInitialized;
-    Timer sourceControlRefreshTimer;
+    CommitPanel commitPanel;
+    DockableFrame commitFrame;
+    boolean commitFrameInitialized;
+    Timer commitRefreshTimer;
     HistoryPanel historyPanel;
     DockableFrame historyFrame;
     boolean historyFrameInitialized;
@@ -77,7 +77,7 @@ public class DesignerHook extends AbstractDesignerModuleHook {
             rpc.setupLocalRepo(projectName, userName);
             initStatusBar();
             initToolBar();
-            initSourceControlPanel();
+            initCommitPanel();
             initHistoryPanel();
         } else {
             initStatusBarUnregistered();
@@ -170,12 +170,12 @@ public class DesignerHook extends AbstractDesignerModuleHook {
             statusBar.removeDisplay(gitStatusBar);
         }
 
-        cleanupSourceControlPanel();
+        cleanupCommitPanel();
         cleanupHistoryPanel();
 
         initStatusBar();
         initToolBar();
-        initSourceControlPanel();
+        initCommitPanel();
         initHistoryPanel();
     }
 
@@ -193,33 +193,33 @@ public class DesignerHook extends AbstractDesignerModuleHook {
         toolBarInitialized = true;
     }
 
-    private void initSourceControlPanel() {
-        sourceControlPanel = new SourceControlPanel();
-        GitActionManager.wireSourceControlPanel(sourceControlPanel, projectName, userName);
+    private void initCommitPanel() {
+        commitPanel = new CommitPanel();
+        GitActionManager.wireCommitPanel(commitPanel, projectName, userName);
 
-        sourceControlFrame = new DockableFrame("Changes",
+        commitFrame = new DockableFrame("Commit",
                 IconUtils.getIcon("/com/operametrix/ignition/git/icons/ic_commit.svg"));
-        sourceControlFrame.setTitle(BundleUtil.get().getStringLenient("DesignerHook.Changes.Title"));
-        sourceControlFrame.getContentPane().add(sourceControlPanel);
-        sourceControlFrame.setPreferredSize(new Dimension(525, 400));
-        sourceControlFrame.setAutohideWidth(525);
-        sourceControlFrame.setDockedWidth(525);
+        commitFrame.setTitle(BundleUtil.get().getStringLenient("DesignerHook.Commit.Title"));
+        commitFrame.getContentPane().add(commitPanel);
+        commitFrame.setPreferredSize(new Dimension(525, 400));
+        commitFrame.setAutohideWidth(525);
+        commitFrame.setDockedWidth(525);
 
         DockingManager dockingManager = context.getDockingManager();
 
         // Add frame initially hidden, then group it as a tab with the Project Browser
-        sourceControlFrame.setInitSide(DockContext.DOCK_SIDE_WEST);
-        sourceControlFrame.setInitIndex(0);
-        sourceControlFrame.setInitMode(DockContext.STATE_HIDDEN);
-        dockingManager.addFrame(sourceControlFrame);
-        sourceControlFrameInitialized = true;
+        commitFrame.setInitSide(DockContext.DOCK_SIDE_WEST);
+        commitFrame.setInitIndex(0);
+        commitFrame.setInitMode(DockContext.STATE_HIDDEN);
+        dockingManager.addFrame(commitFrame);
+        commitFrameInitialized = true;
 
         // Defer tab grouping until the Designer layout is fully initialized
         Timer dockTimer = new Timer(2000, e -> {
             DockableFrame projectBrowser = dockingManager.getFrame(PROJECT_BROWSER_KEY);
-            dockingManager.showFrame(sourceControlFrame.getKey());
+            dockingManager.showFrame(commitFrame.getKey());
             if (projectBrowser != null) {
-                dockingManager.moveFrame(sourceControlFrame.getKey(), PROJECT_BROWSER_KEY);
+                dockingManager.moveFrame(commitFrame.getKey(), PROJECT_BROWSER_KEY);
             }
             if (historyFrameInitialized) {
                 dockingManager.showFrame(historyFrame.getKey());
@@ -233,11 +233,11 @@ public class DesignerHook extends AbstractDesignerModuleHook {
         dockTimer.start();
 
         // Auto-refresh timer
-        sourceControlRefreshTimer = new Timer(15000, e -> refreshSourceControlPanel());
-        sourceControlRefreshTimer.start();
+        commitRefreshTimer = new Timer(15000, e -> refreshCommitPanel());
+        commitRefreshTimer.start();
 
         // Initial refresh
-        refreshSourceControlPanel();
+        refreshCommitPanel();
     }
 
     public void refreshBranchLabel() {
@@ -250,33 +250,33 @@ public class DesignerHook extends AbstractDesignerModuleHook {
         }
     }
 
-    public void refreshSourceControlPanel() {
-        if (sourceControlPanel == null) return;
+    public void refreshCommitPanel() {
+        if (commitPanel == null) return;
         new Thread(() -> {
             try {
                 Dataset ds = rpc.getUncommitedChanges(projectName, userName);
-                sourceControlPanel.setChangesData(ds);
+                commitPanel.setChangesData(ds);
             } catch (Exception e) {
                 // Silently ignore refresh errors
             }
         }).start();
     }
 
-    private void cleanupSourceControlPanel() {
-        if (sourceControlRefreshTimer != null) {
-            sourceControlRefreshTimer.stop();
-            sourceControlRefreshTimer = null;
+    private void cleanupCommitPanel() {
+        if (commitRefreshTimer != null) {
+            commitRefreshTimer.stop();
+            commitRefreshTimer = null;
         }
-        if (sourceControlFrameInitialized) {
+        if (commitFrameInitialized) {
             try {
                 DockingManager dockingManager = context.getDockingManager();
-                dockingManager.removeFrame("Changes");
+                dockingManager.removeFrame("Commit");
             } catch (Exception ignored) {
             }
-            sourceControlFrameInitialized = false;
+            commitFrameInitialized = false;
         }
-        sourceControlPanel = null;
-        sourceControlFrame = null;
+        commitPanel = null;
+        commitFrame = null;
     }
 
     private void initHistoryPanel() {
@@ -357,7 +357,7 @@ public class DesignerHook extends AbstractDesignerModuleHook {
             gitUserTimer.stop();
         }
 
-        cleanupSourceControlPanel();
+        cleanupCommitPanel();
         cleanupHistoryPanel();
     }
 }

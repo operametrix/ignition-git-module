@@ -16,7 +16,7 @@ import java.util.List;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
-public class SourceControlPanel extends JPanel {
+public class CommitPanel extends JPanel {
 
     private final JTextArea commitMessageArea;
     private final JButton commitButton;
@@ -28,7 +28,7 @@ public class SourceControlPanel extends JPanel {
     private Consumer<List<String>> onDiscardRequested;
     private BiConsumer<List<String>, String> onCommitRequested;
 
-    public SourceControlPanel() {
+    public CommitPanel() {
         setLayout(new BorderLayout(0, 4));
         setBorder(BorderFactory.createEmptyBorder(4, 4, 4, 4));
 
@@ -154,7 +154,7 @@ public class SourceControlPanel extends JPanel {
                 discard.setForeground(new Color(0xCC0000));
                 discard.addActionListener(a -> {
                     int confirm = JOptionPane.showConfirmDialog(
-                            SourceControlPanel.this,
+                            CommitPanel.this,
                             "Discard changes to '" + resource + "'?\nThis cannot be undone.",
                             "Discard Changes",
                             JOptionPane.YES_NO_OPTION,

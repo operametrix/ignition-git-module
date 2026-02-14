@@ -54,12 +54,12 @@ The root `build.gradle.kts` uses the `io.ia.sdk.modl` Gradle plugin to assemble 
 - `CredentialsPopup` — manage email, username, password/SSH key for an already-registered project
 - `InitRepoPopup` — initialize a git repo for an unregistered project: enter repo URI (dynamic HTTPS/SSH field switching based on URI prefix), email, and credentials. On success, creates DB records + clones the repo + refreshes the Designer project.
 
-**Dockable Changes panel** (`SourceControlPanel.java`) — a JIDE `DockableFrame`-based panel (key: `"Changes"`, icon: `ic_commit.svg`) tabbed alongside the Project Browser (key: `"Project Browser"`) on the left side, with Project Browser as the default active tab. Provides an at-a-glance view of uncommitted changes without opening popups:
+**Dockable Commit panel** (`CommitPanel.java`) — a JIDE `DockableFrame`-based panel (key: `"Commit"`, icon: `ic_commit.svg`) tabbed alongside the Project Browser (key: `"Project Browser"`) on the left side, with Project Browser as the default active tab. Provides an at-a-glance view of uncommitted changes without opening popups:
 - Top toolbar: Refresh button
 - Commit section: message text area + Commit button for inline commits
 - Changes table: checkbox + Resource + Type columns with `SelectAllHeader`; Type column shows color-coded single-letter badges (A=green/created, M=amber/modified, D=red/deleted, U=orange/uncommitted)
 - Double-click a row to view diff; right-click context menu for "View Diff" and "Discard Changes" (with confirmation dialog)
-- Uses `java.util.function` callback setters wired by `GitActionManager.wireSourceControlPanel()`
+- Uses `java.util.function` callback setters wired by `GitActionManager.wireCommitPanel()`
 - Auto-refreshes every 15 seconds via a `Timer`, plus immediate refresh after any git operation (commit, pull, push, checkout)
 - Thread-safe: `setChangesData(Dataset)` posts updates to EDT via `SwingUtilities.invokeLater()`
 
