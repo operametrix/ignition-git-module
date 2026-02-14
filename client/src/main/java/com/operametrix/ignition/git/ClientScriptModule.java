@@ -144,4 +144,15 @@ public class ClientScriptModule extends AbstractScriptModule {
     protected boolean discardChangesImpl(String projectName, List<String> paths) {
         return rpc.discardChanges(projectName, paths);
     }
+
+    @Override
+    protected boolean initializeLocalProjectImpl(String projectName, String ignitionUser,
+                                                  String email) throws Exception {
+        return rpc.initializeLocalProject(projectName, ignitionUser, email);
+    }
+
+    @Override
+    protected boolean hasRemoteRepositoryImpl(String projectName) {
+        return rpc.hasRemoteRepository(projectName);
+    }
 }

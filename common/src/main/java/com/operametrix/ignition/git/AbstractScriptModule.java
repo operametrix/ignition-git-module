@@ -236,4 +236,22 @@ public abstract class AbstractScriptModule implements GitScriptInterface {
     protected abstract List<String> getCommitFileDiffImpl(String projectName, String commitHash, String filePath);
     protected abstract boolean discardChangesImpl(String projectName, List<String> paths);
 
+    @Override
+    @ScriptFunction(docBundlePrefix = "AbstractScriptModule")
+    public boolean initializeLocalProject(@ScriptArg("projectName") String projectName,
+                                           @ScriptArg("ignitionUser") String ignitionUser,
+                                           @ScriptArg("email") String email) throws Exception {
+        return initializeLocalProjectImpl(projectName, ignitionUser, email);
+    }
+
+    @Override
+    @ScriptFunction(docBundlePrefix = "AbstractScriptModule")
+    public boolean hasRemoteRepository(@ScriptArg("projectName") String projectName) {
+        return hasRemoteRepositoryImpl(projectName);
+    }
+
+    protected abstract boolean initializeLocalProjectImpl(String projectName, String ignitionUser,
+                                                           String email) throws Exception;
+    protected abstract boolean hasRemoteRepositoryImpl(String projectName);
+
 }

@@ -41,6 +41,11 @@ public class GatewayScriptModule extends AbstractScriptModule {
                             boolean importTheme,
                             boolean importImages) throws Exception {
 
+        GitProjectsConfigRecord projectRecord = getGitProjectConfigRecord(projectName);
+        if (!projectRecord.hasRemote()) {
+            throw new RuntimeException("No remote repository configured. Add a remote before pulling.");
+        }
+
         try (Git git = getGit(getProjectFolderPath(projectName))) {
             PullCommand pull = git.pull();
             setAuthentication(pull, projectName, userName);
@@ -72,6 +77,11 @@ public class GatewayScriptModule extends AbstractScriptModule {
 
     @Override
     public boolean pushImpl(String projectName, String userName, boolean pushAllBranches, boolean pushTags, boolean forcePush) throws Exception {
+        GitProjectsConfigRecord projectRecord = getGitProjectConfigRecord(projectName);
+        if (!projectRecord.hasRemote()) {
+            throw new RuntimeException("No remote repository configured. Add a remote before pushing.");
+        }
+
         try (Git git = getGit(getProjectFolderPath(projectName))) {
             PushCommand push = git.push();
 
@@ -195,6 +205,16 @@ public class GatewayScriptModule extends AbstractScriptModule {
 
         Path path = projectFolderPath.resolve(".git");
 
+        if (!gitProjectsConfigRecord.hasRemote()) {
+            // Local-only repo: just ensure .git exists
+            if (!Files.exists(path)) {
+                try (Git git = Git.init().setDirectory(projectFolderPath.toFile()).call()) {
+                    disableSsl(git);
+                }
+            }
+            return;
+        }
+
         if (!Files.exists(path)) {
             try (Git git = Git.init().setDirectory(projectFolderPath.toFile()).call()) {
                 disableSsl(git);
@@ -226,6 +246,9 @@ public class GatewayScriptModule extends AbstractScriptModule {
     @Override
     protected String getRepoURLImpl(String projectName) throws Exception {
         GitProjectsConfigRecord gitProjectsConfigRecord = getGitProjectConfigRecord(projectName);
+        if (!gitProjectsConfigRecord.hasRemote()) {
+            return "";
+        }
 
         return GitManager.repoUriToUrl(gitProjectsConfigRecord.getURI());
     }
@@ -423,6 +446,69 @@ public class GatewayScriptModule extends AbstractScriptModule {
         }
 
         return true;
+    }
+
+    @Override
+    protected boolean initializeLocalProjectImpl(String projectName, String ignitionUser,
+                                                  String email) throws Exception {
+        if (isProjectRegisteredImpl(projectName)) {
+            throw new Exception("Project '" + projectName + "' is already registered.");
+        }
+
+        // Create project config record with empty URI (no remote)
+        GitProjectsConfigRecord projectRecord = context.getPersistenceInterface().createNew(GitProjectsConfigRecord.META);
+        projectRecord.setProjectName(projectName);
+        projectRecord.setURI("");
+        context.getPersistenceInterface().save(projectRecord);
+
+        // Re-query to get the generated ID
+        projectRecord = getGitProjectConfigRecord(projectName);
+
+        // Create user credentials record with email only; git username defaults to Ignition username
+        GitReposUsersRecord userRecord = context.getPersistenceInterface().createNew(GitReposUsersRecord.META);
+        userRecord.setProjectId(projectRecord.getId());
+        userRecord.setIgnitionUser(ignitionUser);
+        userRecord.setEmail(email);
+        userRecord.setUserName(ignitionUser);
+        context.getPersistenceInterface().save(userRecord);
+
+        // Initialize local repo: git init + add . + initial commit
+        try {
+            Path projectFolderPath = getProjectFolderPath(projectName);
+            try (Git git = Git.init().setDirectory(projectFolderPath.toFile()).call()) {
+                disableSsl(git);
+                git.add().addFilepattern(".").call();
+
+                CommitCommand commit = git.commit().setMessage("Initial commit");
+                setCommitAuthor(commit, projectName, ignitionUser);
+                commit.call();
+            }
+        } catch (Exception e) {
+            // Rollback: delete both records on failure
+            try {
+                userRecord.deleteRecord();
+                context.getPersistenceInterface().save(userRecord);
+            } catch (Exception ignored) {
+            }
+            try {
+                projectRecord.deleteRecord();
+                context.getPersistenceInterface().save(projectRecord);
+            } catch (Exception ignored) {
+            }
+            throw e;
+        }
+
+        return true;
+    }
+
+    @Override
+    protected boolean hasRemoteRepositoryImpl(String projectName) {
+        try {
+            GitProjectsConfigRecord record = getGitProjectConfigRecord(projectName);
+            return record.hasRemote();
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     private void setupGitFromCurrentFolder(String projectName, String userName, Git git) throws Exception {

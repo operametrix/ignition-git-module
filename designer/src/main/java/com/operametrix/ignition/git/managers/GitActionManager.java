@@ -114,9 +114,15 @@ public class GitActionManager {
     }
     public static void openRepositoryLink(String projectName) {
         try {
-            Desktop desktop = Desktop.getDesktop();
             String repoLink = rpc.getRepoURL(projectName);
-            desktop.browse(new URI(repoLink)); // This line might throw IOException or URISyntaxException
+            if (repoLink == null || repoLink.isEmpty()) {
+                JOptionPane.showMessageDialog(context.getFrame(),
+                        "No remote repository configured.",
+                        "Info", JOptionPane.INFORMATION_MESSAGE);
+                return;
+            }
+            Desktop desktop = Desktop.getDesktop();
+            desktop.browse(new URI(repoLink));
         } catch (Exception e) {
             logger.error("Error opening repository link", e);
         }
@@ -189,7 +195,12 @@ public class GitActionManager {
 
     public static void showCredentialsPopup(String projectName, String userName) {
         try {
-            String authType = rpc.isSSHAuthentication(projectName) ? "SSH" : "HTTPS";
+            String authType;
+            if (!rpc.hasRemoteRepository(projectName)) {
+                authType = "Local";
+            } else {
+                authType = rpc.isSSHAuthentication(projectName) ? "SSH" : "HTTPS";
+            }
             String currentEmail = rpc.getUserEmail(projectName, userName);
             String currentGitUsername = rpc.getUserGitUsername(projectName, userName);
 
@@ -235,6 +246,20 @@ public class GitActionManager {
                     } catch (Exception e) {
                         logger.error("Error initializing repository", e);
                         showConfirmPopup("Failed to initialize repository: " + e.getMessage(), JOptionPane.ERROR_MESSAGE);
+                    }
+                }
+
+                @Override
+                public void onLocalInitialize(String email) {
+                    try {
+                        rpc.initializeLocalProject(projectName, userName, email);
+                        showConfirmPopup("Local repository initialized successfully.", JOptionPane.INFORMATION_MESSAGE);
+                        dispose();
+                        initRepoPopup = null;
+                        DesignerHook.instance.reinitializeAfterSetup();
+                    } catch (Exception e) {
+                        logger.error("Error initializing local repository", e);
+                        showConfirmPopup("Failed to initialize local repository: " + e.getMessage(), JOptionPane.ERROR_MESSAGE);
                     }
                 }
             };

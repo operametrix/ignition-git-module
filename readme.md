@@ -6,12 +6,12 @@ An Ignition module that embeds a Git client directly into the Ignition Designer,
 
 ## Features
 
-- Initialize a git repository directly from the Designer — enter the repo URI and credentials without needing Gateway admin access. The status bar shows "Not configured" for unregistered projects; click it to open the setup dialog. Supports both HTTPS and SSH repositories with dynamic field switching based on the URI.
+- Initialize a git repository directly from the Designer — a wizard-style setup dialog asks whether you have a remote repository. Choose "Yes, clone from remote" to enter a repo URI and credentials (HTTPS or SSH with dynamic field switching), or "No, initialize locally" to create a local-only git repo with just an email address. Local repositories can have a remote added later. The status bar shows "Not configured" for unregistered projects; click it to open the setup wizard.
 - Link an Ignition project with a remote repo (Gateway Webpage)
 - Link an Ignition user to a git project, with SSH or user/password authentication (Gateway Webpage)
 - Manage git credentials directly from the Designer by clicking the user icon in the status bar — supports both HTTPS (username/password) and SSH (private key) authentication
 - Commit resources with last-modification timestamps shown per resource (Designer, on project saved or from git toolbar); supports amending the last commit (fix the message or add forgotten files) via an "Amend last commit" checkbox in both the Commit popup and Commit panel
-- Push & Pull resources (Designer, from git toolbar) — push sends only the current branch by default (no surprise pushes of experimental branches); if the remote rejects the push (e.g. after amending a pushed commit), a confirmation dialog offers force push; pulled changes are reflected immediately in the Designer
+- Push & Pull resources (Designer, from git toolbar) — push sends only the current branch by default (no surprise pushes of experimental branches); if the remote rejects the push (e.g. after amending a pushed commit), a confirmation dialog offers force push; pulled changes are reflected immediately in the Designer. For local-only repositories (no remote), push and pull show a friendly warning instead of crashing
 - Branch management: list, create, checkout, and delete branches with automatic stash/restore of uncommitted changes (Designer, from status bar branch button)
 - Export of the gateway configuration: tags, images, themes (Designer, from git toolbar)
 - Side-by-side diff viewer for reviewing changes before committing

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Ignition Git Module — a Java module for the Inductive Automation Ignition SCADA platform (8.1.0+) that embeds a Git client into the Ignition Designer. It enables committing, pushing, pulling project resources, branch management, and exporting gateway configuration directly from the Designer toolbar and status bar. Originally built by AXONE-IO, maintained by Operametrix. Version 1.0.3.
+Ignition Git Module — a Java module for the Inductive Automation Ignition SCADA platform (8.1.0+) that embeds a Git client into the Ignition Designer. It enables committing, pushing, pulling project resources, branch management, and exporting gateway configuration directly from the Designer toolbar and status bar. Supports both remote (clone) and local-only repository initialization via a wizard-style setup dialog. Originally built by AXONE-IO, maintained by Operametrix. Version 1.0.3.
 
 ## Build Commands
 
@@ -40,7 +40,7 @@ The root `build.gradle.kts` uses the `io.ia.sdk.modl` Gradle plugin to assemble 
 - `DesignerHook` — initializes toolbar actions, status bar (with clickable branch button), user verification timer; uses `ModuleRPCFactory` to call gateway methods remotely. On startup, checks `isProjectRegistered()` — if unregistered, shows a minimal "Not configured" status bar instead of the full git UI. After successful init via `InitRepoPopup`, calls `reinitializeAfterSetup()` to rebuild the full status bar. Exposes a static `instance` field for callbacks from `GitActionManager`.
 - `GatewayHook` — creates DB schema, loads commissioning config, registers web config pages
 
-**Script interface pattern**: `GitScriptInterface` (common) defines the API. `AbstractScriptModule` (common) decorates it with Ignition annotations. `GatewayScriptModule` (gateway) provides the real implementation. `ClientScriptModule` (client) proxies all calls via RPC. Designer calls gateway methods via RPC.
+**Script interface pattern**: `GitScriptInterface` (common) defines the API (includes `initializeLocalProject()` for local-only init and `hasRemoteRepository()` for remote detection). `AbstractScriptModule` (common) decorates it with Ignition annotations. `GatewayScriptModule` (gateway) provides the real implementation. `ClientScriptModule` (client) proxies all calls via RPC. Designer calls gateway methods via RPC.
 
 **Designer project refresh**: After any gateway-side operation that modifies the Ignition project (pull, checkout, init), the Designer must call `GitBaseAction.pullProjectFromGateway()` to sync its local project state with the gateway via reflection on the Designer frame's `pullAndResolve()` method. Without this call, gateway-side `GitProjectManager.importProject()` updates the gateway but the Designer UI won't reflect the changes.
 
@@ -52,7 +52,7 @@ The root `build.gradle.kts` uses the `io.ia.sdk.modl` Gradle plugin to assemble 
 - `PullPopup` — toggle import of tags/themes/images
 - `BranchPopup` — list/create/checkout/delete branches
 - `CredentialsPopup` — manage email, username, password/SSH key for an already-registered project
-- `InitRepoPopup` — initialize a git repo for an unregistered project: enter repo URI (dynamic HTTPS/SSH field switching based on URI prefix), email, and credentials. On success, creates DB records + clones the repo + refreshes the Designer project.
+- `InitRepoPopup` — wizard-style `CardLayout` dialog for initializing a git repo for an unregistered project. Card 1 ("Choose") asks "Do you have a remote repository?" with two buttons. Card 2a ("Remote") is the existing clone flow: repo URI (dynamic HTTPS/SSH field switching), email, credentials, Initialize/Cancel/Back buttons. Card 2b ("Local") is the local-only flow: email field only + explanatory text, Initialize/Cancel/Back buttons; calls `onLocalInitialize(email)` callback. On success, creates DB records + clones or inits the repo + refreshes the Designer project.
 
 **Dockable Commit panel** (`CommitPanel.java`) — a JIDE `DockableFrame`-based panel (key: `"Commit"`, icon: `ic_commit.svg`) tabbed alongside the Project Browser (key: `"Project Browser"`) on the left side, with Project Browser as the default active tab. Provides an at-a-glance view of uncommitted changes without opening popups:
 - Top toolbar: Refresh button
@@ -74,12 +74,12 @@ The root `build.gradle.kts` uses the `io.ia.sdk.modl` Gradle plugin to assemble 
 - Thread-safe: `setData(Dataset, boolean append)` posts updates to EDT via `SwingUtilities.invokeLater()`
 
 **Manager classes** in `gateway` encapsulate domain logic:
-- `GitManager` — core JGit operations (clone, fetch, pull, push (current branch only by default; `pushAllBranches`/`pushTags`/`forcePush` flags available; push results are checked for `RemoteRefUpdate.Status` — non-fast-forward rejections trigger a force-push confirmation dialog in the Designer), commit (with `amend` flag for replacing the last commit via `CommitCommand.setAmend(true)`), status, branch list/create/checkout/delete with per-branch stash/restore, resource diff content extraction, commit history log with ref decorations for current branch, commit file list, commit file diff, discard changes)
+- `GitManager` — core JGit operations (clone, fetch, pull, push (current branch only by default; `pushAllBranches`/`pushTags`/`forcePush` flags available; push results are checked for `RemoteRefUpdate.Status` — non-fast-forward rejections trigger a force-push confirmation dialog in the Designer), commit (with `amend` flag for replacing the last commit via `CommitCommand.setAmend(true)`), status, branch list/create/checkout/delete with per-branch stash/restore, resource diff content extraction, commit history log with ref decorations for current branch, commit file list, commit file diff, discard changes). Remote-dependent operations (`pullImpl`, `pushImpl`, `getRepoURLImpl`, `setupLocalRepoImpl`) are guarded by `GitProjectsConfigRecord.hasRemote()` — local-only repos skip remote operations gracefully
 - `GitProjectManager`, `GitTagManager`, `GitThemeManager`, `GitImageManager` — resource import/export
 - `GitCommissioningUtils` — file-based config loading for automated deployment
 
 **Persistence** uses Ignition's SimpleORM with two record types:
-- `GitProjectsConfigRecord` — maps Ignition projects to git repos
+- `GitProjectsConfigRecord` — maps Ignition projects to git repos; `hasRemote()` returns `true` if URI is non-null and non-empty (empty string `""` is the sentinel for local-only repos); `isSSHAuthentication()` returns `false` when `!hasRemote()`
 - `GitReposUsersRecord` — maps Ignition users to git credentials (SSH or HTTPS)
 
 ### Key Libraries

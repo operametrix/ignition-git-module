@@ -74,4 +74,13 @@ public interface GitScriptInterface {
      *  Tracked files are checked out from HEAD; untracked files are deleted. */
     boolean discardChanges(String projectName, List<String> paths);
 
+    /**
+     * Initialize a local-only git repository (no remote) for the given project.
+     * Creates DB records with an empty URI, does git init + initial commit.
+     */
+    boolean initializeLocalProject(String projectName, String ignitionUser, String email) throws Exception;
+
+    /** Check whether the given project has a remote repository configured. */
+    boolean hasRemoteRepository(String projectName);
+
 }

@@ -97,6 +97,13 @@ public class GitBaseAction extends BaseAction {
     }
 
     public static void handlePushAction() {
+        if (!rpc.hasRemoteRepository(projectName)) {
+            JOptionPane.showMessageDialog(context.getFrame(),
+                    "No remote repository configured. Add a remote before pushing.",
+                    "Push", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
         String message = BundleUtil.get().getStringLenient(GitActionType.PUSH.baseBundleKey + ".ConfirmMessage");
         int messageType = JOptionPane.INFORMATION_MESSAGE;
 
@@ -135,6 +142,13 @@ public class GitBaseAction extends BaseAction {
     }
 
     public static void handlePullAction(boolean importTags, boolean importTheme, boolean importImages) {
+        if (!rpc.hasRemoteRepository(projectName)) {
+            JOptionPane.showMessageDialog(context.getFrame(),
+                    "No remote repository configured. Add a remote before pulling.",
+                    "Pull", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
         String message = BundleUtil.get().getStringLenient(GitActionType.PULL.baseBundleKey + ".ConfirmMessage");
         int messageType = JOptionPane.INFORMATION_MESSAGE;
 

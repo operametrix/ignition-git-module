@@ -9,11 +9,21 @@ import java.awt.*;
 
 /**
  * Designer popup dialog for initializing a git repository for an unregistered project.
- * Allows the user to enter the repository URI and credentials without touching the Gateway web UI.
- * Dynamically switches between HTTPS and SSH credential fields based on the URI prefix.
+ * Wizard-style with three cards:
+ *   Card 1 "Choose"  — asks whether the user has a remote repository
+ *   Card 2a "Remote" — existing clone flow (URI + credentials)
+ *   Card 2b "Local"  — local-only init (email only)
  */
 public class InitRepoPopup extends JFrame {
 
+    private static final String CARD_CHOOSE = "Choose";
+    private static final String CARD_REMOTE = "Remote";
+    private static final String CARD_LOCAL = "Local";
+
+    private CardLayout cardLayout;
+    private JPanel cardPanel;
+
+    // Remote card fields
     private JTextField repoUriField;
     private JLabel authTypeLabel;
     private JTextField emailField;
@@ -22,6 +32,9 @@ public class InitRepoPopup extends JFrame {
     private JTextArea sshKeyArea;
     private JPanel httpsPanel;
     private JPanel sshPanel;
+
+    // Local card fields
+    private JTextField localEmailField;
 
     public InitRepoPopup(Component parent) {
         setTitle("Initialize Git Repository");
@@ -39,7 +52,61 @@ public class InitRepoPopup extends JFrame {
         JPanel main = new JPanel(new BorderLayout(5, 5));
         main.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
-        // Center: form fields
+        cardLayout = new CardLayout();
+        cardPanel = new JPanel(cardLayout);
+
+        cardPanel.add(buildChooseCard(), CARD_CHOOSE);
+        cardPanel.add(buildRemoteCard(), CARD_REMOTE);
+        cardPanel.add(buildLocalCard(), CARD_LOCAL);
+
+        main.add(cardPanel, BorderLayout.CENTER);
+
+        return main;
+    }
+
+    // ── Card 1: Choose ──────────────────────────────────────────────────
+
+    private JPanel buildChooseCard() {
+        JPanel panel = new JPanel(new BorderLayout(10, 10));
+        panel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+
+        JLabel question = new JLabel(
+                "<html><b>Does this project have a remote Git repository</b><br>"
+                        + "(GitHub, GitLab, Bitbucket, etc.)?</html>");
+        question.setHorizontalAlignment(SwingConstants.CENTER);
+        panel.add(question, BorderLayout.NORTH);
+
+        JPanel buttonPanel = new JPanel(new GridLayout(1, 2, 15, 0));
+        buttonPanel.setBorder(BorderFactory.createEmptyBorder(15, 20, 10, 20));
+
+        JButton yesBtn = new JButton("Yes, clone from remote");
+        yesBtn.setBackground(new Color(71, 137, 199));
+        yesBtn.setForeground(Color.WHITE);
+        yesBtn.addActionListener(e -> showCard(CARD_REMOTE));
+
+        JButton noBtn = new JButton("No, initialize locally");
+        noBtn.addActionListener(e -> showCard(CARD_LOCAL));
+
+        buttonPanel.add(yesBtn);
+        buttonPanel.add(noBtn);
+
+        panel.add(buttonPanel, BorderLayout.CENTER);
+
+        // Cancel at bottom
+        JPanel bottomPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 5, 5));
+        JButton cancelBtn = new JButton("Cancel");
+        cancelBtn.addActionListener(e -> dispose());
+        bottomPanel.add(cancelBtn);
+        panel.add(bottomPanel, BorderLayout.SOUTH);
+
+        return panel;
+    }
+
+    // ── Card 2a: Remote (existing form) ─────────────────────────────────
+
+    private JPanel buildRemoteCard() {
+        JPanel main = new JPanel(new BorderLayout(5, 5));
+
         JPanel formPanel = new JPanel(new GridBagLayout());
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.insets = new Insets(4, 5, 4, 5);
@@ -78,7 +145,7 @@ public class InitRepoPopup extends JFrame {
         emailField = new JTextField(30);
         formPanel.add(emailField, gbc);
 
-        // Auth type label (after email, hidden until URI is entered)
+        // Auth type label
         gbc.gridx = 0;
         gbc.gridy = 2;
         gbc.gridwidth = 2;
@@ -137,14 +204,17 @@ public class InitRepoPopup extends JFrame {
 
         main.add(formPanel, BorderLayout.CENTER);
 
-        // Bottom: buttons
+        // Buttons
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 5, 5));
+
+        JButton backBtn = new JButton("Back");
+        backBtn.addActionListener(e -> showCard(CARD_CHOOSE));
 
         JButton initBtn = new JButton("Initialize");
         initBtn.setBackground(new Color(71, 137, 199));
         initBtn.setForeground(Color.WHITE);
         initBtn.addActionListener(e -> {
-            if (validateFields()) {
+            if (validateRemoteFields()) {
                 String password = new String(passwordField.getPassword());
                 onInitialize(repoUriField.getText().trim(), emailField.getText().trim(),
                         gitUsernameField.getText().trim(), password, sshKeyArea.getText().trim());
@@ -154,6 +224,7 @@ public class InitRepoPopup extends JFrame {
         JButton cancelBtn = new JButton("Cancel");
         cancelBtn.addActionListener(e -> dispose());
 
+        buttonPanel.add(backBtn);
         buttonPanel.add(initBtn);
         buttonPanel.add(cancelBtn);
 
@@ -161,6 +232,80 @@ public class InitRepoPopup extends JFrame {
 
         return main;
     }
+
+    // ── Card 2b: Local ──────────────────────────────────────────────────
+
+    private JPanel buildLocalCard() {
+        JPanel main = new JPanel(new BorderLayout(5, 10));
+
+        JPanel formPanel = new JPanel(new GridBagLayout());
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(4, 5, 4, 5);
+        gbc.anchor = GridBagConstraints.WEST;
+
+        // Info text
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        gbc.gridwidth = 2;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        JLabel infoLabel = new JLabel(
+                "<html>A local Git repository will be created for this project.<br>"
+                        + "You can add a remote repository later.</html>");
+        infoLabel.setBorder(BorderFactory.createEmptyBorder(5, 0, 10, 0));
+        formPanel.add(infoLabel, gbc);
+
+        // Email
+        gbc.gridx = 0;
+        gbc.gridy = 1;
+        gbc.gridwidth = 1;
+        gbc.fill = GridBagConstraints.NONE;
+        gbc.weightx = 0;
+        formPanel.add(new JLabel("Email:"), gbc);
+        gbc.gridx = 1;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.weightx = 1.0;
+        localEmailField = new JTextField(30);
+        formPanel.add(localEmailField, gbc);
+
+        main.add(formPanel, BorderLayout.CENTER);
+
+        // Buttons
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 5, 5));
+
+        JButton backBtn = new JButton("Back");
+        backBtn.addActionListener(e -> showCard(CARD_CHOOSE));
+
+        JButton initBtn = new JButton("Initialize");
+        initBtn.setBackground(new Color(71, 137, 199));
+        initBtn.setForeground(Color.WHITE);
+        initBtn.addActionListener(e -> {
+            if (validateLocalFields()) {
+                onLocalInitialize(localEmailField.getText().trim());
+            }
+        });
+
+        JButton cancelBtn = new JButton("Cancel");
+        cancelBtn.addActionListener(e -> dispose());
+
+        buttonPanel.add(backBtn);
+        buttonPanel.add(initBtn);
+        buttonPanel.add(cancelBtn);
+
+        main.add(buttonPanel, BorderLayout.SOUTH);
+
+        return main;
+    }
+
+    // ── Navigation ──────────────────────────────────────────────────────
+
+    private void showCard(String name) {
+        cardLayout.show(cardPanel, name);
+        pack();
+        revalidate();
+        repaint();
+    }
+
+    // ── Auth type switching (Remote card) ───────────────────────────────
 
     private void updateAuthType() {
         String uri = repoUriField.getText().trim().toLowerCase();
@@ -176,7 +321,9 @@ public class InitRepoPopup extends JFrame {
         repaint();
     }
 
-    private boolean validateFields() {
+    // ── Validation ──────────────────────────────────────────────────────
+
+    private boolean validateRemoteFields() {
         String uri = repoUriField.getText().trim();
         if (uri.isEmpty()) {
             JOptionPane.showMessageDialog(this, "Repository URI is required.",
@@ -216,10 +363,29 @@ public class InitRepoPopup extends JFrame {
         return true;
     }
 
+    private boolean validateLocalFields() {
+        String email = localEmailField.getText().trim();
+        if (email.isEmpty() || !email.contains("@")) {
+            JOptionPane.showMessageDialog(this, "Please enter a valid email address.",
+                    "Validation Error", JOptionPane.WARNING_MESSAGE);
+            return false;
+        }
+        return true;
+    }
+
+    // ── Callbacks ───────────────────────────────────────────────────────
+
     /**
-     * Called when the user clicks Initialize and validation passes.
+     * Called when the user clicks Initialize on the Remote card and validation passes.
      * Override in an anonymous subclass to handle the initialization.
      */
     public void onInitialize(String repoUri, String email, String gitUsername, String password, String sshKey) {
+    }
+
+    /**
+     * Called when the user clicks Initialize on the Local card and validation passes.
+     * Override in an anonymous subclass to handle local-only initialization.
+     */
+    public void onLocalInitialize(String email) {
     }
 }
