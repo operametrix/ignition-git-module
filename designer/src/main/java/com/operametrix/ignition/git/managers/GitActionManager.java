@@ -10,7 +10,7 @@ import com.operametrix.ignition.git.HistoryPopup;
 import com.operametrix.ignition.git.InitRepoPopup;
 import com.operametrix.ignition.git.PullPopup;
 import com.operametrix.ignition.git.SourceControlPanel;
-import com.operametrix.ignition.git.GraphPanel;
+import com.operametrix.ignition.git.HistoryPanel;
 import com.inductiveautomation.ignition.common.Dataset;
 import com.inductiveautomation.ignition.common.project.ChangeOperation;
 import com.inductiveautomation.ignition.common.project.resource.ProjectResourceId;
@@ -346,16 +346,16 @@ public class GitActionManager {
         }).start());
     }
 
-    public static void wireGraphPanel(GraphPanel panel, String projectName, String userName) {
-        panel.setOnRefreshRequested(() -> {
-            if (DesignerHook.instance != null) {
-                DesignerHook.instance.refreshGraphPanel();
-            }
-        });
-
+    public static void wireHistoryPanel(HistoryPanel panel, String projectName, String userName) {
         panel.setOnPushRequested(() -> handleAction(GitActionType.PUSH));
 
         panel.setOnPullRequested(() -> showPullPopup(projectName, userName));
+
+        panel.setOnRefreshRequested(() -> {
+            if (DesignerHook.instance != null) {
+                DesignerHook.instance.refreshHistoryPanel();
+            }
+        });
 
         panel.setOnCommitSelected(node ->
                 showCommitDetailPopup(projectName, node.hash, node.shortHash, node.message,
@@ -363,10 +363,10 @@ public class GitActionManager {
 
         panel.setOnLoadMore(() -> new Thread(() -> {
             try {
-                Dataset moreData = rpc.getCommitHistory(projectName, panel.getCurrentOffset(), GraphPanel.PAGE_SIZE);
+                Dataset moreData = rpc.getCommitHistory(projectName, panel.getCurrentOffset(), HistoryPanel.PAGE_SIZE);
                 panel.setData(moreData, true);
             } catch (Exception e) {
-                logger.error("Error loading more commits for graph", e);
+                logger.error("Error loading more commits for history", e);
             }
         }).start());
     }

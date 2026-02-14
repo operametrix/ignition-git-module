@@ -46,9 +46,9 @@ public class DesignerHook extends AbstractDesignerModuleHook {
     DockableFrame sourceControlFrame;
     boolean sourceControlFrameInitialized;
     Timer sourceControlRefreshTimer;
-    GraphPanel graphPanel;
-    DockableFrame graphFrame;
-    boolean graphFrameInitialized;
+    HistoryPanel historyPanel;
+    DockableFrame historyFrame;
+    boolean historyFrameInitialized;
     @Override
     public void initializeScriptManager(ScriptManager manager) {
         super.initializeScriptManager(manager);
@@ -78,7 +78,7 @@ public class DesignerHook extends AbstractDesignerModuleHook {
             initStatusBar();
             initToolBar();
             initSourceControlPanel();
-            initGraphPanel();
+            initHistoryPanel();
         } else {
             initStatusBarUnregistered();
         }
@@ -171,12 +171,12 @@ public class DesignerHook extends AbstractDesignerModuleHook {
         }
 
         cleanupSourceControlPanel();
-        cleanupGraphPanel();
+        cleanupHistoryPanel();
 
         initStatusBar();
         initToolBar();
         initSourceControlPanel();
-        initGraphPanel();
+        initHistoryPanel();
     }
 
     private void initToolBar() {
@@ -198,7 +198,7 @@ public class DesignerHook extends AbstractDesignerModuleHook {
         GitActionManager.wireSourceControlPanel(sourceControlPanel, projectName, userName);
 
         sourceControlFrame = new DockableFrame("Changes",
-                IconUtils.getIcon("/com/operametrix/ignition/git/icons/ic_git.svg"));
+                IconUtils.getIcon("/com/operametrix/ignition/git/icons/ic_commit.svg"));
         sourceControlFrame.setTitle(BundleUtil.get().getStringLenient("DesignerHook.Changes.Title"));
         sourceControlFrame.getContentPane().add(sourceControlPanel);
         sourceControlFrame.setPreferredSize(new Dimension(525, 400));
@@ -221,9 +221,9 @@ public class DesignerHook extends AbstractDesignerModuleHook {
             if (projectBrowser != null) {
                 dockingManager.moveFrame(sourceControlFrame.getKey(), PROJECT_BROWSER_KEY);
             }
-            if (graphFrameInitialized) {
-                dockingManager.showFrame(graphFrame.getKey());
-                dockingManager.moveFrame(graphFrame.getKey(), PROJECT_BROWSER_KEY);
+            if (historyFrameInitialized) {
+                dockingManager.showFrame(historyFrame.getKey());
+                dockingManager.moveFrame(historyFrame.getKey(), PROJECT_BROWSER_KEY);
             }
             if (projectBrowser != null) {
                 dockingManager.activateFrame(PROJECT_BROWSER_KEY);
@@ -269,53 +269,53 @@ public class DesignerHook extends AbstractDesignerModuleHook {
         sourceControlFrame = null;
     }
 
-    private void initGraphPanel() {
-        graphPanel = new GraphPanel();
-        GitActionManager.wireGraphPanel(graphPanel, projectName, userName);
+    private void initHistoryPanel() {
+        historyPanel = new HistoryPanel();
+        GitActionManager.wireHistoryPanel(historyPanel, projectName, userName);
 
-        graphFrame = new DockableFrame("Graph",
-                IconUtils.getIcon("/com/operametrix/ignition/git/icons/ic_git.svg"));
-        graphFrame.setTitle(BundleUtil.get().getStringLenient("DesignerHook.Graph.Title"));
-        graphFrame.getContentPane().add(graphPanel);
-        graphFrame.setPreferredSize(new Dimension(525, 400));
-        graphFrame.setAutohideWidth(525);
-        graphFrame.setDockedWidth(525);
+        historyFrame = new DockableFrame("History",
+                IconUtils.getIcon("/com/operametrix/ignition/git/icons/ic_history.svg"));
+        historyFrame.setTitle(BundleUtil.get().getStringLenient("DesignerHook.History.Title"));
+        historyFrame.getContentPane().add(historyPanel);
+        historyFrame.setPreferredSize(new Dimension(525, 400));
+        historyFrame.setAutohideWidth(525);
+        historyFrame.setDockedWidth(525);
 
         DockingManager dockingManager = context.getDockingManager();
 
-        graphFrame.setInitSide(DockContext.DOCK_SIDE_WEST);
-        graphFrame.setInitIndex(0);
-        graphFrame.setInitMode(DockContext.STATE_HIDDEN);
-        dockingManager.addFrame(graphFrame);
-        graphFrameInitialized = true;
+        historyFrame.setInitSide(DockContext.DOCK_SIDE_WEST);
+        historyFrame.setInitIndex(0);
+        historyFrame.setInitMode(DockContext.STATE_HIDDEN);
+        dockingManager.addFrame(historyFrame);
+        historyFrameInitialized = true;
 
         // Initial data load
-        refreshGraphPanel();
+        refreshHistoryPanel();
     }
 
-    public void refreshGraphPanel() {
-        if (graphPanel == null) return;
+    public void refreshHistoryPanel() {
+        if (historyPanel == null) return;
         new Thread(() -> {
             try {
-                Dataset ds = rpc.getCommitHistory(projectName, 0, GraphPanel.PAGE_SIZE);
-                graphPanel.setData(ds, false);
+                Dataset ds = rpc.getCommitHistory(projectName, 0, HistoryPanel.PAGE_SIZE);
+                historyPanel.setData(ds, false);
             } catch (Exception e) {
                 // Silently ignore refresh errors
             }
         }).start();
     }
 
-    private void cleanupGraphPanel() {
-        if (graphFrameInitialized) {
+    private void cleanupHistoryPanel() {
+        if (historyFrameInitialized) {
             try {
                 DockingManager dockingManager = context.getDockingManager();
-                dockingManager.removeFrame("Graph");
+                dockingManager.removeFrame("History");
             } catch (Exception ignored) {
             }
-            graphFrameInitialized = false;
+            historyFrameInitialized = false;
         }
-        graphPanel = null;
-        graphFrame = null;
+        historyPanel = null;
+        historyFrame = null;
     }
 
     @Override
@@ -348,6 +348,6 @@ public class DesignerHook extends AbstractDesignerModuleHook {
         }
 
         cleanupSourceControlPanel();
-        cleanupGraphPanel();
+        cleanupHistoryPanel();
     }
 }

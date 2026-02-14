@@ -89,7 +89,7 @@ public class GitBaseAction extends BaseAction {
             SwingUtilities.invokeLater(new Thread(() -> showConfirmPopup(message, messageType)));
             if (instance != null) {
                 instance.refreshSourceControlPanel();
-                instance.refreshGraphPanel();
+                instance.refreshHistoryPanel();
             }
         } catch (Exception ex) {
             ErrorUtil.showError(ex);
@@ -106,7 +106,7 @@ public class GitBaseAction extends BaseAction {
             SwingUtilities.invokeLater(new Thread(() -> showConfirmPopup(message, messageType)));
             if (instance != null) {
                 instance.refreshSourceControlPanel();
-                instance.refreshGraphPanel();
+                instance.refreshHistoryPanel();
             }
         } catch (Exception ex) {
             ErrorUtil.showError(ex);
@@ -124,7 +124,7 @@ public class GitBaseAction extends BaseAction {
             SwingUtilities.invokeLater(new Thread(() -> showConfirmPopup(message, messageType)));
             if (instance != null) {
                 instance.refreshSourceControlPanel();
-                instance.refreshGraphPanel();
+                instance.refreshHistoryPanel();
             }
         } catch (Exception ex) {
             ErrorUtil.showError(ex);
@@ -269,7 +269,7 @@ public class GitBaseAction extends BaseAction {
             if(confirmPopup) SwingUtilities.invokeLater(new Thread(() -> showConfirmPopup(message, messageType)));
             if (instance != null) {
                 instance.refreshSourceControlPanel();
-                instance.refreshGraphPanel();
+                instance.refreshHistoryPanel();
             }
         } catch (Exception ex) {
             ErrorUtil.showError(ex);

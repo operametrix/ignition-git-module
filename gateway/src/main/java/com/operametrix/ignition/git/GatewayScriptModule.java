@@ -320,8 +320,8 @@ public class GatewayScriptModule extends AbstractScriptModule {
     protected Dataset getCommitHistoryImpl(String projectName, int skip, int limit) {
         java.util.List<String[]> commits = GitManager.getCommitLog(getProjectFolderPath(projectName), skip, limit);
         DatasetBuilder builder = new DatasetBuilder();
-        builder.colNames(java.util.List.of("hash", "shortHash", "author", "date", "message", "parents", "refs"));
-        builder.colTypes(java.util.List.of(String.class, String.class, String.class, String.class, String.class, String.class, String.class));
+        builder.colNames(java.util.List.of("hash", "shortHash", "author", "date", "message", "refs"));
+        builder.colTypes(java.util.List.of(String.class, String.class, String.class, String.class, String.class, String.class));
         for (String[] row : commits) {
             builder.addRow((Object[]) row);
         }

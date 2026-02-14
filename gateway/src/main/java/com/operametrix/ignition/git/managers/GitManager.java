@@ -579,7 +579,7 @@ public class GitManager {
      * @param projectFolderPath path to the git working directory
      * @param skip              number of commits to skip (for pagination)
      * @param limit             maximum number of commits to return
-     * @return list of String arrays: [fullHash, shortHash, author, date, message, parents, refs]
+     * @return list of String arrays: [fullHash, shortHash, author, date, message, refs]
      */
     public static List<String[]> getCommitLog(Path projectFolderPath, int skip, int limit) {
         List<String[]> commits = new ArrayList<>();
@@ -599,14 +599,7 @@ public class GitManager {
                 refMap.computeIfAbsent(id.getName(), k -> new ArrayList<>()).add(name);
             }
 
-            LogCommand logCmd = git.log();
-            for (Ref ref : repo.getRefDatabase().getRefsByPrefix(Constants.R_HEADS)) {
-                logCmd.add(ref.getObjectId());
-            }
-            for (Ref ref : repo.getRefDatabase().getRefsByPrefix(Constants.R_REMOTES)) {
-                logCmd.add(ref.getObjectId());
-            }
-            Iterable<RevCommit> log = logCmd.setSkip(skip).setMaxCount(limit).call();
+            Iterable<RevCommit> log = git.log().setSkip(skip).setMaxCount(limit).call();
             SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm");
             for (RevCommit commit : log) {
                 String fullHash = commit.getName();
@@ -616,14 +609,9 @@ public class GitManager {
                 String author = (authorName == null || authorName.isEmpty()) ? authorEmail : authorName;
                 String date = dateFormat.format(commit.getAuthorIdent().getWhen());
                 String message = commit.getShortMessage();
-                StringBuilder parents = new StringBuilder();
-                for (int i = 0; i < commit.getParentCount(); i++) {
-                    if (i > 0) parents.append(",");
-                    parents.append(commit.getParent(i).getName());
-                }
                 List<String> refs = refMap.getOrDefault(fullHash, java.util.Collections.emptyList());
                 String refsStr = String.join(",", refs);
-                commits.add(new String[]{fullHash, shortHash, author, date, message, parents.toString(), refsStr});
+                commits.add(new String[]{fullHash, shortHash, author, date, message, refsStr});
             }
         } catch (Exception e) {
             logger.error("Error getting commit log", e);
