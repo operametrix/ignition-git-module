@@ -254,4 +254,52 @@ public abstract class AbstractScriptModule implements GitScriptInterface {
                                                            String email) throws Exception;
     protected abstract boolean hasRemoteRepositoryImpl(String projectName);
 
+    @Override
+    @ScriptFunction(docBundlePrefix = "AbstractScriptModule")
+    public Dataset listRemotes(@ScriptArg("projectName") String projectName) throws Exception {
+        return listRemotesImpl(projectName);
+    }
+
+    @Override
+    @ScriptFunction(docBundlePrefix = "AbstractScriptModule")
+    public boolean addRemote(@ScriptArg("projectName") String projectName,
+                             @ScriptArg("remoteName") String remoteName,
+                             @ScriptArg("remoteUrl") String remoteUrl,
+                             @ScriptArg("ignitionUser") String ignitionUser,
+                             @ScriptArg("gitUsername") String gitUsername,
+                             @ScriptArg("password") String password,
+                             @ScriptArg("sshKey") String sshKey) throws Exception {
+        return addRemoteImpl(projectName, remoteName, remoteUrl, ignitionUser, gitUsername, password, sshKey);
+    }
+
+    @Override
+    @ScriptFunction(docBundlePrefix = "AbstractScriptModule")
+    public boolean removeRemote(@ScriptArg("projectName") String projectName,
+                                @ScriptArg("remoteName") String remoteName,
+                                @ScriptArg("ignitionUser") String ignitionUser) throws Exception {
+        return removeRemoteImpl(projectName, remoteName, ignitionUser);
+    }
+
+    @Override
+    @ScriptFunction(docBundlePrefix = "AbstractScriptModule")
+    public boolean setRemoteUrl(@ScriptArg("projectName") String projectName,
+                                @ScriptArg("remoteName") String remoteName,
+                                @ScriptArg("newUrl") String newUrl,
+                                @ScriptArg("ignitionUser") String ignitionUser,
+                                @ScriptArg("gitUsername") String gitUsername,
+                                @ScriptArg("password") String password,
+                                @ScriptArg("sshKey") String sshKey) throws Exception {
+        return setRemoteUrlImpl(projectName, remoteName, newUrl, ignitionUser, gitUsername, password, sshKey);
+    }
+
+    protected abstract Dataset listRemotesImpl(String projectName) throws Exception;
+    protected abstract boolean addRemoteImpl(String projectName, String remoteName, String remoteUrl,
+                                              String ignitionUser, String gitUsername, String password,
+                                              String sshKey) throws Exception;
+    protected abstract boolean removeRemoteImpl(String projectName, String remoteName,
+                                                 String ignitionUser) throws Exception;
+    protected abstract boolean setRemoteUrlImpl(String projectName, String remoteName, String newUrl,
+                                                 String ignitionUser, String gitUsername, String password,
+                                                 String sshKey) throws Exception;
+
 }

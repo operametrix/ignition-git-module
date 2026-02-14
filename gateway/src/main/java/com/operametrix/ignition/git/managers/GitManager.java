@@ -2,6 +2,7 @@ package com.operametrix.ignition.git.managers;
 
 import com.operametrix.ignition.git.SshTransportConfigCallback;
 import com.operametrix.ignition.git.records.GitProjectsConfigRecord;
+import com.operametrix.ignition.git.records.GitRemoteCredentialsRecord;
 import com.operametrix.ignition.git.records.GitReposUsersRecord;
 import com.inductiveautomation.ignition.common.gson.Gson;
 import com.inductiveautomation.ignition.common.gson.JsonElement;
@@ -26,6 +27,7 @@ import org.eclipse.jgit.treewalk.AbstractTreeIterator;
 import org.eclipse.jgit.treewalk.CanonicalTreeParser;
 import org.eclipse.jgit.treewalk.EmptyTreeIterator;
 import org.eclipse.jgit.transport.RefSpec;
+import org.eclipse.jgit.transport.RemoteConfig;
 import org.eclipse.jgit.transport.URIish;
 import org.eclipse.jgit.transport.UsernamePasswordCredentialsProvider;
 import org.eclipse.jgit.treewalk.TreeWalk;
@@ -85,19 +87,23 @@ public class GitManager {
         }
     }
 
-    public static void setAuthentication(TransportCommand<?, ?> command, String projectName, String userName) throws Exception {
-        GitProjectsConfigRecord gitProjectsConfigRecord = getGitProjectConfigRecord(projectName);
-        GitReposUsersRecord user = getGitReposUserRecord(gitProjectsConfigRecord, userName);
-
-        setAuthentication(command, gitProjectsConfigRecord, user);
-    }
-
-    public static void setAuthentication(TransportCommand<?, ?> command, GitProjectsConfigRecord gitProjectsConfigRecord, GitReposUsersRecord user) {
-
-        if (gitProjectsConfigRecord.isSSHAuthentication()) {
-            command.setTransportConfigCallback(getSshTransportConfigCallback(user));
+    /**
+     * Set authentication on a transport command using per-remote credentials.
+     * Auth type (SSH vs HTTPS) is determined from the remote's URL in .git/config.
+     */
+    public static void setAuthentication(TransportCommand<?, ?> command, String projectName,
+                                          String userName, String remoteName) throws Exception {
+        GitRemoteCredentialsRecord creds = getRemoteCredentialsRecord(projectName, userName, remoteName);
+        if (creds == null) {
+            throw new Exception("No credentials configured for remote '" + remoteName + "'.");
+        }
+        String url = getRemoteUrl(getProjectFolderPath(projectName), remoteName);
+        boolean isSsh = url != null && !url.toLowerCase().startsWith("http");
+        if (isSsh) {
+            command.setTransportConfigCallback(new SshTransportConfigCallback(creds.getSSHKey()));
         } else {
-            command.setCredentialsProvider(getUsernamePasswordCredentialsProvider(user));
+            command.setCredentialsProvider(
+                    new UsernamePasswordCredentialsProvider(creds.getUserName(), creds.getPassword()));
         }
     }
 
@@ -139,13 +145,6 @@ public class GitManager {
         return user;
     }
 
-    public static UsernamePasswordCredentialsProvider getUsernamePasswordCredentialsProvider(GitReposUsersRecord user) {
-        return new UsernamePasswordCredentialsProvider(user.getUserName(), user.getPassword());
-    }
-
-    public static SshTransportConfigCallback getSshTransportConfigCallback(GitReposUsersRecord user) {
-        return new SshTransportConfigCallback(user.getSSHKey());
-    }
     public static int countOccurrences(Set<String> list, String prefix) {
         int count = 0;
         for (String str : list) {
@@ -264,11 +263,12 @@ public class GitManager {
                         .setUri(urIish).call();
 
                 //GIT FETCH
+                String remoteName = urIish.getHumanishName();
                 FetchCommand fetch = git.fetch()
-                        .setRemote(urIish.getHumanishName())
-                        .setRefSpecs(new RefSpec("refs/heads/" + branchName + ":refs/remotes/" + urIish.getHumanishName() + "/" + branchName));
+                        .setRemote(remoteName)
+                        .setRefSpecs(new RefSpec("refs/heads/" + branchName + ":refs/remotes/" + remoteName + "/" + branchName));
 
-                setAuthentication(fetch, projectName, userName);
+                setAuthentication(fetch, projectName, userName, "origin");
                 fetch.call();
 
                 //GIT CHECKOUT
@@ -787,4 +787,76 @@ public class GitManager {
             return false;
         }
     }
+
+    // ── Remote management ──────────────────────────────────────────────
+
+    /**
+     * List all remotes configured in the git repository.
+     *
+     * @param projectFolderPath path to the git working directory
+     * @return list of String arrays: [name, url]
+     */
+    public static List<String[]> listRemotes(Path projectFolderPath) throws Exception {
+        List<String[]> remotes = new ArrayList<>();
+        try (Git git = getGit(projectFolderPath)) {
+            List<RemoteConfig> configs = git.remoteList().call();
+            for (RemoteConfig config : configs) {
+                String name = config.getName();
+                String url = config.getURIs().isEmpty() ? "" : config.getURIs().get(0).toString();
+                remotes.add(new String[]{name, url});
+            }
+        }
+        return remotes;
+    }
+
+    public static void addRemote(Path projectFolderPath, String name, String url) throws Exception {
+        try (Git git = getGit(projectFolderPath)) {
+            git.remoteAdd().setName(name).setUri(new URIish(url)).call();
+        }
+    }
+
+    public static void removeRemote(Path projectFolderPath, String name) throws Exception {
+        try (Git git = getGit(projectFolderPath)) {
+            git.remoteRemove().setRemoteName(name).call();
+        }
+    }
+
+    public static void setRemoteUrl(Path projectFolderPath, String name, String newUrl) throws Exception {
+        try (Git git = getGit(projectFolderPath)) {
+            git.remoteSetUrl().setRemoteName(name).setRemoteUri(new URIish(newUrl)).call();
+        }
+    }
+
+    /**
+     * Get the URL of a named remote from the git config.
+     */
+    public static String getRemoteUrl(Path projectFolderPath, String remoteName) throws Exception {
+        try (Git git = getGit(projectFolderPath)) {
+            List<RemoteConfig> configs = git.remoteList().call();
+            for (RemoteConfig config : configs) {
+                if (config.getName().equals(remoteName)) {
+                    return config.getURIs().isEmpty() ? null : config.getURIs().get(0).toString();
+                }
+            }
+        }
+        return null;
+    }
+
+    // ── Per-remote credential lookup ───────────────────────────────────
+
+    /**
+     * Look up a {@link GitRemoteCredentialsRecord} for a given project, user, and remote name.
+     *
+     * @return the credential record, or null if not found
+     */
+    public static GitRemoteCredentialsRecord getRemoteCredentialsRecord(
+            String projectName, String userName, String remoteName) throws Exception {
+        GitProjectsConfigRecord projectRecord = getGitProjectConfigRecord(projectName);
+        SQuery<GitRemoteCredentialsRecord> query = new SQuery<>(GitRemoteCredentialsRecord.META)
+                .eq(GitRemoteCredentialsRecord.ProjectId, projectRecord.getId())
+                .eq(GitRemoteCredentialsRecord.IgnitionUser, userName)
+                .eq(GitRemoteCredentialsRecord.RemoteName, remoteName);
+        return context.getPersistenceInterface().queryOne(query);
+    }
+
 }

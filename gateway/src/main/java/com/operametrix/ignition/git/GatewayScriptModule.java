@@ -2,6 +2,7 @@ package com.operametrix.ignition.git;
 
 import com.operametrix.ignition.git.managers.*;
 import com.operametrix.ignition.git.records.GitProjectsConfigRecord;
+import com.operametrix.ignition.git.records.GitRemoteCredentialsRecord;
 import com.operametrix.ignition.git.records.GitReposUsersRecord;
 import com.inductiveautomation.ignition.common.BasicDataset;
 import com.inductiveautomation.ignition.common.Dataset;
@@ -14,6 +15,8 @@ import org.eclipse.jgit.lib.Ref;
 import org.eclipse.jgit.transport.PushResult;
 import org.eclipse.jgit.transport.RefSpec;
 import org.eclipse.jgit.transport.URIish;
+
+import simpleorm.dataset.SQuery;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -48,7 +51,7 @@ public class GatewayScriptModule extends AbstractScriptModule {
 
         try (Git git = getGit(getProjectFolderPath(projectName))) {
             PullCommand pull = git.pull();
-            setAuthentication(pull, projectName, userName);
+            setAuthentication(pull, projectName, userName, "origin");
 
             PullResult result = pull.call();
             if (!result.isSuccessful()) {
@@ -85,7 +88,7 @@ public class GatewayScriptModule extends AbstractScriptModule {
         try (Git git = getGit(getProjectFolderPath(projectName))) {
             PushCommand push = git.push();
 
-            setAuthentication(push, projectName, userName);
+            setAuthentication(push, projectName, userName, "origin");
 
             if (pushAllBranches) {
                 push.setPushAll();
@@ -225,7 +228,7 @@ public class GatewayScriptModule extends AbstractScriptModule {
 
                 FetchCommand fetch = git.fetch().setRemote("origin");
 
-                setAuthentication(fetch, projectName, userName);
+                setAuthentication(fetch, projectName, userName, "origin");
                 fetch.call();
 
                 ListBranchCommand listBranches = git.branchList();
@@ -412,26 +415,46 @@ public class GatewayScriptModule extends AbstractScriptModule {
         // Re-query to get the generated ID
         projectRecord = getGitProjectConfigRecord(projectName);
 
-        // Create user credentials record
+        // Create user credentials record (email only for commit author)
         GitReposUsersRecord userRecord = context.getPersistenceInterface().createNew(GitReposUsersRecord.META);
         userRecord.setProjectId(projectRecord.getId());
         userRecord.setIgnitionUser(ignitionUser);
         userRecord.setEmail(email);
         userRecord.setUserName(gitUsername);
         if (!repoUri.toLowerCase().startsWith("http")) {
-            // SSH authentication
             userRecord.setSSHKey(sshKey);
         } else {
-            // HTTPS authentication
             userRecord.setPassword(password);
         }
         context.getPersistenceInterface().save(userRecord);
+
+        // Create per-remote credential record for "origin"
+        GitRemoteCredentialsRecord remoteCreds = context.getPersistenceInterface().createNew(GitRemoteCredentialsRecord.META);
+        remoteCreds.setProjectId(projectRecord.getId());
+        remoteCreds.setIgnitionUser(ignitionUser);
+        remoteCreds.setRemoteName("origin");
+        remoteCreds.setUserName(gitUsername != null ? gitUsername : "");
+        if (!repoUri.toLowerCase().startsWith("http")) {
+            if (sshKey != null && !sshKey.isEmpty()) {
+                remoteCreds.setSSHKey(sshKey);
+            }
+        } else {
+            if (password != null && !password.isEmpty()) {
+                remoteCreds.setPassword(password);
+            }
+        }
+        context.getPersistenceInterface().save(remoteCreds);
 
         // Attempt to initialize the local repo
         try {
             setupLocalRepoImpl(projectName, ignitionUser);
         } catch (Exception e) {
-            // Rollback: delete both records on failure
+            // Rollback: delete all records on failure
+            try {
+                remoteCreds.deleteRecord();
+                context.getPersistenceInterface().save(remoteCreds);
+            } catch (Exception ignored) {
+            }
             try {
                 userRecord.deleteRecord();
                 context.getPersistenceInterface().save(userRecord);
@@ -511,6 +534,115 @@ public class GatewayScriptModule extends AbstractScriptModule {
         }
     }
 
+    @Override
+    protected Dataset listRemotesImpl(String projectName) throws Exception {
+        List<String[]> remotes = GitManager.listRemotes(getProjectFolderPath(projectName));
+        DatasetBuilder builder = new DatasetBuilder();
+        builder.colNames(List.of("name", "url"));
+        builder.colTypes(List.of(String.class, String.class));
+        for (String[] row : remotes) {
+            builder.addRow((Object[]) row);
+        }
+        Dataset ds = builder.build();
+        return ds != null ? ds : new BasicDataset();
+    }
+
+    @Override
+    protected boolean addRemoteImpl(String projectName, String remoteName, String remoteUrl,
+                                     String ignitionUser, String gitUsername, String password,
+                                     String sshKey) throws Exception {
+        Path projectPath = getProjectFolderPath(projectName);
+        GitManager.addRemote(projectPath, remoteName, remoteUrl);
+
+        // Create credential record
+        GitProjectsConfigRecord projectRecord = getGitProjectConfigRecord(projectName);
+        GitRemoteCredentialsRecord creds = context.getPersistenceInterface().createNew(GitRemoteCredentialsRecord.META);
+        creds.setProjectId(projectRecord.getId());
+        creds.setIgnitionUser(ignitionUser);
+        creds.setRemoteName(remoteName);
+        creds.setUserName(gitUsername != null ? gitUsername : "");
+        if (password != null && !password.isEmpty()) {
+            creds.setPassword(password);
+        }
+        if (sshKey != null && !sshKey.isEmpty()) {
+            creds.setSSHKey(sshKey);
+        }
+        context.getPersistenceInterface().save(creds);
+
+        // DB sync: if "origin", update GitProjectsConfigRecord.URI
+        if ("origin".equals(remoteName)) {
+            projectRecord.setURI(remoteUrl);
+            context.getPersistenceInterface().save(projectRecord);
+        }
+
+        return true;
+    }
+
+    @Override
+    protected boolean removeRemoteImpl(String projectName, String remoteName,
+                                        String ignitionUser) throws Exception {
+        Path projectPath = getProjectFolderPath(projectName);
+        GitManager.removeRemote(projectPath, remoteName);
+
+        // Delete credential record
+        GitProjectsConfigRecord projectRecord = getGitProjectConfigRecord(projectName);
+        SQuery<GitRemoteCredentialsRecord> query = new SQuery<>(GitRemoteCredentialsRecord.META)
+                .eq(GitRemoteCredentialsRecord.ProjectId, projectRecord.getId())
+                .eq(GitRemoteCredentialsRecord.IgnitionUser, ignitionUser)
+                .eq(GitRemoteCredentialsRecord.RemoteName, remoteName);
+        GitRemoteCredentialsRecord creds = context.getPersistenceInterface().queryOne(query);
+        if (creds != null) {
+            creds.deleteRecord();
+            context.getPersistenceInterface().save(creds);
+        }
+
+        // DB sync: if "origin", clear GitProjectsConfigRecord.URI
+        if ("origin".equals(remoteName)) {
+            projectRecord.setURI("");
+            context.getPersistenceInterface().save(projectRecord);
+        }
+
+        return true;
+    }
+
+    @Override
+    protected boolean setRemoteUrlImpl(String projectName, String remoteName, String newUrl,
+                                        String ignitionUser, String gitUsername, String password,
+                                        String sshKey) throws Exception {
+        Path projectPath = getProjectFolderPath(projectName);
+        GitManager.setRemoteUrl(projectPath, remoteName, newUrl);
+
+        // Update credential record
+        GitProjectsConfigRecord projectRecord = getGitProjectConfigRecord(projectName);
+        SQuery<GitRemoteCredentialsRecord> query = new SQuery<>(GitRemoteCredentialsRecord.META)
+                .eq(GitRemoteCredentialsRecord.ProjectId, projectRecord.getId())
+                .eq(GitRemoteCredentialsRecord.IgnitionUser, ignitionUser)
+                .eq(GitRemoteCredentialsRecord.RemoteName, remoteName);
+        GitRemoteCredentialsRecord creds = context.getPersistenceInterface().queryOne(query);
+        if (creds == null) {
+            creds = context.getPersistenceInterface().createNew(GitRemoteCredentialsRecord.META);
+            creds.setProjectId(projectRecord.getId());
+            creds.setIgnitionUser(ignitionUser);
+            creds.setRemoteName(remoteName);
+        }
+        creds.setUserName(gitUsername != null ? gitUsername : "");
+        if (password != null && !password.isEmpty()) {
+            creds.setPassword(password);
+        }
+        if (sshKey != null && !sshKey.isEmpty()) {
+            creds.setSSHKey(sshKey);
+        }
+        context.getPersistenceInterface().save(creds);
+
+        // DB sync: if "origin", update GitProjectsConfigRecord.URI
+        if ("origin".equals(remoteName)) {
+            projectRecord.setURI(newUrl);
+            context.getPersistenceInterface().save(projectRecord);
+        }
+
+        return true;
+    }
+
     private void setupGitFromCurrentFolder(String projectName, String userName, Git git) throws Exception {
         try {
             git.add().addFilepattern(".").call();
@@ -521,7 +653,7 @@ public class GatewayScriptModule extends AbstractScriptModule {
 
             PushCommand pushCommand = git.push();
 
-            setAuthentication(pushCommand, projectName, userName);
+            setAuthentication(pushCommand, projectName, userName, "origin");
 
             String branch = git.getRepository().getBranch();
             pushCommand.setRemote("origin").setRefSpecs(new RefSpec(branch)).call();

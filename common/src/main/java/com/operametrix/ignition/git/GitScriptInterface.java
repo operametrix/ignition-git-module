@@ -83,4 +83,18 @@ public interface GitScriptInterface {
     /** Check whether the given project has a remote repository configured. */
     boolean hasRemoteRepository(String projectName);
 
+    /** List all remotes configured in the project's git repository. Returns Dataset with [name, url]. */
+    Dataset listRemotes(String projectName) throws Exception;
+
+    /** Add a named remote with URL and credentials. */
+    boolean addRemote(String projectName, String remoteName, String remoteUrl,
+                      String ignitionUser, String gitUsername, String password, String sshKey) throws Exception;
+
+    /** Remove a named remote and its credentials. */
+    boolean removeRemote(String projectName, String remoteName, String ignitionUser) throws Exception;
+
+    /** Update a remote's URL and credentials. */
+    boolean setRemoteUrl(String projectName, String remoteName, String newUrl,
+                         String ignitionUser, String gitUsername, String password, String sshKey) throws Exception;
+
 }

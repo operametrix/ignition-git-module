@@ -2,6 +2,7 @@ package com.operametrix.ignition.git;
 
 import com.operametrix.ignition.git.commissioning.utils.GitCommissioningUtils;
 import com.operametrix.ignition.git.records.GitProjectsConfigRecord;
+import com.operametrix.ignition.git.records.GitRemoteCredentialsRecord;
 import com.operametrix.ignition.git.records.GitReposUsersRecord;
 import com.operametrix.ignition.git.web.GitProjectsConfigPage;
 import com.inductiveautomation.ignition.common.BundleUtil;
@@ -51,7 +52,7 @@ public class GatewayHook extends AbstractGatewayModuleHook {
 
     private void verifySchema(GatewayContext context) {
         try {
-            context.getSchemaUpdater().updatePersistentRecords(GitProjectsConfigRecord.META, GitReposUsersRecord.META);
+            context.getSchemaUpdater().updatePersistentRecords(GitProjectsConfigRecord.META, GitReposUsersRecord.META, GitRemoteCredentialsRecord.META);
         } catch (SQLException e) {
             logger.error("Error verifying persistent record schemas for HomeConnect records.", e);
         }

@@ -108,6 +108,16 @@ public class DesignerHook extends AbstractDesignerModuleHook {
         branchButton.addActionListener(e -> GitBaseAction.handleAction(GitBaseAction.GitActionType.BRANCH));
         gitStatusBar.add(branchButton);
 
+        JButton remotesButton = new JButton(IconUtils.getIcon("/com/operametrix/ignition/git/icons/ic_remote.svg"));
+        remotesButton.setToolTipText("Manage Remotes");
+        remotesButton.setContentAreaFilled(false);
+        remotesButton.setBorderPainted(false);
+        remotesButton.setFocusPainted(false);
+        remotesButton.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        remotesButton.setMargin(new Insets(0, 0, 0, 0));
+        remotesButton.addActionListener(e -> GitActionManager.showRemotesPopup(projectName, userName));
+        gitStatusBar.add(remotesButton);
+
         boolean userValid = rpc.isRegisteredUser(projectName, userName);
         String userIconPath = userValid ? "/com/operametrix/ignition/git/icons/ic_verified_user.svg" : "/com/operametrix/ignition/git/icons/ic_unregister_user.svg";
         JButton userButton = new JButton(IconUtils.getIcon(userIconPath));

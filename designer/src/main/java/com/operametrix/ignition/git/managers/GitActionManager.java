@@ -9,6 +9,7 @@ import com.operametrix.ignition.git.DiffViewerPopup;
 import com.operametrix.ignition.git.HistoryPopup;
 import com.operametrix.ignition.git.InitRepoPopup;
 import com.operametrix.ignition.git.PullPopup;
+import com.operametrix.ignition.git.RemotesPopup;
 import com.operametrix.ignition.git.CommitPanel;
 import com.operametrix.ignition.git.HistoryPanel;
 import com.inductiveautomation.ignition.common.Dataset;
@@ -34,6 +35,7 @@ public class GitActionManager {
     static CredentialsPopup credentialsPopup;
     static InitRepoPopup initRepoPopup;
     static HistoryPopup historyPopup;
+    static RemotesPopup remotesPopup;
     private static final Logger logger = LoggerFactory.getLogger(GitActionManager.class);
 
 
@@ -195,24 +197,17 @@ public class GitActionManager {
 
     public static void showCredentialsPopup(String projectName, String userName) {
         try {
-            String authType;
-            if (!rpc.hasRemoteRepository(projectName)) {
-                authType = "Local";
-            } else {
-                authType = rpc.isSSHAuthentication(projectName) ? "SSH" : "HTTPS";
-            }
             String currentEmail = rpc.getUserEmail(projectName, userName);
-            String currentGitUsername = rpc.getUserGitUsername(projectName, userName);
 
             if (credentialsPopup != null) {
-                credentialsPopup.setData(authType, currentEmail, currentGitUsername);
+                credentialsPopup.setData(currentEmail);
                 credentialsPopup.setVisible(true);
                 credentialsPopup.toFront();
             } else {
-                credentialsPopup = new CredentialsPopup(authType, currentEmail, currentGitUsername, context.getFrame()) {
+                credentialsPopup = new CredentialsPopup(currentEmail, context.getFrame()) {
                     @Override
-                    public void onSave(String email, String gitUsername, String password, String sshKey) {
-                        boolean success = rpc.saveUserCredentials(projectName, userName, email, gitUsername, password, sshKey);
+                    public void onSave(String email) {
+                        boolean success = rpc.saveUserCredentials(projectName, userName, email, "", "", "");
                         if (success) {
                             showConfirmPopup("Credentials saved successfully.", JOptionPane.INFORMATION_MESSAGE);
                             dispose();
@@ -225,6 +220,69 @@ public class GitActionManager {
             }
         } catch (Exception e) {
             logger.error("Error showing credentials popup", e);
+        }
+    }
+
+    public static void showRemotesPopup(String projectName, String userName) {
+        try {
+            Dataset remotes = rpc.listRemotes(projectName);
+
+            if (remotesPopup != null) {
+                remotesPopup.setData(remotes);
+                remotesPopup.setVisible(true);
+                remotesPopup.toFront();
+            } else {
+                remotesPopup = new RemotesPopup(context.getFrame()) {
+                    @Override
+                    public void onAddRemote(String name, String url, String gitUsername, String password, String sshKey) {
+                        try {
+                            rpc.addRemote(projectName, name, url, userName, gitUsername, password, sshKey);
+                            showConfirmPopup("Remote '" + name + "' added successfully.", JOptionPane.INFORMATION_MESSAGE);
+                            onRefresh();
+                        } catch (Exception e) {
+                            logger.error("Error adding remote", e);
+                            showConfirmPopup("Failed to add remote: " + e.getMessage(), JOptionPane.ERROR_MESSAGE);
+                        }
+                    }
+
+                    @Override
+                    public void onEditRemote(String name, String newUrl, String gitUsername, String password, String sshKey) {
+                        try {
+                            rpc.setRemoteUrl(projectName, name, newUrl, userName, gitUsername, password, sshKey);
+                            showConfirmPopup("Remote '" + name + "' updated successfully.", JOptionPane.INFORMATION_MESSAGE);
+                            onRefresh();
+                        } catch (Exception e) {
+                            logger.error("Error updating remote", e);
+                            showConfirmPopup("Failed to update remote: " + e.getMessage(), JOptionPane.ERROR_MESSAGE);
+                        }
+                    }
+
+                    @Override
+                    public void onRemoveRemote(String name) {
+                        try {
+                            rpc.removeRemote(projectName, name, userName);
+                            showConfirmPopup("Remote '" + name + "' removed.", JOptionPane.INFORMATION_MESSAGE);
+                            onRefresh();
+                        } catch (Exception e) {
+                            logger.error("Error removing remote", e);
+                            showConfirmPopup("Failed to remove remote: " + e.getMessage(), JOptionPane.ERROR_MESSAGE);
+                        }
+                    }
+
+                    @Override
+                    public void onRefresh() {
+                        try {
+                            Dataset freshRemotes = rpc.listRemotes(projectName);
+                            setData(freshRemotes);
+                        } catch (Exception e) {
+                            logger.error("Error refreshing remotes", e);
+                        }
+                    }
+                };
+                remotesPopup.setData(remotes);
+            }
+        } catch (Exception e) {
+            logger.error("Error showing remotes popup", e);
         }
     }
 

@@ -155,4 +155,29 @@ public class ClientScriptModule extends AbstractScriptModule {
     protected boolean hasRemoteRepositoryImpl(String projectName) {
         return rpc.hasRemoteRepository(projectName);
     }
+
+    @Override
+    protected Dataset listRemotesImpl(String projectName) throws Exception {
+        return rpc.listRemotes(projectName);
+    }
+
+    @Override
+    protected boolean addRemoteImpl(String projectName, String remoteName, String remoteUrl,
+                                     String ignitionUser, String gitUsername, String password,
+                                     String sshKey) throws Exception {
+        return rpc.addRemote(projectName, remoteName, remoteUrl, ignitionUser, gitUsername, password, sshKey);
+    }
+
+    @Override
+    protected boolean removeRemoteImpl(String projectName, String remoteName,
+                                        String ignitionUser) throws Exception {
+        return rpc.removeRemote(projectName, remoteName, ignitionUser);
+    }
+
+    @Override
+    protected boolean setRemoteUrlImpl(String projectName, String remoteName, String newUrl,
+                                        String ignitionUser, String gitUsername, String password,
+                                        String sshKey) throws Exception {
+        return rpc.setRemoteUrl(projectName, remoteName, newUrl, ignitionUser, gitUsername, password, sshKey);
+    }
 }
