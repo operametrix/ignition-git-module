@@ -401,7 +401,14 @@ public class GitManager {
 
     public static String getCurrentBranch(Path projectFolderPath) throws Exception {
         try (Git git = getGit(projectFolderPath)) {
-            return git.getRepository().getBranch();
+            Repository repo = git.getRepository();
+            String branch = repo.getBranch();
+            // In detached HEAD, getBranch() returns the full commit hash
+            String fullBranch = repo.getFullBranch();
+            if (fullBranch != null && !fullBranch.startsWith("refs/heads/")) {
+                return branch.substring(0, 7) + " (detached)";
+            }
+            return branch;
         }
     }
 
@@ -448,6 +455,22 @@ public class GitManager {
             // Apply stashed changes for the target branch if any exist
             applyStash(git, branchName);
 
+            return true;
+        }
+    }
+
+    public static boolean checkoutCommit(Path projectFolderPath, String commitHash) throws Exception {
+        try (Git git = getGit(projectFolderPath)) {
+            String currentRef = git.getRepository().getFullBranch();
+
+            // Only stash if currently on a branch (not already detached)
+            if (currentRef != null && currentRef.startsWith("refs/heads/")) {
+                String currentBranch = Repository.shortenRefName(currentRef);
+                stashChanges(git, currentBranch);
+            }
+
+            git.checkout().setName(commitHash).call();
+            // No applyStash — detached HEAD has no branch-scoped stash
             return true;
         }
     }

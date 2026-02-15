@@ -400,6 +400,13 @@ public class GatewayScriptModule extends AbstractScriptModule {
     }
 
     @Override
+    protected boolean checkoutCommitImpl(String projectName, String commitHash) throws Exception {
+        boolean result = GitManager.checkoutCommit(getProjectFolderPath(projectName), commitHash);
+        GitProjectManager.importProject(projectName);
+        return result;
+    }
+
+    @Override
     protected boolean revertCommitImpl(String projectName, String commitHash) throws Exception {
         boolean result = GitManager.revertCommit(getProjectFolderPath(projectName), commitHash);
         if (result) {

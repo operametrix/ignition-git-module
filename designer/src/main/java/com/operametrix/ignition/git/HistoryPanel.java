@@ -45,6 +45,7 @@ public class HistoryPanel extends JPanel {
     private Runnable onLoadMore;
     private Consumer<CommitNode> onCommitSelected;
     private Consumer<CommitNode> onRevertRequested;
+    private Consumer<CommitNode> onCheckoutRequested;
 
     public HistoryPanel() {
         setLayout(new BorderLayout(0, 4));
@@ -101,6 +102,11 @@ public class HistoryPanel extends JPanel {
                     if (row >= 0 && row < nodes.size()) {
                         historyTable.setRowSelectionInterval(row, row);
                         JPopupMenu menu = new JPopupMenu();
+                        JMenuItem checkoutItem = new JMenuItem("Checkout Commit");
+                        checkoutItem.addActionListener(ev -> {
+                            if (onCheckoutRequested != null) onCheckoutRequested.accept(nodes.get(row));
+                        });
+                        menu.add(checkoutItem);
                         JMenuItem revertItem = new JMenuItem("Revert Commit");
                         revertItem.addActionListener(ev -> {
                             if (onRevertRequested != null) onRevertRequested.accept(nodes.get(row));
@@ -346,5 +352,9 @@ public class HistoryPanel extends JPanel {
 
     public void setOnRevertRequested(Consumer<CommitNode> onRevertRequested) {
         this.onRevertRequested = onRevertRequested;
+    }
+
+    public void setOnCheckoutRequested(Consumer<CommitNode> onCheckoutRequested) {
+        this.onCheckoutRequested = onCheckoutRequested;
     }
 }

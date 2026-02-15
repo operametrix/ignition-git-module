@@ -80,6 +80,9 @@ public interface GitScriptInterface {
      */
     boolean initializeLocalProject(String projectName, String ignitionUser, String email) throws Exception;
 
+    /** Check out a specific commit by hash, entering detached HEAD state. */
+    boolean checkoutCommit(String projectName, String commitHash) throws Exception;
+
     /** Create a new commit that reverses the changes of the specified commit (git revert). */
     boolean revertCommit(String projectName, String commitHash) throws Exception;
 

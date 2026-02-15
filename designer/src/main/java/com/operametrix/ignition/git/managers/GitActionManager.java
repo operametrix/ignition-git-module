@@ -449,6 +449,11 @@ public class GitActionManager {
                 public void onRevertRequested(String commitHash, String shortHash, String message) {
                     handleRevertCommitAction(commitHash, shortHash, message);
                 }
+
+                @Override
+                public void onCheckoutRequested(String commitHash, String shortHash) {
+                    handleCheckoutCommitAction(commitHash, shortHash);
+                }
             };
         } catch (Exception e) {
             logger.error("Error showing commit detail popup", e);
@@ -544,6 +549,9 @@ public class GitActionManager {
 
         panel.setOnRevertRequested(node ->
                 handleRevertCommitAction(node.hash, node.shortHash, node.message));
+
+        panel.setOnCheckoutRequested(node ->
+                handleCheckoutCommitAction(node.hash, node.shortHash));
 
         panel.setOnLoadMore(() -> new Thread(() -> {
             try {

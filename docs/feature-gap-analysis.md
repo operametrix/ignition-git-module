@@ -2,7 +2,7 @@
 
 ## Current capabilities
 
-Init, clone, commit (with file selection + timestamp + amend), push (current branch only by default; force push with confirmation on rejection), pull (merge only), branch list/create/checkout/delete, auto-stash on checkout, status (uncommitted changes), SSH + HTTPS auth, credential management UI, resource import/export, commissioning automation, Designer toolbar + status bar, side-by-side diff viewer, commit history browser with per-commit file list and historical diff, dockable Commit panel with inline commit/discard/diff/amend, dockable History panel with commit log/ref badges/push/pull, discard (revert) uncommitted changes, multi-remote management (add/edit/remove named remotes with per-remote credentials) with push/pull remote target selection.
+Init, clone, commit (with file selection + timestamp + amend), push (current branch only by default; force push with confirmation on rejection), pull (merge only), branch list/create/checkout/delete, auto-stash on checkout, checkout commit (detached HEAD), status (uncommitted changes), SSH + HTTPS auth, credential management UI, resource import/export, commissioning automation, Designer toolbar + status bar, side-by-side diff viewer, commit history browser with per-commit file list and historical diff, dockable Commit panel with inline commit/discard/diff/amend, dockable History panel with commit log/ref badges/push/pull, discard (revert) uncommitted changes, multi-remote management (add/edit/remove named remotes with per-remote credentials) with push/pull remote target selection.
 
 ---
 

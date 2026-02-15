@@ -288,6 +288,33 @@ public class GitBaseAction extends BaseAction {
         }
     }
 
+    public static void handleCheckoutCommitAction(String commitHash, String shortHash) {
+        int choice = JOptionPane.showConfirmDialog(context.getFrame(),
+                "Check out commit " + shortHash + "?\n\n"
+                        + "This will put the repository in 'detached HEAD' state.\n"
+                        + "Any new commits will not belong to a branch.\n"
+                        + "To keep changes, create a new branch first.",
+                "Checkout Commit", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+
+        if (choice != JOptionPane.YES_OPTION) return;
+
+        try {
+            closeAllEditorTabs();
+            rpc.checkoutCommit(projectName, commitHash);
+            pullProjectFromGateway();
+            SwingUtilities.invokeLater(new Thread(() ->
+                    showConfirmPopup("Checked out commit " + shortHash + ".", JOptionPane.INFORMATION_MESSAGE)));
+        } catch (Exception ex) {
+            ErrorUtil.showError(ex);
+        } finally {
+            if (instance != null) {
+                instance.refreshBranchLabel();
+                instance.refreshCommitPanel();
+                instance.refreshHistoryPanel();
+            }
+        }
+    }
+
     public static void handleRevertCommitAction(String commitHash, String shortHash, String message) {
         int choice = JOptionPane.showConfirmDialog(context.getFrame(),
                 "Revert commit " + shortHash + "?\n\n\"" + message + "\"\n\n"
