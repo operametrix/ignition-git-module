@@ -84,10 +84,16 @@ public class CommitPopup extends JFrame {
 
             boolean amend = amendCheckBox.isSelected();
             String message = messageTextArea.getText();
-            boolean canCommit = amend
-                    ? !message.trim().isEmpty()
-                    : !changes.isEmpty() && !message.trim().isEmpty();
-            if (!canCommit) return;
+            if (message.trim().isEmpty()) {
+                JOptionPane.showMessageDialog(this, "Please enter a commit message.",
+                        "Commit", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+            if (!amend && changes.isEmpty()) {
+                JOptionPane.showMessageDialog(this, "Please select at least one file to commit.",
+                        "Commit", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
 
             onActionPerformed(changes, message, amend);
             this.dispose();

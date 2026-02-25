@@ -137,6 +137,12 @@ public class GatewayScriptModule extends AbstractScriptModule {
 
     @Override
     protected boolean commitImpl(String projectName, String userName, List<String> changes, String message, boolean amend) {
+        if (message == null || message.trim().isEmpty()) {
+            throw new RuntimeException("Commit message cannot be empty.");
+        }
+        if (!amend && (changes == null || changes.isEmpty())) {
+            throw new RuntimeException("Nothing to commit — select at least one file.");
+        }
         try (Git git = getGit(getProjectFolderPath(projectName))) {
             for (String change : changes) {
                 git.add().addFilepattern(change).call();

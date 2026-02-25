@@ -73,15 +73,20 @@ public class CommitPanel extends JPanel {
             if (onCommitRequested != null) {
                 List<String> selected = getSelectedResources();
                 String message = commitMessageArea.getText().trim();
-                boolean canCommit = amendSelected
-                        ? !message.isEmpty()
-                        : !selected.isEmpty() && !message.isEmpty();
-                if (canCommit) {
-                    onCommitRequested.accept(selected, message);
-                    commitMessageArea.setText("");
-                    amendCheckBox.setSelected(false);
-                    amendSelected = false;
+                if (message.isEmpty()) {
+                    JOptionPane.showMessageDialog(SwingUtilities.getWindowAncestor(CommitPanel.this),
+                            "Please enter a commit message.", "Commit", JOptionPane.WARNING_MESSAGE);
+                    return;
                 }
+                if (!amendSelected && selected.isEmpty()) {
+                    JOptionPane.showMessageDialog(SwingUtilities.getWindowAncestor(CommitPanel.this),
+                            "Please select at least one file to commit.", "Commit", JOptionPane.WARNING_MESSAGE);
+                    return;
+                }
+                onCommitRequested.accept(selected, message);
+                commitMessageArea.setText("");
+                amendCheckBox.setSelected(false);
+                amendSelected = false;
             }
         });
         bottomControls.add(commitButton, BorderLayout.EAST);
