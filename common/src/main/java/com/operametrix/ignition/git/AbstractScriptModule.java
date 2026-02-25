@@ -322,4 +322,44 @@ public abstract class AbstractScriptModule implements GitScriptInterface {
                                                  String ignitionUser, String gitUsername, String password,
                                                  String sshKey) throws Exception;
 
+    @Override
+    @ScriptFunction(docBundlePrefix = "AbstractScriptModule")
+    public List<String> getConflictingFiles(@ScriptArg("projectName") String projectName) {
+        return getConflictingFilesImpl(projectName);
+    }
+
+    @Override
+    @ScriptFunction(docBundlePrefix = "AbstractScriptModule")
+    public boolean resolveConflict(@ScriptArg("projectName") String projectName,
+                                    @ScriptArg("filePath") String filePath,
+                                    @ScriptArg("stage") String stage) {
+        return resolveConflictImpl(projectName, filePath, stage);
+    }
+
+    @Override
+    @ScriptFunction(docBundlePrefix = "AbstractScriptModule")
+    public boolean abortMerge(@ScriptArg("projectName") String projectName) {
+        return abortMergeImpl(projectName);
+    }
+
+    @Override
+    @ScriptFunction(docBundlePrefix = "AbstractScriptModule")
+    public boolean completeMergeCommit(@ScriptArg("projectName") String projectName,
+                                        @ScriptArg("userName") String userName) throws Exception {
+        return completeMergeCommitImpl(projectName, userName);
+    }
+
+    @Override
+    @ScriptFunction(docBundlePrefix = "AbstractScriptModule")
+    public List<String> getConflictDiff(@ScriptArg("projectName") String projectName,
+                                         @ScriptArg("filePath") String filePath) {
+        return getConflictDiffImpl(projectName, filePath);
+    }
+
+    protected abstract List<String> getConflictingFilesImpl(String projectName);
+    protected abstract boolean resolveConflictImpl(String projectName, String filePath, String stage);
+    protected abstract boolean abortMergeImpl(String projectName);
+    protected abstract boolean completeMergeCommitImpl(String projectName, String userName) throws Exception;
+    protected abstract List<String> getConflictDiffImpl(String projectName, String filePath);
+
 }

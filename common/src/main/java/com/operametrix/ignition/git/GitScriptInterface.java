@@ -103,4 +103,20 @@ public interface GitScriptInterface {
     boolean setRemoteUrl(String projectName, String remoteName, String newUrl,
                          String ignitionUser, String gitUsername, String password, String sshKey) throws Exception;
 
+    /** Get list of files currently in merge conflict. */
+    List<String> getConflictingFiles(String projectName);
+
+    /** Resolve a single conflicting file. stage is "OURS" or "THEIRS". */
+    boolean resolveConflict(String projectName, String filePath, String stage);
+
+    /** Abort the current merge (hard reset to HEAD). */
+    boolean abortMerge(String projectName);
+
+    /** Complete the merge commit after all conflicts are resolved. */
+    boolean completeMergeCommit(String projectName, String userName) throws Exception;
+
+    /** Get ours (HEAD) and theirs (MERGE_HEAD) content for a conflicting file.
+     *  Returns a 2-element list: [oursContent, theirsContent]. */
+    List<String> getConflictDiff(String projectName, String filePath);
+
 }

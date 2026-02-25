@@ -190,4 +190,29 @@ public class ClientScriptModule extends AbstractScriptModule {
                                         String sshKey) throws Exception {
         return rpc.setRemoteUrl(projectName, remoteName, newUrl, ignitionUser, gitUsername, password, sshKey);
     }
+
+    @Override
+    protected List<String> getConflictingFilesImpl(String projectName) {
+        return rpc.getConflictingFiles(projectName);
+    }
+
+    @Override
+    protected boolean resolveConflictImpl(String projectName, String filePath, String stage) {
+        return rpc.resolveConflict(projectName, filePath, stage);
+    }
+
+    @Override
+    protected boolean abortMergeImpl(String projectName) {
+        return rpc.abortMerge(projectName);
+    }
+
+    @Override
+    protected boolean completeMergeCommitImpl(String projectName, String userName) throws Exception {
+        return rpc.completeMergeCommit(projectName, userName);
+    }
+
+    @Override
+    protected List<String> getConflictDiffImpl(String projectName, String filePath) {
+        return rpc.getConflictDiff(projectName, filePath);
+    }
 }

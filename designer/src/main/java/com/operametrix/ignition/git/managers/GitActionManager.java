@@ -13,6 +13,7 @@ import com.operametrix.ignition.git.PushPopup;
 import com.operametrix.ignition.git.RemotesPopup;
 import com.operametrix.ignition.git.CommitPanel;
 import com.operametrix.ignition.git.HistoryPanel;
+import com.operametrix.ignition.git.MergeConflictPopup;
 import com.inductiveautomation.ignition.common.Dataset;
 import com.inductiveautomation.ignition.common.project.ChangeOperation;
 import com.inductiveautomation.ignition.common.project.resource.ProjectResourceId;
@@ -475,6 +476,118 @@ public class GitActionManager {
                     "Failed to load diff: " + e.getMessage(),
                     "Error", JOptionPane.ERROR_MESSAGE);
         }
+    }
+
+    public static void showMergeConflictPopup(String projectName, String userName,
+                                                List<String> conflictingFiles) {
+        new MergeConflictPopup(conflictingFiles, context.getFrame()) {
+            @Override
+            public void onResolveConflict(String filePath, String stage) {
+                new Thread(() -> {
+                    try {
+                        rpc.resolveConflict(projectName, filePath, stage);
+                        SwingUtilities.invokeLater(() -> markResolved(filePath, stage));
+                    } catch (Exception e) {
+                        logger.error("Error resolving conflict for " + filePath, e);
+                        SwingUtilities.invokeLater(() ->
+                                JOptionPane.showMessageDialog(this,
+                                        "Failed to resolve conflict: " + e.getMessage(),
+                                        "Error", JOptionPane.ERROR_MESSAGE));
+                    }
+                }).start();
+            }
+
+            @Override
+            public void onResolveAllConflicts(String stage) {
+                new Thread(() -> {
+                    try {
+                        List<String> remaining = rpc.getConflictingFiles(projectName);
+                        for (String filePath : remaining) {
+                            rpc.resolveConflict(projectName, filePath, stage);
+                        }
+                        SwingUtilities.invokeLater(() -> markAllResolved(stage));
+                    } catch (Exception e) {
+                        logger.error("Error resolving all conflicts", e);
+                        SwingUtilities.invokeLater(() ->
+                                JOptionPane.showMessageDialog(this,
+                                        "Failed to resolve conflicts: " + e.getMessage(),
+                                        "Error", JOptionPane.ERROR_MESSAGE));
+                    }
+                }).start();
+            }
+
+            @Override
+            public void onAbortMerge() {
+                int confirm = JOptionPane.showConfirmDialog(this,
+                        "Abort the merge? All changes from the pull will be discarded.",
+                        "Abort Merge", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+                if (confirm != JOptionPane.YES_OPTION) return;
+
+                new Thread(() -> {
+                    try {
+                        rpc.abortMerge(projectName);
+                        pullProjectFromGateway();
+                        SwingUtilities.invokeLater(() -> {
+                            dispose();
+                            showConfirmPopup("Merge aborted.", JOptionPane.INFORMATION_MESSAGE);
+                        });
+                    } catch (Exception e) {
+                        logger.error("Error aborting merge", e);
+                        SwingUtilities.invokeLater(() ->
+                                JOptionPane.showMessageDialog(this,
+                                        "Failed to abort merge: " + e.getMessage(),
+                                        "Error", JOptionPane.ERROR_MESSAGE));
+                    } finally {
+                        if (DesignerHook.instance != null) {
+                            DesignerHook.instance.refreshCommitPanel();
+                            DesignerHook.instance.refreshHistoryPanel();
+                        }
+                    }
+                }).start();
+            }
+
+            @Override
+            public void onCompleteMerge() {
+                new Thread(() -> {
+                    try {
+                        rpc.completeMergeCommit(projectName, userName);
+                        pullProjectFromGateway();
+                        SwingUtilities.invokeLater(() -> {
+                            dispose();
+                            showConfirmPopup("Merge completed successfully.",
+                                    JOptionPane.INFORMATION_MESSAGE);
+                        });
+                    } catch (Exception e) {
+                        logger.error("Error completing merge", e);
+                        SwingUtilities.invokeLater(() ->
+                                JOptionPane.showMessageDialog(this,
+                                        "Failed to complete merge: " + e.getMessage(),
+                                        "Error", JOptionPane.ERROR_MESSAGE));
+                    } finally {
+                        if (DesignerHook.instance != null) {
+                            DesignerHook.instance.refreshCommitPanel();
+                            DesignerHook.instance.refreshHistoryPanel();
+                        }
+                    }
+                }).start();
+            }
+
+            @Override
+            public void onViewDiff(String filePath) {
+                try {
+                    List<String> diff = rpc.getConflictDiff(projectName, filePath);
+                    String oursContent = diff.get(0);
+                    String theirsContent = diff.get(1);
+                    new DiffViewerPopup(filePath, oursContent, theirsContent, this,
+                            "Ours (HEAD)", "Theirs (incoming)");
+                } catch (Exception e) {
+                    logger.error("Error showing conflict diff", e);
+                    JOptionPane.showMessageDialog(this,
+                            "Failed to load conflict diff: " + e.getMessage(),
+                            "Error", JOptionPane.ERROR_MESSAGE);
+                }
+            }
+        };
     }
 
     public static void wireCommitPanel(CommitPanel panel, String projectName, String userName) {

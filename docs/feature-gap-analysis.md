@@ -2,7 +2,7 @@
 
 ## Current capabilities
 
-Init, clone, commit (with file selection + timestamp + amend), push (current branch only by default; force push with confirmation on rejection), pull (merge only), branch list/create/checkout/delete, auto-stash on checkout, checkout commit (detached HEAD), status (uncommitted changes), SSH + HTTPS auth, credential management UI, resource import/export, commissioning automation, Designer toolbar + status bar, side-by-side diff viewer, commit history browser with per-commit file list and historical diff, dockable Commit panel with inline commit/discard/diff/amend, dockable History panel with commit log/ref badges/push/pull, discard (revert) uncommitted changes, multi-remote management (add/edit/remove named remotes with per-remote credentials) with push/pull remote target selection.
+Init, clone, commit (with file selection + timestamp + amend), push (current branch only by default; force push with confirmation on rejection), pull (with merge conflict resolution — per-file "Accept Ours"/"Accept Theirs" + conflict diff viewer + abort/complete merge), branch list/create/checkout/delete, auto-stash on checkout, checkout commit (detached HEAD), status (uncommitted changes), SSH + HTTPS auth, credential management UI, resource import/export, commissioning automation, Designer toolbar + status bar, side-by-side diff viewer, commit history browser with per-commit file list and historical diff, dockable Commit panel with inline commit/discard/diff/amend, dockable History panel with commit log/ref badges/push/pull, discard (revert) uncommitted changes, multi-remote management (add/edit/remove named remotes with per-remote credentials) with push/pull remote target selection.
 
 ---
 
@@ -23,7 +23,7 @@ Init, clone, commit (with file selection + timestamp + amend), push (current bra
 | # | Feature | Impact | Notes |
 |---|---------|--------|-------|
 | 6 | **Merge (explicit)** | No standalone merge command; only implicit via pull | Can't merge feature branches locally |
-| 7 | **Merge conflict resolution UI** | Conflicts on pull silently fail with a log warning | Critical gap — teams will hit conflicts |
+| 7 | ~~**Merge conflict resolution UI**~~ | ~~Conflicts on pull silently fail with a log warning~~ | **Implemented.** Pull detects `MergeStatus.CONFLICTING` and opens a `MergeConflictPopup` listing conflicting files. Per-file "Accept Ours" / "Accept Theirs" resolution with conflict diff viewing (ours vs theirs via `DiffViewerPopup`). Global "Accept All Ours/Theirs", "Abort Merge", and "Complete Merge" actions. Window close triggers abort confirmation to prevent leaving the repo in a conflicted state. |
 | 8 | **Branch rename** | Must delete and recreate | Minor but standard |
 | 9 | **Delete remote branches** | Only deletes local branches | Stale remote branches accumulate |
 | 10 | **.gitignore management** | No UI for ignoring files | Users must manually edit .gitignore |
@@ -97,13 +97,14 @@ Init, clone, commit (with file selection + timestamp + amend), push (current bra
 6. ~~**Force push** (#26)~~ — **Done.**
 7. ~~**Multiple remotes** (#23)~~ — **Done.**
 8. ~~**Revert commit** (#15)~~ — **Done.**
+9. ~~**Merge conflict resolution UI** (#7)~~ — **Done.**
 
 ### Proposed next steps
 
 Top 5 highest-impact additions for Ignition Designer teams, ordered by urgency:
 
-1. **Merge conflict resolution UI** (#7) — pull silently fails on conflicts, which is the single biggest blocker for multi-developer teams. A minimal viable approach: detect `MergeResult.MergeStatus.CONFLICTING`, list conflicting files, and offer "Accept Ours" / "Accept Theirs" per file (full three-way merge editor is Tier 4 complexity).
-2. **Fetch without merge** (#3) — lets users review incoming changes before committing to a merge. Pairs naturally with #7; once conflicts are visible, users want to see what's coming before pulling. Could be a "Fetch" button in the History panel toolbar alongside Push/Pull.
-3. **Commit search / filter** (#18) — as commit history grows, finding a specific change becomes tedious. Add a search field to the History panel filtering by message text or author. Straightforward UI addition with high daily-use value.
-4. **Delete remote branches** (#9) — stale remote branches accumulate and clutter the branch popup. Add a delete option for `remotes/origin/*` entries using `git push --delete`. Small change, reduces branch management friction.
-5. **Cherry-pick** (#14) — can't pick specific commits across branches. Common for hotfixes. Add a "Cherry-pick" option alongside "Revert" in CommitDetailPopup and HistoryPanel context menu.
+1. **Fetch without merge** (#3) — lets users review incoming changes before committing to a merge. Pairs naturally with conflict resolution; users want to see what's coming before pulling. Could be a "Fetch" button in the History panel toolbar alongside Push/Pull.
+2. **Commit search / filter** (#18) — as commit history grows, finding a specific change becomes tedious. Add a search field to the History panel filtering by message text or author. Straightforward UI addition with high daily-use value.
+3. **Delete remote branches** (#9) — stale remote branches accumulate and clutter the branch popup. Add a delete option for `remotes/origin/*` entries using `git push --delete`. Small change, reduces branch management friction.
+4. **Cherry-pick** (#14) — can't pick specific commits across branches. Common for hotfixes. Add a "Cherry-pick" option alongside "Revert" in CommitDetailPopup and HistoryPanel context menu.
+5. **Merge (explicit)** (#6) — standalone merge command for merging feature branches locally without going through pull.

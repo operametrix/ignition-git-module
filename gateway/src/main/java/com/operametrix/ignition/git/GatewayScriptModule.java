@@ -10,6 +10,7 @@ import com.inductiveautomation.ignition.common.util.DatasetBuilder;
 import com.inductiveautomation.ignition.common.util.LoggerEx;
 import com.inductiveautomation.ignition.gateway.model.GatewayContext;
 import org.eclipse.jgit.api.*;
+import org.eclipse.jgit.api.MergeResult;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.lib.Ref;
 import org.eclipse.jgit.transport.PushResult;
@@ -57,11 +58,21 @@ public class GatewayScriptModule extends AbstractScriptModule {
 
             PullResult result = pull.call();
             if (!result.isSuccessful()) {
-                logger.warn("Cannot pull from git");
-            } else {
-                logger.info("Pull was successful.");
+                // Check specifically for merge conflicts
+                if (result.getMergeResult() != null
+                        && result.getMergeResult().getMergeStatus()
+                            == MergeResult.MergeStatus.CONFLICTING) {
+                    Set<String> conflicting = git.status().call().getConflicting();
+                    String fileList = String.join("\n", conflicting);
+                    throw new RuntimeException("MERGE_CONFLICT:" + fileList);
+                }
+                throw new RuntimeException("Pull failed: " +
+                        (result.getMergeResult() != null
+                                ? result.getMergeResult().getMergeStatus().toString()
+                                : "unknown status"));
             }
 
+            logger.info("Pull was successful.");
             GitProjectManager.importProject(projectName);
 
             if (importTags) {
@@ -659,6 +670,39 @@ public class GatewayScriptModule extends AbstractScriptModule {
         }
 
         return true;
+    }
+
+    @Override
+    protected List<String> getConflictingFilesImpl(String projectName) {
+        return GitManager.getConflictingFiles(getProjectFolderPath(projectName));
+    }
+
+    @Override
+    protected boolean resolveConflictImpl(String projectName, String filePath, String stage) {
+        return GitManager.resolveConflict(getProjectFolderPath(projectName), filePath, stage);
+    }
+
+    @Override
+    protected boolean abortMergeImpl(String projectName) {
+        boolean result = GitManager.abortMerge(getProjectFolderPath(projectName));
+        if (result) {
+            GitProjectManager.importProject(projectName);
+        }
+        return result;
+    }
+
+    @Override
+    protected boolean completeMergeCommitImpl(String projectName, String userName) throws Exception {
+        boolean result = GitManager.completeMergeCommit(getProjectFolderPath(projectName), projectName, userName);
+        if (result) {
+            GitProjectManager.importProject(projectName);
+        }
+        return result;
+    }
+
+    @Override
+    protected List<String> getConflictDiffImpl(String projectName, String filePath) {
+        return GitManager.getConflictDiffContent(getProjectFolderPath(projectName), filePath);
     }
 
     private void setupGitFromCurrentFolder(String projectName, String userName, Git git) throws Exception {

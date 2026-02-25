@@ -157,7 +157,20 @@ public class GitBaseAction extends BaseAction {
             pullProjectFromGateway();
             SwingUtilities.invokeLater(new Thread(() -> showConfirmPopup(message, messageType)));
         } catch (Exception ex) {
-            ErrorUtil.showError(ex);
+            String exMsg = ex.getMessage() != null ? ex.getMessage() : "";
+            if (exMsg.contains("MERGE_CONFLICT:")) {
+                String filesPart = exMsg.substring(exMsg.indexOf("MERGE_CONFLICT:") + "MERGE_CONFLICT:".length());
+                List<String> conflictingFiles = new ArrayList<>();
+                for (String f : filesPart.split("\n")) {
+                    String trimmed = f.trim();
+                    if (!trimmed.isEmpty()) {
+                        conflictingFiles.add(trimmed);
+                    }
+                }
+                showMergeConflictPopup(projectName, userName, conflictingFiles);
+            } else {
+                ErrorUtil.showError(ex);
+            }
         } finally {
             if (instance != null) {
                 instance.refreshCommitPanel();

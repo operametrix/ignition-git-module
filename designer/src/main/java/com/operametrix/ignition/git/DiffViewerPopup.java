@@ -23,6 +23,11 @@ public class DiffViewerPopup extends JFrame {
     private static final Color LINE_NUMBER_COLOR = new Color(128, 128, 128);
 
     public DiffViewerPopup(String resourcePath, String oldContent, String newContent, Component parent) {
+        this(resourcePath, oldContent, newContent, parent, "HEAD (committed)", "Working Tree");
+    }
+
+    public DiffViewerPopup(String resourcePath, String oldContent, String newContent, Component parent,
+                           String leftHeaderText, String rightHeaderText) {
         try {
             InputStream iconStream = getClass().getResourceAsStream("/com/operametrix/ignition/git/icons/ic_commit.svg");
             if (iconStream != null) {
@@ -55,11 +60,11 @@ public class DiffViewerPopup extends JFrame {
         populateDiffPane(rightPane, diff, false);
 
         // Headers
-        JLabel leftHeader = new JLabel("HEAD (committed)", SwingConstants.CENTER);
+        JLabel leftHeader = new JLabel(leftHeaderText, SwingConstants.CENTER);
         leftHeader.setFont(leftHeader.getFont().deriveFont(Font.BOLD));
         leftHeader.setBorder(BorderFactory.createEmptyBorder(2, 0, 2, 0));
 
-        JLabel rightHeader = new JLabel("Working Tree", SwingConstants.CENTER);
+        JLabel rightHeader = new JLabel(rightHeaderText, SwingConstants.CENTER);
         rightHeader.setFont(rightHeader.getFont().deriveFont(Font.BOLD));
         rightHeader.setBorder(BorderFactory.createEmptyBorder(2, 0, 2, 0));
 
