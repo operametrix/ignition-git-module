@@ -232,12 +232,20 @@ public class CommitPanel extends JPanel {
      */
     public void setChangesData(Dataset ds) {
         SwingUtilities.invokeLater(() -> {
+            // Preserve currently checked resources across refresh
+            java.util.Set<String> previouslyChecked = new java.util.HashSet<>();
+            for (int i = 0; i < changesTable.getModel().getRowCount(); i++) {
+                if (Boolean.TRUE.equals(changesTable.getModel().getValueAt(i, 0))) {
+                    previouslyChecked.add((String) changesTable.getModel().getValueAt(i, 1));
+                }
+            }
+
             String[] columnNames = {"", "Resource", "Type"};
             Object[][] data = new Object[ds.getRowCount()][];
             for (int i = 0; i < ds.getRowCount(); i++) {
                 String resource = (String) ds.getValueAt(i, "resource");
                 String type = (String) ds.getValueAt(i, "type");
-                data[i] = new Object[]{Boolean.FALSE, resource, type};
+                data[i] = new Object[]{previouslyChecked.contains(resource), resource, type};
             }
 
             DefaultTableModel model = new DefaultTableModel(data, columnNames) {
