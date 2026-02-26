@@ -5,6 +5,8 @@ import com.operametrix.ignition.git.records.GitProjectsConfigRecord;
 import com.operametrix.ignition.git.records.GitRemoteCredentialsRecord;
 import com.operametrix.ignition.git.records.GitReposUsersRecord;
 import com.inductiveautomation.ignition.common.gson.Gson;
+import com.inductiveautomation.ignition.common.gson.GsonBuilder;
+import com.inductiveautomation.ignition.common.gson.JsonArray;
 import com.inductiveautomation.ignition.common.gson.JsonElement;
 import com.inductiveautomation.ignition.common.gson.JsonObject;
 import com.inductiveautomation.ignition.common.project.RuntimeProject;
@@ -45,8 +47,10 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -362,6 +366,210 @@ public class GitManager {
         return isUpdatedResource;
     }
 
+    /**
+     * Filter out JSON files whose only differences are key ordering.
+     * Compares HEAD content with working tree content using Gson's semantic equality.
+     */
+    public static Set<String> filterJsonOrderingChanges(Repository repository, Path projectPath, Set<String> files) {
+        Set<String> filtered = new LinkedHashSet<>();
+        for (String filePath : files) {
+            if (!filePath.endsWith(".json")) {
+                filtered.add(filePath);
+                continue;
+            }
+            try {
+                String oldContent = "";
+                ObjectId headId = repository.resolve("HEAD");
+                if (headId != null) {
+                    try (RevWalk revWalk = new RevWalk(repository)) {
+                        RevCommit commit = revWalk.parseCommit(headId);
+                        try (TreeWalk treeWalk = new TreeWalk(repository)) {
+                            treeWalk.addTree(commit.getTree());
+                            treeWalk.setRecursive(true);
+                            treeWalk.setFilter(PathFilter.create(filePath));
+                            if (treeWalk.next()) {
+                                ByteArrayOutputStream out = new ByteArrayOutputStream();
+                                try (ObjectReader reader = repository.newObjectReader()) {
+                                    reader.open(treeWalk.getObjectId(0)).copyTo(out);
+                                }
+                                oldContent = out.toString();
+                            }
+                        }
+                    }
+                }
+
+                Path workingFile = projectPath.resolve(filePath);
+                String newContent = "";
+                if (Files.exists(workingFile)) {
+                    newContent = new String(Files.readAllBytes(workingFile));
+                }
+
+                Gson gson = new Gson();
+                JsonElement oldJson = gson.fromJson(oldContent, JsonElement.class);
+                JsonElement newJson = gson.fromJson(newContent, JsonElement.class);
+                if (oldJson != null && oldJson.equals(newJson)) {
+                    continue;
+                }
+            } catch (Exception e) {
+                // If anything fails, include the file (safe default)
+            }
+            filtered.add(filePath);
+        }
+        return filtered;
+    }
+
+    private static final Set<String> METADATA_FILENAMES = new HashSet<>(Arrays.asList("resource.json", "thumbnail.png"));
+
+    /**
+     * Filter out metadata-only changes from a status set. A metadata file (resource.json,
+     * thumbnail.png) is suppressed when no sibling source file in the same Ignition resource
+     * directory also changed across any status category.
+     *
+     * @param allChangedFiles union of all status sets (for cross-category sibling detection)
+     * @param targetSet       the specific status set to filter
+     * @return a new set with metadata-only entries removed
+     */
+    public static Set<String> filterMetadataOnlyChanges(Set<String> allChangedFiles, Set<String> targetSet) {
+        // Group all changed files by parent directory (only for Ignition resource paths)
+        Map<String, List<String>> dirToFiles = new HashMap<>();
+        for (String file : allChangedFiles) {
+            if (!hasActor(file)) continue;
+            int lastSlash = file.lastIndexOf('/');
+            if (lastSlash < 0) continue;
+            String dir = file.substring(0, lastSlash);
+            String filename = file.substring(lastSlash + 1);
+            dirToFiles.computeIfAbsent(dir, k -> new ArrayList<>()).add(filename);
+        }
+
+        // Identify directories that have ONLY metadata files (no source files changed)
+        Set<String> metadataOnlyDirs = new HashSet<>();
+        for (Map.Entry<String, List<String>> entry : dirToFiles.entrySet()) {
+            boolean hasSourceFile = false;
+            for (String filename : entry.getValue()) {
+                if (!METADATA_FILENAMES.contains(filename)) {
+                    hasSourceFile = true;
+                    break;
+                }
+            }
+            if (!hasSourceFile) {
+                metadataOnlyDirs.add(entry.getKey());
+            }
+        }
+
+        // Remove metadata file paths from targetSet for metadata-only directories
+        Set<String> filtered = new LinkedHashSet<>();
+        for (String file : targetSet) {
+            if (hasActor(file)) {
+                int lastSlash = file.lastIndexOf('/');
+                if (lastSlash >= 0) {
+                    String dir = file.substring(0, lastSlash);
+                    String filename = file.substring(lastSlash + 1);
+                    if (metadataOnlyDirs.contains(dir) && METADATA_FILENAMES.contains(filename)) {
+                        continue;
+                    }
+                }
+            }
+            filtered.add(file);
+        }
+        return filtered;
+    }
+
+    /**
+     * Filter out metadata-only entries from a commit file list (format "CHANGE_TYPE:path").
+     * Suppresses resource.json/thumbnail.png entries when no sibling source file in the same
+     * resource directory also changed in the commit.
+     */
+    public static List<String> filterMetadataOnlyCommitFiles(List<String> files) {
+        // Parse paths and group by parent directory
+        Map<String, List<String>> dirToFilenames = new HashMap<>();
+        for (String entry : files) {
+            int colonIdx = entry.indexOf(':');
+            if (colonIdx < 0) continue;
+            String path = entry.substring(colonIdx + 1);
+            if (!hasActor(path)) continue;
+            int lastSlash = path.lastIndexOf('/');
+            if (lastSlash < 0) continue;
+            String dir = path.substring(0, lastSlash);
+            String filename = path.substring(lastSlash + 1);
+            dirToFilenames.computeIfAbsent(dir, k -> new ArrayList<>()).add(filename);
+        }
+
+        // Identify metadata-only directories
+        Set<String> metadataOnlyDirs = new HashSet<>();
+        for (Map.Entry<String, List<String>> entry : dirToFilenames.entrySet()) {
+            boolean hasSourceFile = false;
+            for (String filename : entry.getValue()) {
+                if (!METADATA_FILENAMES.contains(filename)) {
+                    hasSourceFile = true;
+                    break;
+                }
+            }
+            if (!hasSourceFile) {
+                metadataOnlyDirs.add(entry.getKey());
+            }
+        }
+
+        // Filter out metadata entries from metadata-only directories
+        List<String> filtered = new ArrayList<>();
+        for (String entry : files) {
+            int colonIdx = entry.indexOf(':');
+            if (colonIdx >= 0) {
+                String path = entry.substring(colonIdx + 1);
+                if (hasActor(path)) {
+                    int lastSlash = path.lastIndexOf('/');
+                    if (lastSlash >= 0) {
+                        String dir = path.substring(0, lastSlash);
+                        String filename = path.substring(lastSlash + 1);
+                        if (metadataOnlyDirs.contains(dir) && METADATA_FILENAMES.contains(filename)) {
+                            continue;
+                        }
+                    }
+                }
+            }
+            filtered.add(entry);
+        }
+        return filtered;
+    }
+
+    /**
+     * Normalize JSON content by sorting keys recursively for consistent diffing.
+     * Returns the original content unchanged if it is not valid JSON.
+     */
+    public static String normalizeJson(String content) {
+        if (content == null || content.isEmpty()) return content;
+        try {
+            Gson gson = new Gson();
+            JsonElement element = gson.fromJson(content, JsonElement.class);
+            if (element != null) {
+                JsonElement sorted = sortJsonKeys(element);
+                return new GsonBuilder().setPrettyPrinting().create().toJson(sorted);
+            }
+        } catch (Exception e) {
+            // Not valid JSON, return as-is
+        }
+        return content;
+    }
+
+    private static JsonElement sortJsonKeys(JsonElement element) {
+        if (element.isJsonObject()) {
+            JsonObject original = element.getAsJsonObject();
+            JsonObject sorted = new JsonObject();
+            List<String> keys = new ArrayList<>(original.keySet());
+            Collections.sort(keys);
+            for (String key : keys) {
+                sorted.add(key, sortJsonKeys(original.get(key)));
+            }
+            return sorted;
+        } else if (element.isJsonArray()) {
+            JsonArray sortedArray = new JsonArray();
+            for (JsonElement item : element.getAsJsonArray()) {
+                sortedArray.add(sortJsonKeys(item));
+            }
+            return sortedArray;
+        }
+        return element;
+    }
+
     public static String repoUriToUrl(String uri) {
         String url = uri;
 
@@ -562,6 +770,12 @@ public class GitManager {
             }
         }
 
+        // Normalize JSON to eliminate key-ordering noise in diffs
+        if (filePath.endsWith(".json")) {
+            oldContent = normalizeJson(oldContent);
+            newContent = normalizeJson(newContent);
+        }
+
         return Arrays.asList(oldContent, newContent);
     }
 
@@ -577,6 +791,7 @@ public class GitManager {
                 java.util.Optional<Path> dataFile = Files.list(resourceDir)
                         .filter(Files::isRegularFile)
                         .filter(p -> !p.getFileName().toString().equals("resource.json"))
+                        .filter(p -> !p.getFileName().toString().equals("thumbnail.png"))
                         .findFirst();
                 if (dataFile.isPresent()) {
                     return resourcePath + "/" + dataFile.get().getFileName().toString();
@@ -721,6 +936,12 @@ public class GitManager {
         } catch (Exception e) {
             logger.error("Error getting commit file diff content", e);
         }
+
+        if (filePath.endsWith(".json")) {
+            oldContent = normalizeJson(oldContent);
+            newContent = normalizeJson(newContent);
+        }
+
         return Arrays.asList(oldContent, newContent);
     }
 
@@ -1010,6 +1231,11 @@ public class GitManager {
             }
         } catch (Exception e) {
             logger.error("Error getting conflict diff content for " + filePath, e);
+        }
+
+        if (filePath.endsWith(".json")) {
+            oursContent = normalizeJson(oursContent);
+            theirsContent = normalizeJson(theirsContent);
         }
 
         return Arrays.asList(oursContent, theirsContent);

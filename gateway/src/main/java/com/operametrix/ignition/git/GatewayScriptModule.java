@@ -22,6 +22,7 @@ import simpleorm.dataset.SQuery;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -175,18 +176,34 @@ public class GatewayScriptModule extends AbstractScriptModule {
             Status status = git.status().call();
 
             Set<String> missing = status.getMissing();
+            Set<String> uncommittedChanges = GitManager.filterJsonOrderingChanges(
+                    git.getRepository(), projectPath, status.getUncommittedChanges());
+            Set<String> untracked = status.getUntracked();
+            Set<String> modified = GitManager.filterJsonOrderingChanges(
+                    git.getRepository(), projectPath, status.getChanged());
+
+            // Build union of all changed files for cross-category sibling detection
+            Set<String> allChanged = new HashSet<>();
+            allChanged.addAll(missing);
+            allChanged.addAll(uncommittedChanges);
+            allChanged.addAll(untracked);
+            allChanged.addAll(modified);
+
+            // Filter metadata-only changes from each set
+            missing = GitManager.filterMetadataOnlyChanges(allChanged, missing);
+            uncommittedChanges = GitManager.filterMetadataOnlyChanges(allChanged, uncommittedChanges);
+            untracked = GitManager.filterMetadataOnlyChanges(allChanged, untracked);
+            modified = GitManager.filterMetadataOnlyChanges(allChanged, modified);
+
             logger.debug("Missing files: {}" + missing);
             uncommittedChangesBuilder(projectName, missing, "Deleted", changes, builder);
 
-            Set<String> uncommittedChanges = status.getUncommittedChanges();
             logger.debug("Uncommitted changes: {}" + uncommittedChanges);
             uncommittedChangesBuilder(projectName, uncommittedChanges, "Uncommitted", changes, builder);
 
-            Set<String> untracked = status.getUntracked();
             logger.debug("Untracked files: {}" + untracked);
             uncommittedChangesBuilder(projectName, untracked, "Created", changes, builder);
 
-            Set<String> modified = status.getChanged();
             logger.debug("Modified files: {}" + modified);
             uncommittedChangesBuilder(projectName, modified, "Modified", changes, builder);
         } catch (Exception e) {
@@ -399,7 +416,8 @@ public class GatewayScriptModule extends AbstractScriptModule {
 
     @Override
     protected List<String> getCommitFilesImpl(String projectName, String commitHash) {
-        return GitManager.getCommitFileList(getProjectFolderPath(projectName), commitHash);
+        List<String> files = GitManager.getCommitFileList(getProjectFolderPath(projectName), commitHash);
+        return GitManager.filterMetadataOnlyCommitFiles(files);
     }
 
     @Override
