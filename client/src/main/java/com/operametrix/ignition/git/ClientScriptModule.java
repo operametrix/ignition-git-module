@@ -167,6 +167,11 @@ public class ClientScriptModule extends AbstractScriptModule {
     }
 
     @Override
+    protected boolean fetchImpl(String projectName, String userName, String remoteName) throws Exception {
+        return rpc.fetch(projectName, userName, remoteName);
+    }
+
+    @Override
     protected Dataset listRemotesImpl(String projectName) throws Exception {
         return rpc.listRemotes(projectName);
     }

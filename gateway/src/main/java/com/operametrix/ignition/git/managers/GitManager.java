@@ -841,7 +841,28 @@ public class GitManager {
                 refMap.computeIfAbsent(id.getName(), k -> new ArrayList<>()).add(name);
             }
 
-            Iterable<RevCommit> log = git.log().setSkip(skip).setMaxCount(limit).call();
+            LogCommand logCmd = git.log().setSkip(skip).setMaxCount(limit);
+
+            // Include the upstream remote-tracking branch so fetched commits
+            // appear in the history even before merging/pulling.
+            String branch = repo.getBranch();
+            if (branch != null) {
+                BranchConfig branchConfig = new BranchConfig(repo.getConfig(), branch);
+                String trackingBranch = branchConfig.getTrackingBranch();
+                if (trackingBranch != null) {
+                    Ref trackingRef = repo.exactRef(trackingBranch);
+                    if (trackingRef != null) {
+                        // Adding any ref disables the default HEAD start, so add both
+                        ObjectId headId = repo.resolve(Constants.HEAD);
+                        if (headId != null) {
+                            logCmd.add(headId);
+                        }
+                        logCmd.add(trackingRef.getObjectId());
+                    }
+                }
+            }
+
+            Iterable<RevCommit> log = logCmd.call();
             SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm");
             for (RevCommit commit : log) {
                 String fullHash = commit.getName();

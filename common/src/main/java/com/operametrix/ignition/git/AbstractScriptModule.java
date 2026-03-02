@@ -276,6 +276,16 @@ public abstract class AbstractScriptModule implements GitScriptInterface {
 
     @Override
     @ScriptFunction(docBundlePrefix = "AbstractScriptModule")
+    public boolean fetch(@ScriptArg("projectName") String projectName,
+                         @ScriptArg("userName") String userName,
+                         @ScriptArg("remoteName") String remoteName) throws Exception {
+        return fetchImpl(projectName, userName, remoteName);
+    }
+
+    protected abstract boolean fetchImpl(String projectName, String userName, String remoteName) throws Exception;
+
+    @Override
+    @ScriptFunction(docBundlePrefix = "AbstractScriptModule")
     public Dataset listRemotes(@ScriptArg("projectName") String projectName) throws Exception {
         return listRemotesImpl(projectName);
     }

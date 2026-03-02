@@ -2,7 +2,7 @@
 
 ## Current capabilities
 
-Init, clone, commit (with file selection + timestamp + amend), push (current branch only by default; force push with confirmation on rejection), pull (with merge conflict resolution — per-file "Accept Ours"/"Accept Theirs" + conflict diff viewer + abort/complete merge), branch list/create/checkout/delete, auto-stash on checkout, checkout commit (detached HEAD), status (uncommitted changes), SSH + HTTPS auth, credential management UI, resource import/export, commissioning automation, Designer toolbar + status bar, side-by-side diff viewer, commit history browser with per-commit file list and historical diff, dockable Commit panel with inline commit/discard/diff/amend, dockable History panel with commit log/ref badges/push/pull, discard (revert) uncommitted changes, multi-remote management (add/edit/remove named remotes with per-remote credentials) with push/pull remote target selection.
+Init, clone, commit (with file selection + timestamp + amend), push (current branch only by default; force push with confirmation on rejection), pull (with merge conflict resolution — per-file "Accept Ours"/"Accept Theirs" + conflict diff viewer + abort/complete merge), fetch (without merge — updates remote-tracking branches only; fetched commits visible in History panel via upstream-aware log), branch list/create/checkout/delete, auto-stash on checkout, checkout commit (detached HEAD), status (uncommitted changes), SSH + HTTPS auth, credential management UI, resource import/export, commissioning automation, Designer toolbar + status bar, side-by-side diff viewer, commit history browser with per-commit file list and historical diff, dockable Commit panel with inline commit/discard/diff/amend, dockable History panel with commit log/ref badges/push/fetch/pull, discard (revert) uncommitted changes, multi-remote management (add/edit/remove named remotes with per-remote credentials) with push/pull/fetch remote target selection.
 
 ---
 
@@ -14,7 +14,7 @@ Init, clone, commit (with file selection + timestamp + amend), push (current bra
 |---|---------|--------|-------|
 | 1 | ~~**Diff viewer**~~ | ~~Can't preview what changed before committing~~ | **Implemented.** Double-click a resource in the commit popup to open a side-by-side diff viewer. |
 | 2 | ~~**Commit log / history**~~ | ~~No way to see past commits~~ | **Implemented.** History toolbar button opens paginated commit log; double-click a commit to see changed files; double-click a file to view its diff at that commit. |
-| 3 | **Fetch without merge** | Pull always merges, no way to just fetch | Useful for reviewing incoming changes first |
+| 3 | ~~**Fetch without merge**~~ | ~~Pull always merges, no way to just fetch~~ | **Implemented.** Fetch button in History panel toolbar retrieves remote commits without merging. Single-remote projects fetch immediately; multi-remote projects show a remote selector popup. History panel's commit log includes the upstream tracking branch so fetched commits appear with remote ref badges before pulling. |
 | 4 | ~~**Discard / restore changes**~~ | ~~No way to revert a file to its last committed state~~ | **Implemented.** Right-click a resource in the Changes panel and select "Discard Changes" to revert tracked files to HEAD or delete untracked files. Also available as `discardChanges` RPC method. |
 | 5 | **Staged vs unstaged distinction** | All changes shown as one flat list | Standard Git separates working tree from index |
 
@@ -98,13 +98,16 @@ Init, clone, commit (with file selection + timestamp + amend), push (current bra
 7. ~~**Multiple remotes** (#23)~~ — **Done.**
 8. ~~**Revert commit** (#15)~~ — **Done.**
 9. ~~**Merge conflict resolution UI** (#7)~~ — **Done.**
+10. ~~**Fetch without merge** (#3)~~ — **Done.**
 
 ### Proposed next steps
 
 Top 5 highest-impact additions for Ignition Designer teams, ordered by urgency:
 
-1. **Fetch without merge** (#3) — lets users review incoming changes before committing to a merge. Pairs naturally with conflict resolution; users want to see what's coming before pulling. Could be a "Fetch" button in the History panel toolbar alongside Push/Pull.
-2. **Commit search / filter** (#18) — as commit history grows, finding a specific change becomes tedious. Add a search field to the History panel filtering by message text or author. Straightforward UI addition with high daily-use value.
-3. **Delete remote branches** (#9) — stale remote branches accumulate and clutter the branch popup. Add a delete option for `remotes/origin/*` entries using `git push --delete`. Small change, reduces branch management friction.
-4. **Cherry-pick** (#14) — can't pick specific commits across branches. Common for hotfixes. Add a "Cherry-pick" option alongside "Revert" in CommitDetailPopup and HistoryPanel context menu.
-5. **Merge (explicit)** (#6) — standalone merge command for merging feature branches locally without going through pull.
+1. **Commit search / filter** (#18) — as commit history grows, finding a specific change becomes tedious. Add a text field to HistoryPanel that filters by message or author. Can be done client-side (filter loaded dataset) with an optional gateway-side `LogCommand` `--grep`/`--author` parameter for deeper search. Scope: ~1 JTextField in HistoryPanel, optional gateway-side `LogCommand` params.
+2. **Delete remote branches** (#9) — stale remote branches accumulate and clutter the branch popup. Trivial: `git push --delete origin <branch>`. Add a "Delete remote branch" option to BranchPopup for remote branch entries. Scope: ~1 new RPC method, ~1 menu item in BranchPopup.
+3. **Branch rename** (#8) — trivial via JGit's `RenameBranchCommand`. Add a "Rename" option to BranchPopup. Eliminates the delete-and-recreate workaround. Scope: ~1 new RPC method, ~1 button in BranchPopup.
+4. **Cherry-pick** (#14) — useful for hotfix workflows. Add to CommitDetailPopup and HistoryPanel context menu alongside "Revert". JGit's `CherryPickCommand` is analogous to `RevertCommand` (already implemented). Needs conflict detection similar to revert. Scope: mirrors revert commit implementation — RPC method + UI hook + conflict handling.
+5. **Merge (explicit)** (#6) — standalone merge command for feature branches. Requires a branch selector UI and conflict resolution (reuse `MergeConflictPopup`). Higher effort but covers workflows where pull-based merge is insufficient.
+
+Deferred: **.gitignore management (#10)** — would let users permanently exclude metadata files like `thumbnail.png` at the git level rather than relying on display-side filtering; worth considering after the top 5.

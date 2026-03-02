@@ -328,6 +328,27 @@ public class GitBaseAction extends BaseAction {
         }
     }
 
+    public static void handleFetchAction(String remoteName) {
+        if (!rpc.hasRemoteRepository(projectName)) {
+            JOptionPane.showMessageDialog(context.getFrame(),
+                    "No remote repository configured. Add a remote before fetching.",
+                    "Fetch", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        try {
+            rpc.fetch(projectName, userName, remoteName);
+            String message = BundleUtil.get().getStringLenient("DesignerHook.Actions.Fetch.ConfirmMessage");
+            SwingUtilities.invokeLater(new Thread(() -> showConfirmPopup(message, JOptionPane.INFORMATION_MESSAGE)));
+        } catch (Exception ex) {
+            ErrorUtil.showError(ex);
+        } finally {
+            if (instance != null) {
+                instance.refreshHistoryPanel();
+            }
+        }
+    }
+
     public static void handleRevertCommitAction(String commitHash, String shortHash, String message) {
         int choice = JOptionPane.showConfirmDialog(context.getFrame(),
                 "Revert commit " + shortHash + "?\n\n\"" + message + "\"\n\n"

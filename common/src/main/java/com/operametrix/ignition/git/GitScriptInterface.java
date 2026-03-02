@@ -89,6 +89,9 @@ public interface GitScriptInterface {
     /** Check whether the given project has a remote repository configured. */
     boolean hasRemoteRepository(String projectName);
 
+    /** Fetch from a remote without merging. Updates remote-tracking branches only. */
+    boolean fetch(String projectName, String userName, String remoteName) throws Exception;
+
     /** List all remotes configured in the project's git repository. Returns Dataset with [name, url]. */
     Dataset listRemotes(String projectName) throws Exception;
 

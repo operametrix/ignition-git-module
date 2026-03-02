@@ -729,6 +729,26 @@ public class GatewayScriptModule extends AbstractScriptModule {
         return GitManager.getConflictDiffContent(getProjectFolderPath(projectName), filePath);
     }
 
+    @Override
+    protected boolean fetchImpl(String projectName, String userName, String remoteName) throws Exception {
+        GitProjectsConfigRecord projectRecord = getGitProjectConfigRecord(projectName);
+        if (!projectRecord.hasRemote()) {
+            throw new RuntimeException("No remote repository configured. Add a remote before fetching.");
+        }
+
+        try (Git git = getGit(getProjectFolderPath(projectName))) {
+            FetchCommand fetch = git.fetch();
+            fetch.setRemote(remoteName);
+            setAuthentication(fetch, projectName, userName, remoteName);
+            fetch.call();
+            logger.info("Fetch from '" + remoteName + "' was successful.");
+        } catch (GitAPIException e) {
+            logger.error(e.toString(), e);
+            throw new RuntimeException(e);
+        }
+        return true;
+    }
+
     private void setupGitFromCurrentFolder(String projectName, String userName, Git git) throws Exception {
         try {
             git.add().addFilepattern(".").call();

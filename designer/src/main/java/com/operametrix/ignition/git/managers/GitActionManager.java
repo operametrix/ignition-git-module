@@ -10,6 +10,7 @@ import com.operametrix.ignition.git.HistoryPopup;
 import com.operametrix.ignition.git.InitRepoPopup;
 import com.operametrix.ignition.git.PullPopup;
 import com.operametrix.ignition.git.PushPopup;
+import com.operametrix.ignition.git.FetchPopup;
 import com.operametrix.ignition.git.RemotesPopup;
 import com.operametrix.ignition.git.CommitPanel;
 import com.operametrix.ignition.git.HistoryPanel;
@@ -34,6 +35,7 @@ public class GitActionManager {
     static CommitPopup commitPopup;
     static PullPopup pullPopup;
     static PushPopup pushPopup;
+    static FetchPopup fetchPopup;
     static BranchPopup branchPopup;
     static CredentialsPopup credentialsPopup;
     static InitRepoPopup initRepoPopup;
@@ -202,6 +204,39 @@ public class GitActionManager {
             remoteNames.add("origin");
         }
         return remoteNames;
+    }
+
+    public static void showFetchAction(String projectName, String userName) {
+        if (!rpc.hasRemoteRepository(projectName)) {
+            JOptionPane.showMessageDialog(context.getFrame(),
+                    "No remote repository configured. Add a remote before fetching.",
+                    "Fetch", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        List<String> remoteNames = getRemoteNames(projectName);
+
+        // Single remote: skip popup, fetch immediately
+        if (remoteNames.size() <= 1) {
+            String remote = remoteNames.isEmpty() ? "origin" : remoteNames.get(0);
+            handleFetchAction(remote);
+            return;
+        }
+
+        // Multiple remotes: show popup
+        if (fetchPopup != null) {
+            fetchPopup.setRemotes(remoteNames);
+            fetchPopup.setVisible(true);
+            fetchPopup.toFront();
+        } else {
+            fetchPopup = new FetchPopup(context.getFrame()) {
+                @Override
+                public void onFetch(String remoteName) {
+                    handleFetchAction(remoteName);
+                }
+            };
+            fetchPopup.setRemotes(remoteNames);
+        }
     }
 
     public static void showBranchPopup(String projectName, String userName) {
@@ -647,6 +682,8 @@ public class GitActionManager {
 
     public static void wireHistoryPanel(HistoryPanel panel, String projectName, String userName) {
         panel.setOnPushRequested(() -> showPushPopup(projectName, userName));
+
+        panel.setOnFetchRequested(() -> showFetchAction(projectName, userName));
 
         panel.setOnPullRequested(() -> showPullPopup(projectName, userName));
 

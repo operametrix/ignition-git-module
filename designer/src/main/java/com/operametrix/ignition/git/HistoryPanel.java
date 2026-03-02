@@ -40,6 +40,7 @@ public class HistoryPanel extends JPanel {
     private final List<CommitNode> nodes = new ArrayList<>();
 
     private Runnable onPushRequested;
+    private Runnable onFetchRequested;
     private Runnable onPullRequested;
     private Runnable onRefreshRequested;
     private Runnable onLoadMore;
@@ -58,6 +59,9 @@ public class HistoryPanel extends JPanel {
         }));
         toolbar.add(createToolbarButton("/com/operametrix/ignition/git/icons/ic_push.svg", "Push", () -> {
             if (onPushRequested != null) onPushRequested.run();
+        }));
+        toolbar.add(createToolbarButton("/com/operametrix/ignition/git/icons/ic_fetch.svg", "Fetch", () -> {
+            if (onFetchRequested != null) onFetchRequested.run();
         }));
         toolbar.add(createToolbarButton("/com/operametrix/ignition/git/icons/ic_pull.svg", "Pull", () -> {
             if (onPullRequested != null) onPullRequested.run();
@@ -332,6 +336,10 @@ public class HistoryPanel extends JPanel {
 
     public void setOnPushRequested(Runnable onPushRequested) {
         this.onPushRequested = onPushRequested;
+    }
+
+    public void setOnFetchRequested(Runnable onFetchRequested) {
+        this.onFetchRequested = onFetchRequested;
     }
 
     public void setOnPullRequested(Runnable onPullRequested) {
