@@ -49,6 +49,7 @@ public class DesignerHook extends AbstractDesignerModuleHook {
     HistoryPanel historyPanel;
     DockableFrame historyFrame;
     boolean historyFrameInitialized;
+    Timer panelVisibilityTimer;
     @Override
     public void initializeScriptManager(ScriptManager manager) {
         super.initializeScriptManager(manager);
@@ -180,6 +181,11 @@ public class DesignerHook extends AbstractDesignerModuleHook {
             statusBar.removeDisplay(gitStatusBar);
         }
 
+        if (panelVisibilityTimer != null) {
+            panelVisibilityTimer.stop();
+            panelVisibilityTimer = null;
+        }
+
         cleanupCommitPanel();
         cleanupHistoryPanel();
 
@@ -241,6 +247,30 @@ public class DesignerHook extends AbstractDesignerModuleHook {
         });
         dockTimer.setRepeats(false);
         dockTimer.start();
+
+        // Keep Commit/History panels visible across workspace switches.
+        // Not all workspaces fire JIDE docking events for custom frames,
+        // so we poll at a short interval and only act when needed.
+        panelVisibilityTimer = new Timer(1000, e -> {
+            if (!commitFrameInitialized && !historyFrameInitialized) return;
+            DockingManager dm = context.getDockingManager();
+            boolean needsRestore = false;
+            if (commitFrameInitialized && commitFrame != null) {
+                DockableFrame f = dm.getFrame(commitFrame.getKey());
+                // isHidden() catches JIDE's logical hidden state; !isDisplayable()
+                // catches frames removed from the Swing hierarchy by workspace switches
+                // (some workspaces detach frames without using JIDE's hidden API)
+                if (f == null || f.isHidden() || !f.isDisplayable()) needsRestore = true;
+            }
+            if (historyFrameInitialized && historyFrame != null) {
+                DockableFrame f = dm.getFrame(historyFrame.getKey());
+                if (f == null || f.isHidden() || !f.isDisplayable()) needsRestore = true;
+            }
+            if (needsRestore) {
+                ensurePanelsVisible();
+            }
+        });
+        panelVisibilityTimer.start();
 
         // Auto-refresh timer
         commitRefreshTimer = new Timer(15000, e -> refreshCommitPanel());
@@ -325,6 +355,34 @@ public class DesignerHook extends AbstractDesignerModuleHook {
         }).start();
     }
 
+    private void ensurePanelsVisible() {
+        if (!commitFrameInitialized && !historyFrameInitialized) return;
+        DockingManager dm = context.getDockingManager();
+        DockableFrame projectBrowser = dm.getFrame(PROJECT_BROWSER_KEY);
+
+        if (commitFrameInitialized && commitFrame != null) {
+            if (dm.getFrame(commitFrame.getKey()) == null) {
+                dm.addFrame(commitFrame);
+            }
+            dm.showFrame(commitFrame.getKey());
+            if (projectBrowser != null) {
+                dm.moveFrame(commitFrame.getKey(), PROJECT_BROWSER_KEY);
+            }
+        }
+        if (historyFrameInitialized && historyFrame != null) {
+            if (dm.getFrame(historyFrame.getKey()) == null) {
+                dm.addFrame(historyFrame);
+            }
+            dm.showFrame(historyFrame.getKey());
+            if (projectBrowser != null) {
+                dm.moveFrame(historyFrame.getKey(), PROJECT_BROWSER_KEY);
+            }
+        }
+        if (projectBrowser != null) {
+            dm.activateFrame(PROJECT_BROWSER_KEY);
+        }
+    }
+
     private void cleanupHistoryPanel() {
         if (historyFrameInitialized) {
             try {
@@ -365,6 +423,11 @@ public class DesignerHook extends AbstractDesignerModuleHook {
 
         if (gitUserTimer != null) {
             gitUserTimer.stop();
+        }
+
+        if (panelVisibilityTimer != null) {
+            panelVisibilityTimer.stop();
+            panelVisibilityTimer = null;
         }
 
         cleanupCommitPanel();

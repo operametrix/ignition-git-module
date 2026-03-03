@@ -20,8 +20,8 @@ An Ignition module that embeds a Git client directly into the Ignition Designer,
 - Commit history browser: paginated log viewer accessible from the toolbar, with drill-down into changed files per commit and side-by-side diff of historical changes
 - Revert commit: undo a specific past commit by creating a new commit that reverses its changes — accessible from the "Revert Commit" button in the commit detail view or via right-click context menu in the History panel. Conflicts are detected and the revert is aborted cleanly
 - Checkout commit: inspect the project at any point in history by checking out a specific commit (detached HEAD) — accessible from the "Checkout" button in the commit detail view or via right-click context menu in the History panel. The status bar shows the short hash with "(detached)" indicator
-- Dockable Commit panel: an always-visible panel tabbed alongside the Project Browser for at-a-glance uncommitted changes, inline commits, diff viewing, and discarding changes
-- Dockable History panel: an always-visible panel showing commit log with ref badges, plus Push, Fetch, and Pull buttons
+- Dockable Commit panel: an always-visible panel tabbed alongside the Project Browser for at-a-glance uncommitted changes, inline commits, diff viewing, and discarding changes — persists across all workspace switches (Perspective, Vision, SFC, Scripting, etc.)
+- Dockable History panel: an always-visible panel showing commit log with ref badges, plus Push, Fetch, and Pull buttons — persists across all workspace switches
 - Commissioning configuration file for easy deployment
 
 ### Screenshots
