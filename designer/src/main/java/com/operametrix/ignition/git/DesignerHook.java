@@ -9,13 +9,13 @@ import com.inductiveautomation.ignition.common.Dataset;
 import com.inductiveautomation.ignition.common.SessionInfo;
 import com.inductiveautomation.ignition.common.licensing.LicenseState;
 import com.inductiveautomation.ignition.common.project.ChangeOperation;
-import com.inductiveautomation.ignition.designer.gui.DesignerToolbar;
+
 import com.inductiveautomation.ignition.designer.gui.StatusBar;
 import com.inductiveautomation.ignition.designer.model.DesignerContext;
 import com.inductiveautomation.ignition.common.script.ScriptManager;
 import com.inductiveautomation.ignition.designer.model.AbstractDesignerModuleHook;
 import com.inductiveautomation.ignition.designer.model.SaveContext;
-import com.jidesoft.action.DockableBarManager;
+
 import com.jidesoft.docking.DockContext;
 import com.jidesoft.docking.DockableFrame;
 import com.jidesoft.docking.DockingManager;
@@ -41,7 +41,7 @@ public class DesignerHook extends AbstractDesignerModuleHook {
     JPanel gitStatusBar;
     JButton branchButton;
     Timer gitUserTimer;
-    boolean toolBarInitialized;
+
     CommitPanel commitPanel;
     DockableFrame commitFrame;
     boolean commitFrameInitialized;
@@ -77,7 +77,6 @@ public class DesignerHook extends AbstractDesignerModuleHook {
         if (registered) {
             rpc.setupLocalRepo(projectName, userName);
             initStatusBar();
-            initToolBar();
             initCommitPanel();
             initHistoryPanel();
         } else {
@@ -190,23 +189,8 @@ public class DesignerHook extends AbstractDesignerModuleHook {
         cleanupHistoryPanel();
 
         initStatusBar();
-        initToolBar();
         initCommitPanel();
         initHistoryPanel();
-    }
-
-    private void initToolBar() {
-        DockableBarManager toolBarManager = context.getToolbarManager();
-        DesignerToolbar toolbar = new DesignerToolbar("Git", "DesignerHook.Toolbar.Name");
-        toolbar.add(new GitBaseAction(GitBaseAction.GitActionType.PUSH));
-        toolbar.add(new GitBaseAction(GitBaseAction.GitActionType.PULL));
-        toolbar.add(new GitBaseAction(GitBaseAction.GitActionType.COMMIT));
-        toolbar.add(new GitBaseAction(GitBaseAction.GitActionType.HISTORY));
-        toolbar.add(new GitBaseAction(GitBaseAction.GitActionType.EXPORT));
-        toolbar.add(new GitBaseAction(GitBaseAction.GitActionType.REPO));
-
-        toolBarManager.addDockableBar(toolbar);
-        toolBarInitialized = true;
     }
 
     private void initCommitPanel() {
@@ -410,11 +394,6 @@ public class DesignerHook extends AbstractDesignerModuleHook {
     @Override
     public void shutdown() {
         super.shutdown();
-
-        DockableBarManager toolBarManager = context.getToolbarManager();
-        if (toolBarInitialized) {
-            toolBarManager.removeDockableBar("Git");
-        }
 
         StatusBar statusBar = context.getStatusBar();
         if (gitStatusBar != null) {
