@@ -23,6 +23,8 @@ import com.jidesoft.docking.DockingManager;
 import javax.swing.*;
 import javax.swing.Timer;
 import java.awt.*;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.util.*;
 import java.util.List;
 
@@ -89,48 +91,34 @@ public class DesignerHook extends AbstractDesignerModuleHook {
         StatusBar statusBar = context.getStatusBar();
         gitStatusBar = new JPanel();
 
-        JLabel gitIconLabel = new JLabel(IconUtils.getIcon("/com/operametrix/ignition/git/icons/ic_git.svg"));
-        gitIconLabel.setSize(35, 35);
-        gitStatusBar.add(gitIconLabel);
-
+        // Branch button: git icon + branch name
         branchButton = new JButton();
+        branchButton.setIcon(IconUtils.getIcon("/com/operametrix/ignition/git/icons/ic_git.svg"));
         try {
             branchButton.setText(rpc.getCurrentBranch(projectName));
         } catch (Exception e) {
             branchButton.setText("unknown");
         }
         branchButton.setFont(branchButton.getFont().deriveFont(Font.BOLD));
-        branchButton.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-        branchButton.setContentAreaFilled(false);
-        branchButton.setBorderPainted(false);
-        branchButton.setFocusPainted(false);
-        branchButton.setMargin(new Insets(0, 0, 0, 0));
+        styleStatusBarButton(branchButton);
         branchButton.addActionListener(e -> GitBaseAction.handleAction(GitBaseAction.GitActionType.BRANCH));
         gitStatusBar.add(branchButton);
 
-        JButton remotesButton = new JButton(IconUtils.getIcon("/com/operametrix/ignition/git/icons/ic_remote.svg"));
+        // Remotes button: filled cloud icon + "Remotes" label
+        JButton remotesButton = new JButton("Remotes", IconUtils.getIcon("/com/operametrix/ignition/git/icons/ic_cloud_filled.svg"));
         remotesButton.setToolTipText("Manage Remotes");
-        remotesButton.setContentAreaFilled(false);
-        remotesButton.setBorderPainted(false);
-        remotesButton.setFocusPainted(false);
-        remotesButton.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-        remotesButton.setMargin(new Insets(0, 0, 0, 0));
+        styleStatusBarButton(remotesButton);
         remotesButton.addActionListener(e -> GitActionManager.showRemotesPopup(projectName, userName));
         gitStatusBar.add(remotesButton);
 
+        // User button: user icon + username
         boolean userValid = rpc.isRegisteredUser(projectName, userName);
         String userIconPath = userValid ? "/com/operametrix/ignition/git/icons/ic_verified_user.svg" : "/com/operametrix/ignition/git/icons/ic_unregister_user.svg";
-        JButton userButton = new JButton(IconUtils.getIcon(userIconPath));
+        JButton userButton = new JButton(userName, IconUtils.getIcon(userIconPath));
         userButton.setToolTipText("Manage Git Credentials");
-        userButton.setContentAreaFilled(false);
-        userButton.setBorderPainted(false);
-        userButton.setFocusPainted(false);
-        userButton.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-        userButton.setMargin(new Insets(0, 0, 0, 0));
+        styleStatusBarButton(userButton);
         userButton.addActionListener(e -> GitActionManager.showCredentialsPopup(projectName, userName));
         gitStatusBar.add(userButton);
-
-        gitStatusBar.add(new JLabel(userName));
 
         statusBar.addDisplay(gitStatusBar);
 
@@ -168,6 +156,27 @@ public class DesignerHook extends AbstractDesignerModuleHook {
         gitStatusBar.add(notConfiguredButton);
 
         statusBar.addDisplay(gitStatusBar);
+    }
+
+    private static void styleStatusBarButton(JButton button) {
+        button.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        button.setContentAreaFilled(false);
+        button.setBorderPainted(false);
+        button.setFocusPainted(false);
+        button.setMargin(new Insets(0, 0, 0, 0));
+        button.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseEntered(MouseEvent e) {
+                button.setContentAreaFilled(true);
+                button.setBorderPainted(true);
+            }
+
+            @Override
+            public void mouseExited(MouseEvent e) {
+                button.setContentAreaFilled(false);
+                button.setBorderPainted(false);
+            }
+        });
     }
 
     public void reinitializeAfterSetup() {
