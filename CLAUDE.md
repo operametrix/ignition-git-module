@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Ignition Git Module — a Java module for the Inductive Automation Ignition SCADA platform (8.1.0+) that embeds a Git client into the Ignition Designer. It enables committing, pushing, pulling (with merge conflict resolution), fetching (without merge), reverting commits, branch management, and exporting gateway configuration directly from the Designer toolbar and status bar. Supports both remote (clone) and local-only repository initialization via a wizard-style setup dialog. Originally built by AXONE-IO, maintained by Operametrix. Version 1.0.3.
+Ignition Git Module — a Java module for the Inductive Automation Ignition SCADA platform (8.1.0+) that embeds a Git client into the Ignition Designer. It enables committing, pushing, pulling (with merge conflict resolution), fetching (without merge), reverting commits, branch management, and exporting gateway configuration directly from the Designer's dockable panels and status bar. Supports both remote (clone) and local-only repository initialization via a wizard-style setup dialog. Originally built by AXONE-IO, maintained by Operametrix. Version 1.0.3.
 
 ## Build Commands
 
@@ -25,7 +25,7 @@ This is a Gradle multi-module project following the **Ignition Module SDK patter
 ```
 common    (scope: CDG)  — Shared interface + abstract base class
 client    (scope: C)    — Vision client hook (minimal)
-designer  (scope: CD)   — Designer UI: toolbar, popups, status bar
+designer  (scope: CD)   — Designer UI: dockable panels, popups, status bar
 gateway   (scope: G)    — Backend: all git operations, persistence, web config pages
 ```
 
@@ -37,7 +37,7 @@ The root `build.gradle.kts` uses the `io.ia.sdk.modl` Gradle plugin to assemble 
 
 **Hook classes** are the entry points for each scope. Each implements the Ignition lifecycle (`setup`/`startup`/`shutdown`):
 - `ClientHook` — registers the script module on the client
-- `DesignerHook` — initializes toolbar actions, status bar (with clickable branch button), user verification timer; uses `ModuleRPCFactory` to call gateway methods remotely. On startup, checks `isProjectRegistered()` — if unregistered, shows a minimal "Not configured" status bar instead of the full git UI. After successful init via `InitRepoPopup`, calls `reinitializeAfterSetup()` to rebuild the full status bar. Exposes a static `instance` field for callbacks from `GitActionManager`. A 1-second polling `Timer` (`panelVisibilityTimer`) keeps the Commit and History dockable panels visible across workspace switches — checks `isHidden()`, null (removed from DockingManager), and `!isDisplayable()` (detached from Swing hierarchy) to catch all workspace transition behaviors.
+- `DesignerHook` — initializes status bar (three hover-highlighted buttons: git icon + branch name, cloud icon + "Remotes", user icon + username), dockable panels, and user verification timer; uses `ModuleRPCFactory` to call gateway methods remotely. On startup, checks `isProjectRegistered()` — if unregistered, shows a minimal "Not configured" status bar instead of the full git UI. After successful init via `InitRepoPopup`, calls `reinitializeAfterSetup()` to rebuild the full status bar. Exposes a static `instance` field for callbacks from `GitActionManager`. A 1-second polling `Timer` (`panelVisibilityTimer`) keeps the Commit and History dockable panels visible across workspace switches — checks `isHidden()`, null (removed from DockingManager), and `!isDisplayable()` (detached from Swing hierarchy) to catch all workspace transition behaviors.
 - `GatewayHook` — creates DB schema, loads commissioning config, registers web config pages
 
 **Script interface pattern**: `GitScriptInterface` (common) defines the API (includes `initializeLocalProject()` for local-only init, `hasRemoteRepository()` for remote detection, `fetch()` for fetching without merge, and merge conflict resolution methods: `getConflictingFiles`, `resolveConflict`, `abortMerge`, `completeMergeCommit`, `getConflictDiff`). `AbstractScriptModule` (common) decorates it with Ignition annotations. `GatewayScriptModule` (gateway) provides the real implementation. `ClientScriptModule` (client) proxies all calls via RPC. Designer calls gateway methods via RPC.
