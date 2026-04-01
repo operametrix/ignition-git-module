@@ -4,6 +4,8 @@ import com.operametrix.ignition.git.SshTransportConfigCallback;
 import com.operametrix.ignition.git.records.GitProjectsConfigRecord;
 import com.operametrix.ignition.git.records.GitRemoteCredentialsRecord;
 import com.operametrix.ignition.git.records.GitReposUsersRecord;
+import com.operametrix.ignition.git.records.GitUserHttpsCredentialRecord;
+import com.operametrix.ignition.git.records.GitUserSshKeyRecord;
 import com.inductiveautomation.ignition.common.gson.Gson;
 import com.inductiveautomation.ignition.common.gson.GsonBuilder;
 import com.inductiveautomation.ignition.common.gson.JsonArray;
@@ -92,35 +94,158 @@ public class GitManager {
     }
 
     /**
-     * Set authentication on a transport command using per-remote credentials.
+     * Set authentication on a transport command using a three-tier credential lookup:
+     * 1. Project-level FK reference to a user-level credential record
+     * 2. Project-level inline credentials (existing behavior)
+     * 3. User-level fallback (SSH: default key; HTTPS: match by host)
+     *
      * Auth type (SSH vs HTTPS) is determined from the remote's URL in .git/config.
      */
     public static void setAuthentication(TransportCommand<?, ?> command, String projectName,
                                           String userName, String remoteName) throws Exception {
         GitRemoteCredentialsRecord creds = getRemoteCredentialsRecord(projectName, userName, remoteName);
-        if (creds == null) {
-            throw new Exception("No credentials configured for remote '" + remoteName + "'.");
-        }
         String url = getRemoteUrl(getProjectFolderPath(projectName), remoteName);
         boolean isSsh = url != null && !url.toLowerCase().startsWith("http");
+
         if (isSsh) {
-            command.setTransportConfigCallback(new SshTransportConfigCallback(creds.getSSHKey()));
+            String sshKey = resolveSshKey(creds, userName);
+            if (sshKey == null || sshKey.isEmpty()) {
+                throw new Exception("No SSH credentials configured for remote '" + remoteName + "'.");
+            }
+            command.setTransportConfigCallback(new SshTransportConfigCallback(sshKey));
         } else {
+            String[] httpsCreds = resolveHttpsCredentials(creds, userName, url);
+            if (httpsCreds == null) {
+                throw new Exception("No HTTPS credentials configured for remote '" + remoteName + "'.");
+            }
             command.setCredentialsProvider(
-                    new UsernamePasswordCredentialsProvider(creds.getUserName(), creds.getPassword()));
+                    new UsernamePasswordCredentialsProvider(httpsCreds[0], httpsCreds[1]));
+        }
+    }
+
+    /**
+     * Resolve an SSH key using the three-tier fallback chain.
+     */
+    private static String resolveSshKey(GitRemoteCredentialsRecord creds, String userName) {
+        // Tier 1: FK reference to user-level SSH key
+        if (creds != null && creds.getSshKeyId() > 0) {
+            GitUserSshKeyRecord keyRecord = context.getPersistenceInterface().queryOne(
+                    new SQuery<>(GitUserSshKeyRecord.META)
+                            .eq(GitUserSshKeyRecord.Id, creds.getSshKeyId()));
+            if (keyRecord != null) {
+                return keyRecord.getSSHKey();
+            }
+        }
+        // Tier 2: Inline project-level credentials
+        if (creds != null && creds.getSSHKey() != null && !creds.getSSHKey().isEmpty()) {
+            return creds.getSSHKey();
+        }
+        // Tier 3: User-level default SSH key
+        GitUserSshKeyRecord defaultKey = context.getPersistenceInterface().queryOne(
+                new SQuery<>(GitUserSshKeyRecord.META)
+                        .eq(GitUserSshKeyRecord.IgnitionUser, userName)
+                        .eq(GitUserSshKeyRecord.IsDefault, true));
+        return defaultKey != null ? defaultKey.getSSHKey() : null;
+    }
+
+    /**
+     * Resolve HTTPS credentials using the three-tier fallback chain.
+     * @return [username, password] or null if no credentials found
+     */
+    private static String[] resolveHttpsCredentials(GitRemoteCredentialsRecord creds,
+                                                     String userName, String url) {
+        // Tier 1: FK reference to user-level HTTPS credential
+        if (creds != null && creds.getHttpsCredentialId() > 0) {
+            GitUserHttpsCredentialRecord httpRecord = context.getPersistenceInterface().queryOne(
+                    new SQuery<>(GitUserHttpsCredentialRecord.META)
+                            .eq(GitUserHttpsCredentialRecord.Id, creds.getHttpsCredentialId()));
+            if (httpRecord != null) {
+                return new String[]{httpRecord.getUserName(), httpRecord.getPassword()};
+            }
+        }
+        // Tier 2: Inline project-level credentials
+        if (creds != null && creds.getUserName() != null && !creds.getUserName().isEmpty()) {
+            return new String[]{creds.getUserName(), creds.getPassword()};
+        }
+        // Tier 3: User-level HTTPS credential matched by host
+        String host = extractHost(url);
+        if (host != null) {
+            GitUserHttpsCredentialRecord hostRecord = context.getPersistenceInterface().queryOne(
+                    new SQuery<>(GitUserHttpsCredentialRecord.META)
+                            .eq(GitUserHttpsCredentialRecord.IgnitionUser, userName)
+                            .eq(GitUserHttpsCredentialRecord.HostPattern, host));
+            if (hostRecord != null) {
+                return new String[]{hostRecord.getUserName(), hostRecord.getPassword()};
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Extract the hostname from a git remote URL.
+     * Handles both HTTPS (https://github.com/...) and SSH (git@github.com:...) formats.
+     */
+    static String extractHost(String url) {
+        if (url == null || url.isEmpty()) {
+            return null;
+        }
+        try {
+            return new URIish(url).getHost();
+        } catch (Exception e) {
+            logger.error("Failed to extract host from URL: " + url, e);
+            return null;
         }
     }
 
 
     public static void setCommitAuthor(CommitCommand command, String projectName, String userName) {
         try {
-            GitProjectsConfigRecord gitProjectsConfigRecord = getGitProjectConfigRecord(projectName);
-            GitReposUsersRecord user = getGitReposUserRecord(gitProjectsConfigRecord, userName);
-            command.setAuthor("", user.getEmail());
+            String email = resolveUserEmail(userName);
+            command.setAuthor(userName, email);
         } catch (Exception e) {
             logger.error("An error occurred while setting up commit author.", e);
         }
+    }
 
+    /**
+     * Resolve a user's email address from Ignition's user source system.
+     * Searches all configured user sources for the given username and returns
+     * the first email found in the user's contact info.
+     *
+     * @return the email address, or empty string if not found
+     */
+    public static String resolveUserEmail(String userName) {
+        try {
+            List<com.inductiveautomation.ignition.gateway.user.UserSourceProfileRecord> profiles =
+                    context.getPersistenceInterface().query(
+                            new SQuery<>(com.inductiveautomation.ignition.gateway.user.UserSourceProfileRecord.META));
+            for (com.inductiveautomation.ignition.gateway.user.UserSourceProfileRecord profileRecord : profiles) {
+                try {
+                    com.inductiveautomation.ignition.gateway.user.UserSourceProfile profile =
+                            context.getUserSourceManager().getProfile(profileRecord.getName());
+                    if (profile == null) continue;
+                    com.inductiveautomation.ignition.common.user.User user =
+                            profile.getUser(userName).orElse(null);
+                    if (user != null) {
+                        for (com.inductiveautomation.ignition.common.user.ContactInfo contact
+                                : user.getContactInfo()) {
+                            if ("email".equalsIgnoreCase(contact.getContactType())) {
+                                String email = contact.getValue();
+                                if (email != null && !email.isEmpty()) {
+                                    return email;
+                                }
+                            }
+                        }
+                    }
+                } catch (Exception e) {
+                    // Skip this user source, try the next one
+                }
+            }
+        } catch (Exception e) {
+            logger.error("Error resolving email for user: " + userName, e);
+        }
+        logger.warnf("No email found in user contact info for '%s'", userName);
+        return "";
     }
 
     public static GitProjectsConfigRecord getGitProjectConfigRecord(String projectName) throws Exception {

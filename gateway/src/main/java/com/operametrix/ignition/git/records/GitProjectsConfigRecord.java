@@ -1,13 +1,9 @@
 package com.operametrix.ignition.git.records;
 
-import com.operametrix.ignition.git.web.ProjectList.ProjectListEditorSource;
 import com.inductiveautomation.ignition.gateway.localdb.persistence.*;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import simpleorm.dataset.SFieldFlags;
 
 public class GitProjectsConfigRecord extends PersistentRecord {
-    private static final Logger logger = LoggerFactory.getLogger(GitProjectsConfigRecord.class);
 
     public static final RecordMeta<GitProjectsConfigRecord> META = new RecordMeta<>(
             GitProjectsConfigRecord.class, "GitProjectsConfigRecord");
@@ -59,12 +55,6 @@ public class GitProjectsConfigRecord extends PersistentRecord {
     }
 
     static {
-        ProjectName.getFormMeta().setEditorSource(ProjectListEditorSource.getSharedInstance());
-
-        URI.getFormMeta().setFieldDescriptionKey("GitProjectsConfigRecord.URI.Desc");
-        URI.getFormMeta().setFieldDescriptionKeyAddMode("GitProjectsConfigRecord.URI.NewDesc");
-        URI.getFormMeta().setFieldDescriptionKeyEditMode("GitProjectsConfigRecord.URI.EditDesc");
         URI.setWide();
-
     }
 }

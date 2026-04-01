@@ -28,6 +28,9 @@ public class GitRemoteCredentialsRecord extends PersistentRecord {
     public static final EncodedStringField Password = new EncodedStringField(META, "Password");
     public static final StringField SSHKey = new StringField(META, "SSHKey");
 
+    public static final LongField SshKeyId = new LongField(META, "SshKeyId");
+    public static final LongField HttpsCredentialId = new LongField(META, "HttpsCredentialId");
+
     static final Category RemoteCredentials = new Category(
             "GitRemoteCredentialsRecord.Category.RemoteCredentials", 1000)
             .include(ProjectName, IgnitionUser, RemoteName, UserName, Password, SSHKey);
@@ -82,6 +85,22 @@ public class GitRemoteCredentialsRecord extends PersistentRecord {
 
     public void setSSHKey(String sshKey) {
         setString(SSHKey, sshKey);
+    }
+
+    public long getSshKeyId() {
+        return getLong(SshKeyId);
+    }
+
+    public void setSshKeyId(long sshKeyId) {
+        setLong(SshKeyId, sshKeyId);
+    }
+
+    public long getHttpsCredentialId() {
+        return getLong(HttpsCredentialId);
+    }
+
+    public void setHttpsCredentialId(long httpsCredentialId) {
+        setLong(HttpsCredentialId, httpsCredentialId);
     }
 
     static {

@@ -4,20 +4,17 @@ import com.operametrix.ignition.git.commissioning.utils.GitCommissioningUtils;
 import com.operametrix.ignition.git.records.GitProjectsConfigRecord;
 import com.operametrix.ignition.git.records.GitRemoteCredentialsRecord;
 import com.operametrix.ignition.git.records.GitReposUsersRecord;
-import com.operametrix.ignition.git.web.GitProjectsConfigPage;
+import com.operametrix.ignition.git.records.GitUserHttpsCredentialRecord;
+import com.operametrix.ignition.git.records.GitUserSshKeyRecord;
 import com.inductiveautomation.ignition.common.BundleUtil;
 import com.inductiveautomation.ignition.common.licensing.LicenseState;
 import com.inductiveautomation.ignition.gateway.clientcomm.ClientReqSession;
 import com.inductiveautomation.ignition.gateway.model.AbstractGatewayModuleHook;
 import com.inductiveautomation.ignition.gateway.model.GatewayContext;
-import com.inductiveautomation.ignition.gateway.web.models.ConfigCategory;
-import com.inductiveautomation.ignition.gateway.web.models.IConfigTab;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.sql.SQLException;
-import java.util.Collections;
-import java.util.List;
 
 public class GatewayHook extends AbstractGatewayModuleHook {
     static public String MODULE_NAME = "Git";
@@ -25,20 +22,6 @@ public class GatewayHook extends AbstractGatewayModuleHook {
 
     private GatewayScriptModule scriptModule;
     public static GatewayContext context;
-
-    public static final ConfigCategory CONFIG_CATEGORY =
-            new ConfigCategory(MODULE_NAME, "bundle_git.Config.Git.MenuTitle", 700);
-
-    @Override
-    public List<? extends IConfigTab> getConfigPanels() {
-        return List.of(GitProjectsConfigPage.MENU_ENTRY);
-    }
-
-    @Override
-    public List<ConfigCategory> getConfigCategories() {
-        return Collections.singletonList(CONFIG_CATEGORY);
-    }
-
 
     @Override
     public void setup(GatewayContext gatewayContext) {
@@ -52,7 +35,12 @@ public class GatewayHook extends AbstractGatewayModuleHook {
 
     private void verifySchema(GatewayContext context) {
         try {
-            context.getSchemaUpdater().updatePersistentRecords(GitProjectsConfigRecord.META, GitReposUsersRecord.META, GitRemoteCredentialsRecord.META);
+            context.getSchemaUpdater().updatePersistentRecords(
+                    GitProjectsConfigRecord.META,
+                    GitReposUsersRecord.META,
+                    GitUserSshKeyRecord.META,
+                    GitUserHttpsCredentialRecord.META,
+                    GitRemoteCredentialsRecord.META);
         } catch (SQLException e) {
             logger.error("Error verifying persistent record schemas for HomeConnect records.", e);
         }

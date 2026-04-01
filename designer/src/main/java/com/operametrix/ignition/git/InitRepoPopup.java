@@ -1,17 +1,20 @@
 package com.operametrix.ignition.git;
 
+import com.inductiveautomation.ignition.common.Dataset;
 import com.inductiveautomation.ignition.designer.gui.CommonUI;
 
 import javax.swing.*;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import java.awt.*;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Designer popup dialog for initializing a git repository for an unregistered project.
  * Wizard-style with three cards:
  *   Card 1 "Choose"  — asks whether the user has a remote repository
- *   Card 2a "Remote" — existing clone flow (URI + credentials)
+ *   Card 2a "Remote" — URI + email + credential dropdown
  *   Card 2b "Local"  — local-only init (email only)
  */
 public class InitRepoPopup extends JFrame {
@@ -26,15 +29,16 @@ public class InitRepoPopup extends JFrame {
     // Remote card fields
     private JTextField repoUriField;
     private JLabel authTypeLabel;
-    private JTextField emailField;
-    private JTextField gitUsernameField;
-    private JPasswordField passwordField;
-    private JTextArea sshKeyArea;
-    private JPanel httpsPanel;
-    private JPanel sshPanel;
 
-    // Local card fields
-    private JTextField localEmailField;
+    // Credential dropdown
+    private JPanel credentialPanel;
+    private JComboBox<String> credentialDropdown;
+    private JButton configureCredentialsButton;
+    private List<Long> credentialIds = new ArrayList<>();
+    private Dataset savedSshKeys;
+    private Dataset savedHttpsCreds;
+
+    // Local card (no fields needed — email comes from Ignition user profile)
 
     public InitRepoPopup(Component parent) {
         setTitle("Initialize Git Repository");
@@ -102,7 +106,7 @@ public class InitRepoPopup extends JFrame {
         return panel;
     }
 
-    // ── Card 2a: Remote (existing form) ─────────────────────────────────
+    // ── Card 2a: Remote ─────────────────────────────────────────────────
 
     private JPanel buildRemoteCard() {
         JPanel main = new JPanel(new BorderLayout(5, 5));
@@ -120,6 +124,7 @@ public class InitRepoPopup extends JFrame {
         gbc.weightx = 0;
         formPanel.add(new JLabel("Repository URI:"), gbc);
         gbc.gridx = 1;
+        gbc.gridwidth = 2;
         gbc.fill = GridBagConstraints.HORIZONTAL;
         gbc.weightx = 1.0;
         repoUriField = new JTextField(30);
@@ -133,74 +138,32 @@ public class InitRepoPopup extends JFrame {
         });
         formPanel.add(repoUriField, gbc);
 
-        // Email
-        gbc.gridx = 0;
-        gbc.gridy = 1;
-        gbc.fill = GridBagConstraints.NONE;
-        gbc.weightx = 0;
-        formPanel.add(new JLabel("Email:"), gbc);
-        gbc.gridx = 1;
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.weightx = 1.0;
-        emailField = new JTextField(30);
-        formPanel.add(emailField, gbc);
-
         // Auth type label
         gbc.gridx = 0;
-        gbc.gridy = 2;
-        gbc.gridwidth = 2;
+        gbc.gridy = 1;
+        gbc.gridwidth = 3;
         authTypeLabel = new JLabel();
         authTypeLabel.setFont(authTypeLabel.getFont().deriveFont(Font.BOLD));
         authTypeLabel.setForeground(new Color(0, 128, 0));
         authTypeLabel.setVisible(false);
         formPanel.add(authTypeLabel, gbc);
 
-        // HTTPS panel
-        httpsPanel = new JPanel(new GridBagLayout());
-        GridBagConstraints hgbc = new GridBagConstraints();
-        hgbc.insets = new Insets(4, 5, 4, 5);
-        hgbc.anchor = GridBagConstraints.WEST;
-
-        hgbc.gridx = 0;
-        hgbc.gridy = 0;
-        httpsPanel.add(new JLabel("Git Username:"), hgbc);
-        hgbc.gridx = 1;
-        hgbc.fill = GridBagConstraints.HORIZONTAL;
-        hgbc.weightx = 1.0;
-        gitUsernameField = new JTextField(30);
-        httpsPanel.add(gitUsernameField, hgbc);
-
-        hgbc.gridx = 0;
-        hgbc.gridy = 1;
-        hgbc.fill = GridBagConstraints.NONE;
-        hgbc.weightx = 0;
-        httpsPanel.add(new JLabel("Password:"), hgbc);
-        hgbc.gridx = 1;
-        hgbc.fill = GridBagConstraints.HORIZONTAL;
-        hgbc.weightx = 1.0;
-        passwordField = new JPasswordField(30);
-        httpsPanel.add(passwordField, hgbc);
+        // Credential dropdown + Configure button
+        credentialPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
+        credentialPanel.add(new JLabel("Credential:"));
+        credentialDropdown = new JComboBox<>();
+        credentialDropdown.setPreferredSize(new Dimension(280, 25));
+        credentialPanel.add(credentialDropdown);
+        configureCredentialsButton = new JButton("Configure...");
+        configureCredentialsButton.addActionListener(e -> onConfigureCredentials());
+        credentialPanel.add(configureCredentialsButton);
+        credentialPanel.setVisible(false);
 
         gbc.gridx = 0;
-        gbc.gridy = 3;
-        gbc.gridwidth = 2;
+        gbc.gridy = 2;
+        gbc.gridwidth = 3;
         gbc.fill = GridBagConstraints.HORIZONTAL;
-        formPanel.add(httpsPanel, gbc);
-
-        // SSH panel
-        sshPanel = new JPanel(new BorderLayout(5, 5));
-        sshPanel.setBorder(BorderFactory.createTitledBorder("SSH Private Key"));
-        sshKeyArea = new JTextArea(8, 30);
-        sshKeyArea.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
-        sshPanel.add(new JScrollPane(sshKeyArea), BorderLayout.CENTER);
-
-        gbc.gridy = 4;
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-        formPanel.add(sshPanel, gbc);
-
-        // Default: hide auth panels until URI is entered
-        httpsPanel.setVisible(false);
-        sshPanel.setVisible(false);
+        formPanel.add(credentialPanel, gbc);
 
         main.add(formPanel, BorderLayout.CENTER);
 
@@ -213,13 +176,7 @@ public class InitRepoPopup extends JFrame {
         JButton initBtn = new JButton("Initialize");
         initBtn.setBackground(new Color(71, 137, 199));
         initBtn.setForeground(Color.WHITE);
-        initBtn.addActionListener(e -> {
-            if (validateRemoteFields()) {
-                String password = new String(passwordField.getPassword());
-                onInitialize(repoUriField.getText().trim(), emailField.getText().trim(),
-                        gitUsernameField.getText().trim(), password, sshKeyArea.getText().trim());
-            }
-        });
+        initBtn.addActionListener(e -> handleInitialize());
 
         JButton cancelBtn = new JButton("Cancel");
         cancelBtn.addActionListener(e -> dispose());
@@ -238,36 +195,12 @@ public class InitRepoPopup extends JFrame {
     private JPanel buildLocalCard() {
         JPanel main = new JPanel(new BorderLayout(5, 10));
 
-        JPanel formPanel = new JPanel(new GridBagLayout());
-        GridBagConstraints gbc = new GridBagConstraints();
-        gbc.insets = new Insets(4, 5, 4, 5);
-        gbc.anchor = GridBagConstraints.WEST;
-
-        // Info text
-        gbc.gridx = 0;
-        gbc.gridy = 0;
-        gbc.gridwidth = 2;
-        gbc.fill = GridBagConstraints.HORIZONTAL;
         JLabel infoLabel = new JLabel(
                 "<html>A local Git repository will be created for this project.<br>"
-                        + "You can add a remote repository later.</html>");
-        infoLabel.setBorder(BorderFactory.createEmptyBorder(5, 0, 10, 0));
-        formPanel.add(infoLabel, gbc);
-
-        // Email
-        gbc.gridx = 0;
-        gbc.gridy = 1;
-        gbc.gridwidth = 1;
-        gbc.fill = GridBagConstraints.NONE;
-        gbc.weightx = 0;
-        formPanel.add(new JLabel("Email:"), gbc);
-        gbc.gridx = 1;
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.weightx = 1.0;
-        localEmailField = new JTextField(30);
-        formPanel.add(localEmailField, gbc);
-
-        main.add(formPanel, BorderLayout.CENTER);
+                        + "You can add a remote repository later.<br><br>"
+                        + "Commit author email will be taken from your Ignition user profile.</html>");
+        infoLabel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        main.add(infoLabel, BorderLayout.CENTER);
 
         // Buttons
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 5, 5));
@@ -278,11 +211,7 @@ public class InitRepoPopup extends JFrame {
         JButton initBtn = new JButton("Initialize");
         initBtn.setBackground(new Color(71, 137, 199));
         initBtn.setForeground(Color.WHITE);
-        initBtn.addActionListener(e -> {
-            if (validateLocalFields()) {
-                onLocalInitialize(localEmailField.getText().trim());
-            }
-        });
+        initBtn.addActionListener(e -> onLocalInitialize());
 
         JButton cancelBtn = new JButton("Cancel");
         cancelBtn.addActionListener(e -> dispose());
@@ -314,11 +243,73 @@ public class InitRepoPopup extends JFrame {
 
         authTypeLabel.setVisible(hasUri);
         authTypeLabel.setText(isHttps ? "HTTPS" : "SSH");
-        httpsPanel.setVisible(hasUri && isHttps);
-        sshPanel.setVisible(hasUri && !isHttps);
+
+        credentialPanel.setVisible(hasUri);
+        if (hasUri) {
+            populateCredentialDropdown(isHttps);
+        }
+
         pack();
         revalidate();
         repaint();
+    }
+
+    private void populateCredentialDropdown(boolean isHttps) {
+        credentialDropdown.removeAllItems();
+        credentialIds.clear();
+
+        if (isHttps && savedHttpsCreds != null) {
+            for (int i = 0; i < savedHttpsCreds.getRowCount(); i++) {
+                String host = (String) savedHttpsCreds.getValueAt(i, "hostPattern");
+                String user = (String) savedHttpsCreds.getValueAt(i, "userName");
+                credentialDropdown.addItem(host + " (" + user + ")");
+                credentialIds.add(((Number) savedHttpsCreds.getValueAt(i, "id")).longValue());
+            }
+        } else if (!isHttps && savedSshKeys != null) {
+            for (int i = 0; i < savedSshKeys.getRowCount(); i++) {
+                String keyName = (String) savedSshKeys.getValueAt(i, "keyName");
+                boolean isDefault = (Boolean) savedSshKeys.getValueAt(i, "isDefault");
+                credentialDropdown.addItem(keyName + (isDefault ? " (default)" : ""));
+                credentialIds.add(((Number) savedSshKeys.getValueAt(i, "id")).longValue());
+            }
+        }
+
+        if (credentialIds.isEmpty()) {
+            credentialDropdown.addItem("(no credentials configured)");
+        }
+    }
+
+    /**
+     * Re-populate the credential dropdown from the current saved credentials.
+     * Call after updating credentials via UserCredentialsPopup.
+     */
+    public void refreshCredentialDropdown() {
+        String uri = repoUriField.getText().trim().toLowerCase();
+        if (!uri.isEmpty()) {
+            populateCredentialDropdown(uri.startsWith("http"));
+        }
+    }
+
+    // ── Actions ─────────────────────────────────────────────────────────
+
+    private void handleInitialize() {
+        if (!validateRemoteFields()) return;
+
+        String repoUri = repoUriField.getText().trim();
+        boolean isHttps = repoUri.toLowerCase().startsWith("http");
+
+        int selectedIdx = credentialDropdown.getSelectedIndex();
+        long selectedCredId = selectedIdx >= 0 && selectedIdx < credentialIds.size()
+                ? credentialIds.get(selectedIdx) : 0;
+
+        // Initialize with empty inline creds (credential is referenced by FK)
+        onInitialize(repoUri, "", "", "");
+
+        // Associate the selected credential via FK
+        if (selectedCredId > 0) {
+            onSavedCredentialSelected(isHttps ? 0 : selectedCredId,
+                    isHttps ? selectedCredId : 0);
+        }
     }
 
     // ── Validation ──────────────────────────────────────────────────────
@@ -331,61 +322,40 @@ public class InitRepoPopup extends JFrame {
             return false;
         }
 
-        String email = emailField.getText().trim();
-        if (email.isEmpty() || !email.contains("@")) {
-            JOptionPane.showMessageDialog(this, "Please enter a valid email address.",
+        if (credentialIds.isEmpty()) {
+            JOptionPane.showMessageDialog(this,
+                    "No credentials configured. Click 'Configure...' to add credentials first.",
                     "Validation Error", JOptionPane.WARNING_MESSAGE);
             return false;
-        }
-
-        if (httpsPanel.isVisible()) {
-            String username = gitUsernameField.getText().trim();
-            if (username.isEmpty()) {
-                JOptionPane.showMessageDialog(this, "Git username is required for HTTPS authentication.",
-                        "Validation Error", JOptionPane.WARNING_MESSAGE);
-                return false;
-            }
-            String password = new String(passwordField.getPassword());
-            if (password.isEmpty()) {
-                JOptionPane.showMessageDialog(this, "Password is required for HTTPS authentication.",
-                        "Validation Error", JOptionPane.WARNING_MESSAGE);
-                return false;
-            }
-        } else {
-            String sshKey = sshKeyArea.getText().trim();
-            if (sshKey.isEmpty()) {
-                JOptionPane.showMessageDialog(this, "SSH private key is required for SSH authentication.",
-                        "Validation Error", JOptionPane.WARNING_MESSAGE);
-                return false;
-            }
         }
 
         return true;
     }
 
-    private boolean validateLocalFields() {
-        String email = localEmailField.getText().trim();
-        if (email.isEmpty() || !email.contains("@")) {
-            JOptionPane.showMessageDialog(this, "Please enter a valid email address.",
-                    "Validation Error", JOptionPane.WARNING_MESSAGE);
-            return false;
-        }
-        return true;
+    // ── Data ────────────────────────────────────────────────────────────
+
+    /**
+     * Provide the user's saved credentials for populating the dropdown.
+     * Call this before showing the popup.
+     */
+    public void setSavedCredentials(Dataset sshKeys, Dataset httpsCreds) {
+        this.savedSshKeys = sshKeys;
+        this.savedHttpsCreds = httpsCreds;
     }
 
     // ── Callbacks ───────────────────────────────────────────────────────
 
-    /**
-     * Called when the user clicks Initialize on the Remote card and validation passes.
-     * Override in an anonymous subclass to handle the initialization.
-     */
-    public void onInitialize(String repoUri, String email, String gitUsername, String password, String sshKey) {
+    public void onInitialize(String repoUri, String gitUsername, String password, String sshKey) {
     }
 
-    /**
-     * Called when the user clicks Initialize on the Local card and validation passes.
-     * Override in an anonymous subclass to handle local-only initialization.
-     */
-    public void onLocalInitialize(String email) {
+    public void onLocalInitialize() {
+    }
+
+    /** Called when the user selects a saved credential during init. */
+    public void onSavedCredentialSelected(long sshKeyId, long httpsCredentialId) {
+    }
+
+    /** Called when the user clicks "Configure..." to open the User Credentials popup. */
+    public void onConfigureCredentials() {
     }
 }

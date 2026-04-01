@@ -3,7 +3,7 @@ package com.operametrix.ignition.git.managers;
 import com.operametrix.ignition.git.BranchPopup;
 import com.operametrix.ignition.git.CommitDetailPopup;
 import com.operametrix.ignition.git.CommitPopup;
-import com.operametrix.ignition.git.CredentialsPopup;
+import com.operametrix.ignition.git.UserCredentialsPopup;
 import com.operametrix.ignition.git.DesignerHook;
 import com.operametrix.ignition.git.DiffViewerPopup;
 import com.operametrix.ignition.git.HistoryPopup;
@@ -23,6 +23,8 @@ import org.slf4j.LoggerFactory;
 
 import javax.swing.*;
 import java.awt.*;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
@@ -37,7 +39,7 @@ public class GitActionManager {
     static PushPopup pushPopup;
     static FetchPopup fetchPopup;
     static BranchPopup branchPopup;
-    static CredentialsPopup credentialsPopup;
+    static UserCredentialsPopup userCredentialsPopup;
     static InitRepoPopup initRepoPopup;
     static HistoryPopup historyPopup;
     static RemotesPopup remotesPopup;
@@ -289,37 +291,105 @@ public class GitActionManager {
 
     public static void showCredentialsPopup(String projectName, String userName) {
         try {
-            String currentEmail = rpc.getUserEmail(projectName, userName);
-
-            if (credentialsPopup != null) {
-                credentialsPopup.setData(currentEmail);
-                credentialsPopup.setVisible(true);
-                credentialsPopup.toFront();
+            if (userCredentialsPopup != null) {
+                refreshUserCredentialsPopup(userName);
+                userCredentialsPopup.setVisible(true);
+                userCredentialsPopup.toFront();
             } else {
-                credentialsPopup = new CredentialsPopup(currentEmail, context.getFrame()) {
+                userCredentialsPopup = new UserCredentialsPopup(context.getFrame()) {
                     @Override
-                    public void onSave(String email) {
-                        boolean success = rpc.saveUserCredentials(projectName, userName, email, "", "", "");
+                    public void onSaveSshKey(String keyName, String sshKey, boolean isDefault) {
+                        boolean success = rpc.saveUserSshKey(userName, keyName, sshKey, isDefault);
                         if (success) {
-                            showConfirmPopup("Credentials saved successfully.", JOptionPane.INFORMATION_MESSAGE);
-                            dispose();
-                            credentialsPopup = null;
+                            refreshUserCredentialsPopup(userName);
                         } else {
-                            showConfirmPopup("Failed to save credentials.", JOptionPane.ERROR_MESSAGE);
+                            JOptionPane.showMessageDialog(userCredentialsPopup,
+                                    "Failed to save SSH key.", "Error", JOptionPane.ERROR_MESSAGE);
+                        }
+                    }
+
+                    @Override
+                    public void onDeleteSshKey(long keyId) {
+                        boolean success = rpc.deleteUserSshKey(userName, keyId);
+                        if (success) {
+                            refreshUserCredentialsPopup(userName);
+                        } else {
+                            JOptionPane.showMessageDialog(userCredentialsPopup,
+                                    "Failed to delete SSH key.", "Error", JOptionPane.ERROR_MESSAGE);
+                        }
+                    }
+
+                    @Override
+                    public void onSetDefaultSshKey(long keyId) {
+                        boolean success = rpc.setDefaultSshKey(userName, keyId);
+                        if (success) {
+                            refreshUserCredentialsPopup(userName);
+                        } else {
+                            JOptionPane.showMessageDialog(userCredentialsPopup,
+                                    "Failed to set default SSH key.", "Error", JOptionPane.ERROR_MESSAGE);
+                        }
+                    }
+
+                    @Override
+                    public void onSaveHttpsCredential(String hostPattern, String credUserName, String password) {
+                        boolean success = rpc.saveUserHttpsCredential(userName, hostPattern, credUserName, password);
+                        if (success) {
+                            refreshUserCredentialsPopup(userName);
+                        } else {
+                            JOptionPane.showMessageDialog(userCredentialsPopup,
+                                    "Failed to save HTTPS credential.", "Error", JOptionPane.ERROR_MESSAGE);
+                        }
+                    }
+
+                    @Override
+                    public void onDeleteHttpsCredential(long credentialId) {
+                        boolean success = rpc.deleteUserHttpsCredential(userName, credentialId);
+                        if (success) {
+                            refreshUserCredentialsPopup(userName);
+                        } else {
+                            JOptionPane.showMessageDialog(userCredentialsPopup,
+                                    "Failed to delete HTTPS credential.", "Error", JOptionPane.ERROR_MESSAGE);
                         }
                     }
                 };
+                refreshUserCredentialsPopup(userName);
             }
         } catch (Exception e) {
-            logger.error("Error showing credentials popup", e);
+            logger.error("Error showing user credentials popup", e);
         }
+    }
+
+    private static void refreshUserCredentialsPopup(String userName) {
+        if (userCredentialsPopup == null) return;
+        Dataset sshKeys = rpc.listUserSshKeys(userName);
+        Dataset httpsCreds = rpc.listUserHttpsCredentials(userName);
+        userCredentialsPopup.setSshKeyData(sshKeys);
+        userCredentialsPopup.setHttpsCredentialData(httpsCreds);
+    }
+
+    /**
+     * Add a one-shot WindowListener to the UserCredentialsPopup that runs the given
+     * callback when the popup is closed, then removes itself.
+     */
+    private static void addCredentialsCloseListener(String userName, Runnable onClose) {
+        if (userCredentialsPopup == null) return;
+        userCredentialsPopup.addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowClosed(WindowEvent e) {
+                onClose.run();
+                userCredentialsPopup.removeWindowListener(this);
+            }
+        });
     }
 
     public static void showRemotesPopup(String projectName, String userName) {
         try {
             Dataset remotes = rpc.listRemotes(projectName);
+            Dataset sshKeys = rpc.listUserSshKeys(userName);
+            Dataset httpsCreds = rpc.listUserHttpsCredentials(userName);
 
             if (remotesPopup != null) {
+                remotesPopup.setSavedCredentials(sshKeys, httpsCreds);
                 remotesPopup.setData(remotes);
                 remotesPopup.setVisible(true);
                 remotesPopup.toFront();
@@ -365,12 +435,39 @@ public class GitActionManager {
                     public void onRefresh() {
                         try {
                             Dataset freshRemotes = rpc.listRemotes(projectName);
+                            Dataset freshSshKeys = rpc.listUserSshKeys(userName);
+                            Dataset freshHttpsCreds = rpc.listUserHttpsCredentials(userName);
+                            setSavedCredentials(freshSshKeys, freshHttpsCreds);
                             setData(freshRemotes);
                         } catch (Exception e) {
                             logger.error("Error refreshing remotes", e);
                         }
                     }
+
+                    @Override
+                    public void onSavedCredentialSelected(String remoteName, long sshKeyId, long httpsCredentialId) {
+                        try {
+                            rpc.setRemoteCredentialRef(projectName, remoteName, userName, sshKeyId, httpsCredentialId);
+                        } catch (Exception e) {
+                            logger.error("Error setting credential reference", e);
+                            showConfirmPopup("Failed to associate credential: " + e.getMessage(), JOptionPane.ERROR_MESSAGE);
+                        }
+                    }
+
+                    @Override
+                    public void onConfigureCredentials() {
+                        showCredentialsPopup(projectName, userName);
+                        addCredentialsCloseListener(userName, () -> {
+                            Dataset freshSshKeys = rpc.listUserSshKeys(userName);
+                            Dataset freshHttpsCreds = rpc.listUserHttpsCredentials(userName);
+                            if (remotesPopup != null) {
+                                remotesPopup.setSavedCredentials(freshSshKeys, freshHttpsCreds);
+                                remotesPopup.refreshCredentialDropdown();
+                            }
+                        });
+                    }
                 };
+                remotesPopup.setSavedCredentials(sshKeys, httpsCreds);
                 remotesPopup.setData(remotes);
             }
         } catch (Exception e) {
@@ -383,11 +480,14 @@ public class GitActionManager {
             initRepoPopup.setVisible(true);
             initRepoPopup.toFront();
         } else {
+            Dataset sshKeys = rpc.listUserSshKeys(userName);
+            Dataset httpsCreds = rpc.listUserHttpsCredentials(userName);
+
             initRepoPopup = new InitRepoPopup(context.getFrame()) {
                 @Override
-                public void onInitialize(String repoUri, String email, String gitUsername, String password, String sshKey) {
+                public void onInitialize(String repoUri, String gitUsername, String password, String sshKey) {
                     try {
-                        rpc.initializeProject(projectName, repoUri, userName, email, gitUsername, password, sshKey);
+                        rpc.initializeProject(projectName, repoUri, userName, gitUsername, password, sshKey);
                         pullProjectFromGateway();
                         showConfirmPopup("Repository initialized successfully.", JOptionPane.INFORMATION_MESSAGE);
                         dispose();
@@ -400,9 +500,9 @@ public class GitActionManager {
                 }
 
                 @Override
-                public void onLocalInitialize(String email) {
+                public void onLocalInitialize() {
                     try {
-                        rpc.initializeLocalProject(projectName, userName, email);
+                        rpc.initializeLocalProject(projectName, userName);
                         showConfirmPopup("Local repository initialized successfully.", JOptionPane.INFORMATION_MESSAGE);
                         dispose();
                         initRepoPopup = null;
@@ -412,7 +512,30 @@ public class GitActionManager {
                         showConfirmPopup("Failed to initialize local repository: " + e.getMessage(), JOptionPane.ERROR_MESSAGE);
                     }
                 }
+
+                @Override
+                public void onSavedCredentialSelected(long sshKeyId, long httpsCredentialId) {
+                    try {
+                        rpc.setRemoteCredentialRef(projectName, "origin", userName, sshKeyId, httpsCredentialId);
+                    } catch (Exception e) {
+                        logger.error("Error setting credential reference for origin", e);
+                    }
+                }
+
+                @Override
+                public void onConfigureCredentials() {
+                    showCredentialsPopup(projectName, userName);
+                    addCredentialsCloseListener(userName, () -> {
+                        Dataset freshSshKeys = rpc.listUserSshKeys(userName);
+                        Dataset freshHttpsCreds = rpc.listUserHttpsCredentials(userName);
+                        if (initRepoPopup != null) {
+                            initRepoPopup.setSavedCredentials(freshSshKeys, freshHttpsCreds);
+                            initRepoPopup.refreshCredentialDropdown();
+                        }
+                    });
+                }
             };
+            initRepoPopup.setSavedCredentials(sshKeys, httpsCreds);
         }
     }
 
@@ -717,4 +840,5 @@ public class GitActionManager {
         JOptionPane.showConfirmDialog(context.getFrame(),
                 message, "Info", JOptionPane.DEFAULT_OPTION, messageType);
     }
+
 }

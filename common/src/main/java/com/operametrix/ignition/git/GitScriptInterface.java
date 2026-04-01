@@ -30,12 +30,10 @@ public interface GitScriptInterface {
     boolean isSSHAuthentication(String projectName);
 
     /**
-     * Save git credentials for a user. Creates a new record if none exists, or updates the existing one.
-     * Empty password/sshKey values are ignored to avoid overwriting existing secrets when only
-     * updating email or username.
+     * Ensure a user registration record exists for the given project.
+     * Creates a new record if none exists.
      */
-    boolean saveUserCredentials(String projectName, String ignitionUser, String email,
-                                String gitUsername, String password, String sshKey);
+    boolean saveUserCredentials(String projectName, String ignitionUser);
 
     /** Get the configured email address for a git user, or empty string if not found. */
     String getUserEmail(String projectName, String ignitionUser);
@@ -52,7 +50,7 @@ public interface GitScriptInterface {
      * On failure, rolls back any created records.
      */
     boolean initializeProject(String projectName, String repoUri, String ignitionUser,
-                              String email, String gitUsername, String password, String sshKey) throws Exception;
+                              String gitUsername, String password, String sshKey) throws Exception;
 
     /** Get old (HEAD) and new (working tree) content for a resource, for diff viewing.
      *  Returns a 2-element list: [oldContent, newContent]. */
@@ -78,7 +76,7 @@ public interface GitScriptInterface {
      * Initialize a local-only git repository (no remote) for the given project.
      * Creates DB records with an empty URI, does git init + initial commit.
      */
-    boolean initializeLocalProject(String projectName, String ignitionUser, String email) throws Exception;
+    boolean initializeLocalProject(String projectName, String ignitionUser) throws Exception;
 
     /** Check out a specific commit by hash, entering detached HEAD state. */
     boolean checkoutCommit(String projectName, String commitHash) throws Exception;
@@ -121,5 +119,33 @@ public interface GitScriptInterface {
     /** Get ours (HEAD) and theirs (MERGE_HEAD) content for a conflicting file.
      *  Returns a 2-element list: [oursContent, theirsContent]. */
     List<String> getConflictDiff(String projectName, String filePath);
+
+    // ── User-level credential management ──────────────────────────────
+
+    /** Save or update a user-level SSH key. If isDefault, clears default on all other keys for this user. */
+    boolean saveUserSshKey(String ignitionUser, String keyName, String sshKey, boolean isDefault);
+
+    /** Delete a user-level SSH key by ID. Clears any FK references in remote credential records. */
+    boolean deleteUserSshKey(String ignitionUser, long keyId);
+
+    /** Set a specific SSH key as the user's default, clearing default on all others. */
+    boolean setDefaultSshKey(String ignitionUser, long keyId);
+
+    /** List all SSH keys for a user. Returns Dataset with columns: id, keyName, isDefault. */
+    Dataset listUserSshKeys(String ignitionUser);
+
+    /** Save or update a user-level HTTPS credential for a specific host. */
+    boolean saveUserHttpsCredential(String ignitionUser, String hostPattern,
+                                     String userName, String password);
+
+    /** Delete a user-level HTTPS credential by ID. Clears any FK references in remote credential records. */
+    boolean deleteUserHttpsCredential(String ignitionUser, long credentialId);
+
+    /** List all HTTPS credentials for a user. Returns Dataset with columns: id, hostPattern, userName. */
+    Dataset listUserHttpsCredentials(String ignitionUser);
+
+    /** Associate a remote with a user-level credential (SSH key or HTTPS). Pass 0 for unused ID. */
+    boolean setRemoteCredentialRef(String projectName, String remoteName, String ignitionUser,
+                                    long sshKeyId, long httpsCredentialId);
 
 }

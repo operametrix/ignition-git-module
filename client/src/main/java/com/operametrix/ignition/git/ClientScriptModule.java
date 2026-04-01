@@ -93,9 +93,8 @@ public class ClientScriptModule extends AbstractScriptModule {
     }
 
     @Override
-    protected boolean saveUserCredentialsImpl(String projectName, String ignitionUser, String email,
-                                              String gitUsername, String password, String sshKey) {
-        return rpc.saveUserCredentials(projectName, ignitionUser, email, gitUsername, password, sshKey);
+    protected boolean saveUserCredentialsImpl(String projectName, String ignitionUser) {
+        return rpc.saveUserCredentials(projectName, ignitionUser);
     }
 
     @Override
@@ -115,9 +114,9 @@ public class ClientScriptModule extends AbstractScriptModule {
 
     @Override
     protected boolean initializeProjectImpl(String projectName, String repoUri, String ignitionUser,
-                                             String email, String gitUsername, String password,
+                                             String gitUsername, String password,
                                              String sshKey) throws Exception {
-        return rpc.initializeProject(projectName, repoUri, ignitionUser, email, gitUsername, password, sshKey);
+        return rpc.initializeProject(projectName, repoUri, ignitionUser, gitUsername, password, sshKey);
     }
 
     @Override
@@ -156,9 +155,8 @@ public class ClientScriptModule extends AbstractScriptModule {
     }
 
     @Override
-    protected boolean initializeLocalProjectImpl(String projectName, String ignitionUser,
-                                                  String email) throws Exception {
-        return rpc.initializeLocalProject(projectName, ignitionUser, email);
+    protected boolean initializeLocalProjectImpl(String projectName, String ignitionUser) throws Exception {
+        return rpc.initializeLocalProject(projectName, ignitionUser);
     }
 
     @Override
@@ -219,5 +217,51 @@ public class ClientScriptModule extends AbstractScriptModule {
     @Override
     protected List<String> getConflictDiffImpl(String projectName, String filePath) {
         return rpc.getConflictDiff(projectName, filePath);
+    }
+
+    // ── User-level credential management ──────────────────────────────
+
+    @Override
+    protected boolean saveUserSshKeyImpl(String ignitionUser, String keyName,
+                                          String sshKey, boolean isDefault) {
+        return rpc.saveUserSshKey(ignitionUser, keyName, sshKey, isDefault);
+    }
+
+    @Override
+    protected boolean deleteUserSshKeyImpl(String ignitionUser, long keyId) {
+        return rpc.deleteUserSshKey(ignitionUser, keyId);
+    }
+
+    @Override
+    protected boolean setDefaultSshKeyImpl(String ignitionUser, long keyId) {
+        return rpc.setDefaultSshKey(ignitionUser, keyId);
+    }
+
+    @Override
+    protected Dataset listUserSshKeysImpl(String ignitionUser) {
+        return rpc.listUserSshKeys(ignitionUser);
+    }
+
+    @Override
+    protected boolean saveUserHttpsCredentialImpl(String ignitionUser, String hostPattern,
+                                                   String userName, String password) {
+        return rpc.saveUserHttpsCredential(ignitionUser, hostPattern, userName, password);
+    }
+
+    @Override
+    protected boolean deleteUserHttpsCredentialImpl(String ignitionUser, long credentialId) {
+        return rpc.deleteUserHttpsCredential(ignitionUser, credentialId);
+    }
+
+    @Override
+    protected Dataset listUserHttpsCredentialsImpl(String ignitionUser) {
+        return rpc.listUserHttpsCredentials(ignitionUser);
+    }
+
+    @Override
+    protected boolean setRemoteCredentialRefImpl(String projectName, String remoteName,
+                                                  String ignitionUser, long sshKeyId,
+                                                  long httpsCredentialId) {
+        return rpc.setRemoteCredentialRef(projectName, remoteName, ignitionUser, sshKeyId, httpsCredentialId);
     }
 }

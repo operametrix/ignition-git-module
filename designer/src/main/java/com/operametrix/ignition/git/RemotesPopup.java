@@ -8,12 +8,14 @@ import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Designer popup dialog for managing git remotes.
  * CardLayout-based with two cards:
  *   Card 1 "List" — table of remotes + Add/Edit/Remove/Close buttons
- *   Card 2 "Form" — add/edit remote with URL and dynamic credential fields
+ *   Card 2 "Form" — add/edit remote with URL and credential dropdown
  */
 public class RemotesPopup extends JFrame {
 
@@ -34,11 +36,14 @@ public class RemotesPopup extends JFrame {
     private JTextField nameField;
     private JTextField urlField;
     private JLabel authTypeLabel;
-    private JPanel httpsPanel;
-    private JPanel sshPanel;
-    private JTextField gitUsernameField;
-    private JPasswordField passwordField;
-    private JTextArea sshKeyArea;
+
+    // Credential dropdown
+    private JPanel credentialPanel;
+    private JComboBox<String> credentialDropdown;
+    private JButton configureCredentialsButton;
+    private List<Long> credentialIds = new ArrayList<>();
+    private Dataset savedSshKeys;
+    private Dataset savedHttpsCreds;
 
     public RemotesPopup(Component parent) {
         setTitle("Manage Remotes");
@@ -146,6 +151,7 @@ public class RemotesPopup extends JFrame {
         gbc.weightx = 0;
         formPanel.add(new JLabel("Name:"), gbc);
         gbc.gridx = 1;
+        gbc.gridwidth = 2;
         gbc.fill = GridBagConstraints.HORIZONTAL;
         gbc.weightx = 1.0;
         nameField = new JTextField(15);
@@ -154,10 +160,12 @@ public class RemotesPopup extends JFrame {
         // URL
         gbc.gridx = 0;
         gbc.gridy = 1;
+        gbc.gridwidth = 1;
         gbc.fill = GridBagConstraints.NONE;
         gbc.weightx = 0;
         formPanel.add(new JLabel("URL:"), gbc);
         gbc.gridx = 1;
+        gbc.gridwidth = 2;
         gbc.fill = GridBagConstraints.HORIZONTAL;
         gbc.weightx = 1.0;
         urlField = new JTextField(30);
@@ -174,59 +182,29 @@ public class RemotesPopup extends JFrame {
         // Auth type label
         gbc.gridx = 0;
         gbc.gridy = 2;
-        gbc.gridwidth = 2;
+        gbc.gridwidth = 3;
         authTypeLabel = new JLabel();
         authTypeLabel.setFont(authTypeLabel.getFont().deriveFont(Font.BOLD));
         authTypeLabel.setForeground(new Color(0, 128, 0));
         authTypeLabel.setVisible(false);
         formPanel.add(authTypeLabel, gbc);
 
-        // HTTPS panel
-        httpsPanel = new JPanel(new GridBagLayout());
-        GridBagConstraints hgbc = new GridBagConstraints();
-        hgbc.insets = new Insets(4, 5, 4, 5);
-        hgbc.anchor = GridBagConstraints.WEST;
-
-        hgbc.gridx = 0;
-        hgbc.gridy = 0;
-        httpsPanel.add(new JLabel("Git Username:"), hgbc);
-        hgbc.gridx = 1;
-        hgbc.fill = GridBagConstraints.HORIZONTAL;
-        hgbc.weightx = 1.0;
-        gitUsernameField = new JTextField(30);
-        httpsPanel.add(gitUsernameField, hgbc);
-
-        hgbc.gridx = 0;
-        hgbc.gridy = 1;
-        hgbc.fill = GridBagConstraints.NONE;
-        hgbc.weightx = 0;
-        httpsPanel.add(new JLabel("Password:"), hgbc);
-        hgbc.gridx = 1;
-        hgbc.fill = GridBagConstraints.HORIZONTAL;
-        hgbc.weightx = 1.0;
-        passwordField = new JPasswordField(30);
-        httpsPanel.add(passwordField, hgbc);
+        // Credential dropdown + Configure button
+        credentialPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
+        credentialPanel.add(new JLabel("Credential:"));
+        credentialDropdown = new JComboBox<>();
+        credentialDropdown.setPreferredSize(new Dimension(280, 25));
+        credentialPanel.add(credentialDropdown);
+        configureCredentialsButton = new JButton("Configure...");
+        configureCredentialsButton.addActionListener(e -> onConfigureCredentials());
+        credentialPanel.add(configureCredentialsButton);
+        credentialPanel.setVisible(false);
 
         gbc.gridx = 0;
         gbc.gridy = 3;
-        gbc.gridwidth = 2;
+        gbc.gridwidth = 3;
         gbc.fill = GridBagConstraints.HORIZONTAL;
-        formPanel.add(httpsPanel, gbc);
-
-        // SSH panel
-        sshPanel = new JPanel(new BorderLayout(5, 5));
-        sshPanel.setBorder(BorderFactory.createTitledBorder("SSH Private Key"));
-        sshKeyArea = new JTextArea(8, 30);
-        sshKeyArea.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
-        sshPanel.add(new JScrollPane(sshKeyArea), BorderLayout.CENTER);
-
-        gbc.gridy = 4;
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-        formPanel.add(sshPanel, gbc);
-
-        // Default: hide auth panels
-        httpsPanel.setVisible(false);
-        sshPanel.setVisible(false);
+        formPanel.add(credentialPanel, gbc);
 
         main.add(formPanel, BorderLayout.CENTER);
 
@@ -256,11 +234,51 @@ public class RemotesPopup extends JFrame {
 
         authTypeLabel.setVisible(hasUrl);
         authTypeLabel.setText(isHttps ? "HTTPS" : "SSH");
-        httpsPanel.setVisible(hasUrl && isHttps);
-        sshPanel.setVisible(hasUrl && !isHttps);
+
+        credentialPanel.setVisible(hasUrl);
+        if (hasUrl) {
+            populateCredentialDropdown(isHttps);
+        }
+
         pack();
         revalidate();
         repaint();
+    }
+
+    private void populateCredentialDropdown(boolean isHttps) {
+        credentialDropdown.removeAllItems();
+        credentialIds.clear();
+
+        if (isHttps && savedHttpsCreds != null) {
+            for (int i = 0; i < savedHttpsCreds.getRowCount(); i++) {
+                String host = (String) savedHttpsCreds.getValueAt(i, "hostPattern");
+                String user = (String) savedHttpsCreds.getValueAt(i, "userName");
+                credentialDropdown.addItem(host + " (" + user + ")");
+                credentialIds.add(((Number) savedHttpsCreds.getValueAt(i, "id")).longValue());
+            }
+        } else if (!isHttps && savedSshKeys != null) {
+            for (int i = 0; i < savedSshKeys.getRowCount(); i++) {
+                String keyName = (String) savedSshKeys.getValueAt(i, "keyName");
+                boolean isDefault = (Boolean) savedSshKeys.getValueAt(i, "isDefault");
+                credentialDropdown.addItem(keyName + (isDefault ? " (default)" : ""));
+                credentialIds.add(((Number) savedSshKeys.getValueAt(i, "id")).longValue());
+            }
+        }
+
+        if (credentialIds.isEmpty()) {
+            credentialDropdown.addItem("(no credentials configured)");
+        }
+    }
+
+    /**
+     * Re-populate the credential dropdown from the current saved credentials.
+     * Call after updating credentials via UserCredentialsPopup.
+     */
+    public void refreshCredentialDropdown() {
+        String url = urlField.getText().trim().toLowerCase();
+        if (!url.isEmpty()) {
+            populateCredentialDropdown(url.startsWith("http"));
+        }
     }
 
     // ── Navigation ─────────────────────────────────────────────────────
@@ -277,12 +295,8 @@ public class RemotesPopup extends JFrame {
         nameField.setText("");
         nameField.setEnabled(true);
         urlField.setText("");
-        gitUsernameField.setText("");
-        passwordField.setText("");
-        sshKeyArea.setText("");
-        httpsPanel.setVisible(false);
-        sshPanel.setVisible(false);
         authTypeLabel.setVisible(false);
+        credentialPanel.setVisible(false);
         showCard(CARD_FORM);
     }
 
@@ -295,9 +309,6 @@ public class RemotesPopup extends JFrame {
         nameField.setText(name);
         nameField.setEnabled(false);
         urlField.setText(url);
-        gitUsernameField.setText("");
-        passwordField.setText("");
-        sshKeyArea.setText("");
         updateFormAuthType();
         showCard(CARD_FORM);
     }
@@ -330,14 +341,22 @@ public class RemotesPopup extends JFrame {
             }
         }
 
-        String gitUsername = gitUsernameField.getText().trim();
-        String password = new String(passwordField.getPassword());
-        String sshKey = sshKeyArea.getText().trim();
+        int selectedIdx = credentialDropdown.getSelectedIndex();
+        long selectedCredId = selectedIdx >= 0 && selectedIdx < credentialIds.size()
+                ? credentialIds.get(selectedIdx) : 0;
+        boolean isHttps = url.toLowerCase().startsWith("http");
 
+        // Add/edit the remote with empty inline creds (credential is referenced by FK)
         if (formIsEdit) {
-            onEditRemote(name, url, gitUsername, password, sshKey);
+            onEditRemote(name, url, "", "", "");
         } else {
-            onAddRemote(name, url, gitUsername, password, sshKey);
+            onAddRemote(name, url, "", "", "");
+        }
+
+        // Associate the selected credential via FK
+        if (selectedCredId > 0) {
+            onSavedCredentialSelected(name, isHttps ? 0 : selectedCredId,
+                    isHttps ? selectedCredId : 0);
         }
     }
 
@@ -373,6 +392,15 @@ public class RemotesPopup extends JFrame {
         showCard(CARD_LIST);
     }
 
+    /**
+     * Provide the user's saved credentials for populating the dropdown.
+     * Call this before showing the form card.
+     */
+    public void setSavedCredentials(Dataset sshKeys, Dataset httpsCreds) {
+        this.savedSshKeys = sshKeys;
+        this.savedHttpsCreds = httpsCreds;
+    }
+
     // ── Callbacks ──────────────────────────────────────────────────────
 
     public void onAddRemote(String name, String url, String gitUsername, String password, String sshKey) {
@@ -385,5 +413,13 @@ public class RemotesPopup extends JFrame {
     }
 
     public void onRefresh() {
+    }
+
+    /** Called when the user selects a saved credential for a remote. */
+    public void onSavedCredentialSelected(String remoteName, long sshKeyId, long httpsCredentialId) {
+    }
+
+    /** Called when the user clicks "Configure..." to open the User Credentials popup. */
+    public void onConfigureCredentials() {
     }
 }

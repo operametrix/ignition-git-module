@@ -131,12 +131,8 @@ public abstract class AbstractScriptModule implements GitScriptInterface {
     @Override
     @ScriptFunction(docBundlePrefix = "AbstractScriptModule")
     public boolean saveUserCredentials(@ScriptArg("projectName") String projectName,
-                                       @ScriptArg("ignitionUser") String ignitionUser,
-                                       @ScriptArg("email") String email,
-                                       @ScriptArg("gitUsername") String gitUsername,
-                                       @ScriptArg("password") String password,
-                                       @ScriptArg("sshKey") String sshKey) {
-        return saveUserCredentialsImpl(projectName, ignitionUser, email, gitUsername, password, sshKey);
+                                       @ScriptArg("ignitionUser") String ignitionUser) {
+        return saveUserCredentialsImpl(projectName, ignitionUser);
     }
 
     @Override
@@ -164,11 +160,10 @@ public abstract class AbstractScriptModule implements GitScriptInterface {
     public boolean initializeProject(@ScriptArg("projectName") String projectName,
                                      @ScriptArg("repoUri") String repoUri,
                                      @ScriptArg("ignitionUser") String ignitionUser,
-                                     @ScriptArg("email") String email,
                                      @ScriptArg("gitUsername") String gitUsername,
                                      @ScriptArg("password") String password,
                                      @ScriptArg("sshKey") String sshKey) throws Exception {
-        return initializeProjectImpl(projectName, repoUri, ignitionUser, email, gitUsername, password, sshKey);
+        return initializeProjectImpl(projectName, repoUri, ignitionUser, gitUsername, password, sshKey);
     }
 
     @Override
@@ -224,13 +219,12 @@ public abstract class AbstractScriptModule implements GitScriptInterface {
     protected abstract boolean checkoutBranchImpl(String projectName, String branchName) throws Exception;
     protected abstract boolean deleteBranchImpl(String projectName, String branchName) throws Exception;
     protected abstract boolean isSSHAuthenticationImpl(String projectName);
-    protected abstract boolean saveUserCredentialsImpl(String projectName, String ignitionUser, String email,
-                                                       String gitUsername, String password, String sshKey);
+    protected abstract boolean saveUserCredentialsImpl(String projectName, String ignitionUser);
     protected abstract String getUserEmailImpl(String projectName, String ignitionUser);
     protected abstract String getUserGitUsernameImpl(String projectName, String ignitionUser);
     protected abstract boolean isProjectRegisteredImpl(String projectName);
     protected abstract boolean initializeProjectImpl(String projectName, String repoUri, String ignitionUser,
-                                                      String email, String gitUsername, String password,
+                                                      String gitUsername, String password,
                                                       String sshKey) throws Exception;
     protected abstract List<String> getResourceDiffImpl(String projectName, String resourcePath);
     protected abstract Dataset getCommitHistoryImpl(String projectName, int skip, int limit);
@@ -259,9 +253,8 @@ public abstract class AbstractScriptModule implements GitScriptInterface {
     @Override
     @ScriptFunction(docBundlePrefix = "AbstractScriptModule")
     public boolean initializeLocalProject(@ScriptArg("projectName") String projectName,
-                                           @ScriptArg("ignitionUser") String ignitionUser,
-                                           @ScriptArg("email") String email) throws Exception {
-        return initializeLocalProjectImpl(projectName, ignitionUser, email);
+                                           @ScriptArg("ignitionUser") String ignitionUser) throws Exception {
+        return initializeLocalProjectImpl(projectName, ignitionUser);
     }
 
     @Override
@@ -270,8 +263,7 @@ public abstract class AbstractScriptModule implements GitScriptInterface {
         return hasRemoteRepositoryImpl(projectName);
     }
 
-    protected abstract boolean initializeLocalProjectImpl(String projectName, String ignitionUser,
-                                                           String email) throws Exception;
+    protected abstract boolean initializeLocalProjectImpl(String projectName, String ignitionUser) throws Exception;
     protected abstract boolean hasRemoteRepositoryImpl(String projectName);
 
     @Override
@@ -371,5 +363,81 @@ public abstract class AbstractScriptModule implements GitScriptInterface {
     protected abstract boolean abortMergeImpl(String projectName);
     protected abstract boolean completeMergeCommitImpl(String projectName, String userName) throws Exception;
     protected abstract List<String> getConflictDiffImpl(String projectName, String filePath);
+
+    // ── User-level credential management ──────────────────────────────
+
+    @Override
+    @ScriptFunction(docBundlePrefix = "AbstractScriptModule")
+    public boolean saveUserSshKey(@ScriptArg("ignitionUser") String ignitionUser,
+                                   @ScriptArg("keyName") String keyName,
+                                   @ScriptArg("sshKey") String sshKey,
+                                   @ScriptArg("isDefault") boolean isDefault) {
+        return saveUserSshKeyImpl(ignitionUser, keyName, sshKey, isDefault);
+    }
+
+    @Override
+    @ScriptFunction(docBundlePrefix = "AbstractScriptModule")
+    public boolean deleteUserSshKey(@ScriptArg("ignitionUser") String ignitionUser,
+                                     @ScriptArg("keyId") long keyId) {
+        return deleteUserSshKeyImpl(ignitionUser, keyId);
+    }
+
+    @Override
+    @ScriptFunction(docBundlePrefix = "AbstractScriptModule")
+    public boolean setDefaultSshKey(@ScriptArg("ignitionUser") String ignitionUser,
+                                     @ScriptArg("keyId") long keyId) {
+        return setDefaultSshKeyImpl(ignitionUser, keyId);
+    }
+
+    @Override
+    @ScriptFunction(docBundlePrefix = "AbstractScriptModule")
+    public Dataset listUserSshKeys(@ScriptArg("ignitionUser") String ignitionUser) {
+        return listUserSshKeysImpl(ignitionUser);
+    }
+
+    @Override
+    @ScriptFunction(docBundlePrefix = "AbstractScriptModule")
+    public boolean saveUserHttpsCredential(@ScriptArg("ignitionUser") String ignitionUser,
+                                            @ScriptArg("hostPattern") String hostPattern,
+                                            @ScriptArg("userName") String userName,
+                                            @ScriptArg("password") String password) {
+        return saveUserHttpsCredentialImpl(ignitionUser, hostPattern, userName, password);
+    }
+
+    @Override
+    @ScriptFunction(docBundlePrefix = "AbstractScriptModule")
+    public boolean deleteUserHttpsCredential(@ScriptArg("ignitionUser") String ignitionUser,
+                                              @ScriptArg("credentialId") long credentialId) {
+        return deleteUserHttpsCredentialImpl(ignitionUser, credentialId);
+    }
+
+    @Override
+    @ScriptFunction(docBundlePrefix = "AbstractScriptModule")
+    public Dataset listUserHttpsCredentials(@ScriptArg("ignitionUser") String ignitionUser) {
+        return listUserHttpsCredentialsImpl(ignitionUser);
+    }
+
+    @Override
+    @ScriptFunction(docBundlePrefix = "AbstractScriptModule")
+    public boolean setRemoteCredentialRef(@ScriptArg("projectName") String projectName,
+                                           @ScriptArg("remoteName") String remoteName,
+                                           @ScriptArg("ignitionUser") String ignitionUser,
+                                           @ScriptArg("sshKeyId") long sshKeyId,
+                                           @ScriptArg("httpsCredentialId") long httpsCredentialId) {
+        return setRemoteCredentialRefImpl(projectName, remoteName, ignitionUser, sshKeyId, httpsCredentialId);
+    }
+
+    protected abstract boolean saveUserSshKeyImpl(String ignitionUser, String keyName,
+                                                    String sshKey, boolean isDefault);
+    protected abstract boolean deleteUserSshKeyImpl(String ignitionUser, long keyId);
+    protected abstract boolean setDefaultSshKeyImpl(String ignitionUser, long keyId);
+    protected abstract Dataset listUserSshKeysImpl(String ignitionUser);
+    protected abstract boolean saveUserHttpsCredentialImpl(String ignitionUser, String hostPattern,
+                                                            String userName, String password);
+    protected abstract boolean deleteUserHttpsCredentialImpl(String ignitionUser, long credentialId);
+    protected abstract Dataset listUserHttpsCredentialsImpl(String ignitionUser);
+    protected abstract boolean setRemoteCredentialRefImpl(String projectName, String remoteName,
+                                                           String ignitionUser, long sshKeyId,
+                                                           long httpsCredentialId);
 
 }

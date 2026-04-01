@@ -4,6 +4,8 @@ import com.operametrix.ignition.git.managers.*;
 import com.operametrix.ignition.git.records.GitProjectsConfigRecord;
 import com.operametrix.ignition.git.records.GitRemoteCredentialsRecord;
 import com.operametrix.ignition.git.records.GitReposUsersRecord;
+import com.operametrix.ignition.git.records.GitUserHttpsCredentialRecord;
+import com.operametrix.ignition.git.records.GitUserSshKeyRecord;
 import com.inductiveautomation.ignition.common.BasicDataset;
 import com.inductiveautomation.ignition.common.Dataset;
 import com.inductiveautomation.ignition.common.util.DatasetBuilder;
@@ -336,27 +338,19 @@ public class GatewayScriptModule extends AbstractScriptModule {
     }
 
     @Override
-    protected boolean saveUserCredentialsImpl(String projectName, String ignitionUser, String email,
-                                              String gitUsername, String password, String sshKey) {
+    protected boolean saveUserCredentialsImpl(String projectName, String ignitionUser) {
         try {
             GitProjectsConfigRecord gitProjectsConfigRecord = getGitProjectConfigRecord(projectName);
-            GitReposUsersRecord user;
             try {
-                user = getGitReposUserRecord(gitProjectsConfigRecord, ignitionUser);
+                getGitReposUserRecord(gitProjectsConfigRecord, ignitionUser);
+                // Record already exists
             } catch (Exception e) {
-                user = context.getPersistenceInterface().createNew(GitReposUsersRecord.META);
+                // Create new registration record
+                GitReposUsersRecord user = context.getPersistenceInterface().createNew(GitReposUsersRecord.META);
                 user.setProjectId(gitProjectsConfigRecord.getId());
                 user.setIgnitionUser(ignitionUser);
+                context.getPersistenceInterface().save(user);
             }
-            user.setEmail(email);
-            user.setUserName(gitUsername);
-            if (password != null && !password.isEmpty()) {
-                user.setPassword(password);
-            }
-            if (sshKey != null && !sshKey.isEmpty()) {
-                user.setSSHKey(sshKey);
-            }
-            context.getPersistenceInterface().save(user);
             return true;
         } catch (Exception e) {
             logger.error("Error saving user credentials", e);
@@ -366,13 +360,7 @@ public class GatewayScriptModule extends AbstractScriptModule {
 
     @Override
     protected String getUserEmailImpl(String projectName, String ignitionUser) {
-        try {
-            GitProjectsConfigRecord gitProjectsConfigRecord = getGitProjectConfigRecord(projectName);
-            GitReposUsersRecord user = getGitReposUserRecord(gitProjectsConfigRecord, ignitionUser);
-            return user.getEmail();
-        } catch (Exception e) {
-            return "";
-        }
+        return GitManager.resolveUserEmail(ignitionUser);
     }
 
     @Override
@@ -452,7 +440,7 @@ public class GatewayScriptModule extends AbstractScriptModule {
 
     @Override
     protected boolean initializeProjectImpl(String projectName, String repoUri, String ignitionUser,
-                                             String email, String gitUsername, String password,
+                                             String gitUsername, String password,
                                              String sshKey) throws Exception {
         // Check project not already registered
         if (isProjectRegisteredImpl(projectName)) {
@@ -468,17 +456,10 @@ public class GatewayScriptModule extends AbstractScriptModule {
         // Re-query to get the generated ID
         projectRecord = getGitProjectConfigRecord(projectName);
 
-        // Create user credentials record (email only for commit author)
+        // Create user registration record
         GitReposUsersRecord userRecord = context.getPersistenceInterface().createNew(GitReposUsersRecord.META);
         userRecord.setProjectId(projectRecord.getId());
         userRecord.setIgnitionUser(ignitionUser);
-        userRecord.setEmail(email);
-        userRecord.setUserName(gitUsername);
-        if (!repoUri.toLowerCase().startsWith("http")) {
-            userRecord.setSSHKey(sshKey);
-        } else {
-            userRecord.setPassword(password);
-        }
         context.getPersistenceInterface().save(userRecord);
 
         // Create per-remote credential record for "origin"
@@ -525,8 +506,7 @@ public class GatewayScriptModule extends AbstractScriptModule {
     }
 
     @Override
-    protected boolean initializeLocalProjectImpl(String projectName, String ignitionUser,
-                                                  String email) throws Exception {
+    protected boolean initializeLocalProjectImpl(String projectName, String ignitionUser) throws Exception {
         if (isProjectRegisteredImpl(projectName)) {
             throw new Exception("Project '" + projectName + "' is already registered.");
         }
@@ -540,12 +520,10 @@ public class GatewayScriptModule extends AbstractScriptModule {
         // Re-query to get the generated ID
         projectRecord = getGitProjectConfigRecord(projectName);
 
-        // Create user credentials record with email only; git username defaults to Ignition username
+        // Create user registration record
         GitReposUsersRecord userRecord = context.getPersistenceInterface().createNew(GitReposUsersRecord.META);
         userRecord.setProjectId(projectRecord.getId());
         userRecord.setIgnitionUser(ignitionUser);
-        userRecord.setEmail(email);
-        userRecord.setUserName(ignitionUser);
         context.getPersistenceInterface().save(userRecord);
 
         // Initialize local repo: git init + add . + initial commit
@@ -798,5 +776,218 @@ public class GatewayScriptModule extends AbstractScriptModule {
     private Path getProjectFolderPath(String projectName) {
         Path dataDir = context.getSystemManager().getDataDir().toPath();
         return dataDir.resolve("projects").resolve(projectName);
+    }
+
+    // ── User-level SSH key management ─────────────────────────────────
+
+    @Override
+    protected boolean saveUserSshKeyImpl(String ignitionUser, String keyName,
+                                          String sshKey, boolean isDefault) {
+        try {
+            if (isDefault) {
+                clearDefaultSshKeys(ignitionUser);
+            }
+            GitUserSshKeyRecord record = context.getPersistenceInterface()
+                    .createNew(GitUserSshKeyRecord.META);
+            record.setIgnitionUser(ignitionUser);
+            record.setKeyName(keyName);
+            record.setSSHKey(sshKey);
+            record.setDefault(isDefault);
+            context.getPersistenceInterface().save(record);
+            return true;
+        } catch (Exception e) {
+            logger.error("Error saving user SSH key", e);
+            return false;
+        }
+    }
+
+    @Override
+    protected boolean deleteUserSshKeyImpl(String ignitionUser, long keyId) {
+        try {
+            GitUserSshKeyRecord record = context.getPersistenceInterface().queryOne(
+                    new SQuery<>(GitUserSshKeyRecord.META)
+                            .eq(GitUserSshKeyRecord.Id, keyId)
+                            .eq(GitUserSshKeyRecord.IgnitionUser, ignitionUser));
+            if (record == null) return false;
+
+            // Clear FK references in remote credential records pointing to this key
+            List<GitRemoteCredentialsRecord> refs = context.getPersistenceInterface().query(
+                    new SQuery<>(GitRemoteCredentialsRecord.META)
+                            .eq(GitRemoteCredentialsRecord.SshKeyId, keyId));
+            for (GitRemoteCredentialsRecord ref : refs) {
+                ref.setSshKeyId(0);
+                context.getPersistenceInterface().save(ref);
+            }
+
+            record.deleteRecord();
+            context.getPersistenceInterface().save(record);
+            return true;
+        } catch (Exception e) {
+            logger.error("Error deleting user SSH key", e);
+            return false;
+        }
+    }
+
+    @Override
+    protected boolean setDefaultSshKeyImpl(String ignitionUser, long keyId) {
+        try {
+            clearDefaultSshKeys(ignitionUser);
+            GitUserSshKeyRecord record = context.getPersistenceInterface().queryOne(
+                    new SQuery<>(GitUserSshKeyRecord.META)
+                            .eq(GitUserSshKeyRecord.Id, keyId)
+                            .eq(GitUserSshKeyRecord.IgnitionUser, ignitionUser));
+            if (record == null) return false;
+            record.setDefault(true);
+            context.getPersistenceInterface().save(record);
+            return true;
+        } catch (Exception e) {
+            logger.error("Error setting default SSH key", e);
+            return false;
+        }
+    }
+
+    private void clearDefaultSshKeys(String ignitionUser) {
+        List<GitUserSshKeyRecord> keys = context.getPersistenceInterface().query(
+                new SQuery<>(GitUserSshKeyRecord.META)
+                        .eq(GitUserSshKeyRecord.IgnitionUser, ignitionUser)
+                        .eq(GitUserSshKeyRecord.IsDefault, true));
+        for (GitUserSshKeyRecord key : keys) {
+            key.setDefault(false);
+            context.getPersistenceInterface().save(key);
+        }
+    }
+
+    @Override
+    protected Dataset listUserSshKeysImpl(String ignitionUser) {
+        try {
+            List<GitUserSshKeyRecord> keys = context.getPersistenceInterface().query(
+                    new SQuery<>(GitUserSshKeyRecord.META)
+                            .eq(GitUserSshKeyRecord.IgnitionUser, ignitionUser));
+            DatasetBuilder builder = new DatasetBuilder();
+            builder.colNames("id", "keyName", "isDefault");
+            builder.colTypes(Long.class, String.class, Boolean.class);
+            for (GitUserSshKeyRecord key : keys) {
+                builder.addRow(key.getId(), key.getKeyName(), key.isDefault());
+            }
+            return builder.build();
+        } catch (Exception e) {
+            logger.error("Error listing user SSH keys", e);
+            return new BasicDataset();
+        }
+    }
+
+    // ── User-level HTTPS credential management ────────────────────────
+
+    @Override
+    protected boolean saveUserHttpsCredentialImpl(String ignitionUser, String hostPattern,
+                                                   String userName, String password) {
+        try {
+            // Check if a credential already exists for this user+host
+            GitUserHttpsCredentialRecord existing = context.getPersistenceInterface().queryOne(
+                    new SQuery<>(GitUserHttpsCredentialRecord.META)
+                            .eq(GitUserHttpsCredentialRecord.IgnitionUser, ignitionUser)
+                            .eq(GitUserHttpsCredentialRecord.HostPattern, hostPattern));
+            if (existing != null) {
+                existing.setUserName(userName);
+                if (password != null && !password.isEmpty()) {
+                    existing.setPassword(password);
+                }
+                context.getPersistenceInterface().save(existing);
+            } else {
+                GitUserHttpsCredentialRecord record = context.getPersistenceInterface()
+                        .createNew(GitUserHttpsCredentialRecord.META);
+                record.setIgnitionUser(ignitionUser);
+                record.setHostPattern(hostPattern);
+                record.setUserName(userName);
+                record.setPassword(password);
+                context.getPersistenceInterface().save(record);
+            }
+            return true;
+        } catch (Exception e) {
+            logger.error("Error saving user HTTPS credential", e);
+            return false;
+        }
+    }
+
+    @Override
+    protected boolean deleteUserHttpsCredentialImpl(String ignitionUser, long credentialId) {
+        try {
+            GitUserHttpsCredentialRecord record = context.getPersistenceInterface().queryOne(
+                    new SQuery<>(GitUserHttpsCredentialRecord.META)
+                            .eq(GitUserHttpsCredentialRecord.Id, credentialId)
+                            .eq(GitUserHttpsCredentialRecord.IgnitionUser, ignitionUser));
+            if (record == null) return false;
+
+            // Clear FK references in remote credential records pointing to this credential
+            List<GitRemoteCredentialsRecord> refs = context.getPersistenceInterface().query(
+                    new SQuery<>(GitRemoteCredentialsRecord.META)
+                            .eq(GitRemoteCredentialsRecord.HttpsCredentialId, credentialId));
+            for (GitRemoteCredentialsRecord ref : refs) {
+                ref.setHttpsCredentialId(0);
+                context.getPersistenceInterface().save(ref);
+            }
+
+            record.deleteRecord();
+            context.getPersistenceInterface().save(record);
+            return true;
+        } catch (Exception e) {
+            logger.error("Error deleting user HTTPS credential", e);
+            return false;
+        }
+    }
+
+    @Override
+    protected Dataset listUserHttpsCredentialsImpl(String ignitionUser) {
+        try {
+            List<GitUserHttpsCredentialRecord> creds = context.getPersistenceInterface().query(
+                    new SQuery<>(GitUserHttpsCredentialRecord.META)
+                            .eq(GitUserHttpsCredentialRecord.IgnitionUser, ignitionUser));
+            DatasetBuilder builder = new DatasetBuilder();
+            builder.colNames("id", "hostPattern", "userName");
+            builder.colTypes(Long.class, String.class, String.class);
+            for (GitUserHttpsCredentialRecord cred : creds) {
+                builder.addRow(cred.getId(), cred.getHostPattern(), cred.getUserName());
+            }
+            return builder.build();
+        } catch (Exception e) {
+            logger.error("Error listing user HTTPS credentials", e);
+            return new BasicDataset();
+        }
+    }
+
+    // ── Remote credential association ─────────────────────────────────
+
+    @Override
+    protected boolean setRemoteCredentialRefImpl(String projectName, String remoteName,
+                                                  String ignitionUser, long sshKeyId,
+                                                  long httpsCredentialId) {
+        try {
+            GitRemoteCredentialsRecord creds = getRemoteCredentialsRecord(
+                    projectName, ignitionUser, remoteName);
+            if (creds == null) {
+                // Create a minimal record to hold the FK reference
+                GitProjectsConfigRecord projectRecord = getGitProjectConfigRecord(projectName);
+                creds = context.getPersistenceInterface()
+                        .createNew(GitRemoteCredentialsRecord.META);
+                creds.setProjectId(projectRecord.getId());
+                creds.setIgnitionUser(ignitionUser);
+                creds.setRemoteName(remoteName);
+            }
+            creds.setSshKeyId(sshKeyId);
+            creds.setHttpsCredentialId(httpsCredentialId);
+            // Clear inline fields when setting FK references
+            if (sshKeyId > 0) {
+                creds.setSSHKey("");
+            }
+            if (httpsCredentialId > 0) {
+                creds.setUserName("");
+                creds.setPassword("");
+            }
+            context.getPersistenceInterface().save(creds);
+            return true;
+        } catch (Exception e) {
+            logger.error("Error setting remote credential reference", e);
+            return false;
+        }
     }
 }
