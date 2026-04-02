@@ -374,9 +374,8 @@ public abstract class AbstractScriptModule implements GitScriptInterface {
     @ScriptFunction(docBundlePrefix = "AbstractScriptModule")
     public boolean saveUserSshKey(@ScriptArg("ignitionUser") String ignitionUser,
                                    @ScriptArg("keyName") String keyName,
-                                   @ScriptArg("sshKey") String sshKey,
-                                   @ScriptArg("isDefault") boolean isDefault) {
-        return saveUserSshKeyImpl(ignitionUser, keyName, sshKey, isDefault);
+                                   @ScriptArg("sshKey") String sshKey) {
+        return saveUserSshKeyImpl(ignitionUser, keyName, sshKey);
     }
 
     @Override
@@ -384,13 +383,6 @@ public abstract class AbstractScriptModule implements GitScriptInterface {
     public boolean deleteUserSshKey(@ScriptArg("ignitionUser") String ignitionUser,
                                      @ScriptArg("keyId") long keyId) {
         return deleteUserSshKeyImpl(ignitionUser, keyId);
-    }
-
-    @Override
-    @ScriptFunction(docBundlePrefix = "AbstractScriptModule")
-    public boolean setDefaultSshKey(@ScriptArg("ignitionUser") String ignitionUser,
-                                     @ScriptArg("keyId") long keyId) {
-        return setDefaultSshKeyImpl(ignitionUser, keyId);
     }
 
     @Override
@@ -431,10 +423,8 @@ public abstract class AbstractScriptModule implements GitScriptInterface {
         return setRemoteCredentialRefImpl(projectName, remoteName, ignitionUser, sshKeyId, httpsCredentialId);
     }
 
-    protected abstract boolean saveUserSshKeyImpl(String ignitionUser, String keyName,
-                                                    String sshKey, boolean isDefault);
+    protected abstract boolean saveUserSshKeyImpl(String ignitionUser, String keyName, String sshKey);
     protected abstract boolean deleteUserSshKeyImpl(String ignitionUser, long keyId);
-    protected abstract boolean setDefaultSshKeyImpl(String ignitionUser, long keyId);
     protected abstract Dataset listUserSshKeysImpl(String ignitionUser);
     protected abstract boolean saveUserHttpsCredentialImpl(String ignitionUser, String hostPattern,
                                                             String userName, String password);

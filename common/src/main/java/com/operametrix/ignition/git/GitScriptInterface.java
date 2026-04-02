@@ -123,16 +123,13 @@ public interface GitScriptInterface {
 
     // ── User-level credential management ──────────────────────────────
 
-    /** Save or update a user-level SSH key. If isDefault, clears default on all other keys for this user. */
-    boolean saveUserSshKey(String ignitionUser, String keyName, String sshKey, boolean isDefault);
+    /** Save a user-level SSH key. */
+    boolean saveUserSshKey(String ignitionUser, String keyName, String sshKey);
 
     /** Delete a user-level SSH key by ID. Clears any FK references in remote credential records. */
     boolean deleteUserSshKey(String ignitionUser, long keyId);
 
-    /** Set a specific SSH key as the user's default, clearing default on all others. */
-    boolean setDefaultSshKey(String ignitionUser, long keyId);
-
-    /** List all SSH keys for a user. Returns Dataset with columns: id, keyName, isDefault. */
+    /** List all SSH keys for a user. Returns Dataset with columns: id, keyName. */
     Dataset listUserSshKeys(String ignitionUser);
 
     /** Save or update a user-level HTTPS credential for a specific host. */

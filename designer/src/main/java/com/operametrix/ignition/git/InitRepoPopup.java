@@ -268,8 +268,7 @@ public class InitRepoPopup extends JFrame {
         } else if (!isHttps && savedSshKeys != null) {
             for (int i = 0; i < savedSshKeys.getRowCount(); i++) {
                 String keyName = (String) savedSshKeys.getValueAt(i, "keyName");
-                boolean isDefault = (Boolean) savedSshKeys.getValueAt(i, "isDefault");
-                credentialDropdown.addItem(keyName + (isDefault ? " (default)" : ""));
+                credentialDropdown.addItem(keyName);
                 credentialIds.add(((Number) savedSshKeys.getValueAt(i, "id")).longValue());
             }
         }

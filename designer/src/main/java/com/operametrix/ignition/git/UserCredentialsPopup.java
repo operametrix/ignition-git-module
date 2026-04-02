@@ -30,7 +30,6 @@ public class UserCredentialsPopup extends JFrame {
     private DefaultTableModel sshTableModel;
     private JTable sshTable;
     private JButton sshRemoveButton;
-    private JButton sshSetDefaultButton;
 
     // HTTPS Credentials table
     private DefaultTableModel httpsTableModel;
@@ -77,20 +76,15 @@ public class UserCredentialsPopup extends JFrame {
         JPanel section = new JPanel(new BorderLayout(5, 5));
         section.setBorder(BorderFactory.createTitledBorder("SSH Keys"));
 
-        sshTableModel = new DefaultTableModel(new String[]{"Key Name", "Default"}, 0) {
+        sshTableModel = new DefaultTableModel(new String[]{"Key Name"}, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
                 return false;
             }
-            @Override
-            public Class<?> getColumnClass(int columnIndex) {
-                return columnIndex == 1 ? Boolean.class : String.class;
-            }
         };
         sshTable = new JTable(sshTableModel);
         sshTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-        sshTable.getColumnModel().getColumn(0).setPreferredWidth(250);
-        sshTable.getColumnModel().getColumn(1).setPreferredWidth(60);
+        sshTable.getColumnModel().getColumn(0).setPreferredWidth(300);
         sshTable.getSelectionModel().addListSelectionListener(e -> updateSshButtons());
 
         JScrollPane scrollPane = new JScrollPane(sshTable);
@@ -108,13 +102,8 @@ public class UserCredentialsPopup extends JFrame {
         sshRemoveButton.setEnabled(false);
         sshRemoveButton.addActionListener(e -> handleRemoveSshKey());
 
-        sshSetDefaultButton = new JButton("Set Default");
-        sshSetDefaultButton.setEnabled(false);
-        sshSetDefaultButton.addActionListener(e -> handleSetDefaultSshKey());
-
         buttonPanel.add(addButton);
         buttonPanel.add(sshRemoveButton);
-        buttonPanel.add(sshSetDefaultButton);
 
         section.add(buttonPanel, BorderLayout.SOUTH);
 
@@ -124,7 +113,6 @@ public class UserCredentialsPopup extends JFrame {
     private void updateSshButtons() {
         boolean hasSelection = sshTable.getSelectedRow() >= 0;
         sshRemoveButton.setEnabled(hasSelection);
-        sshSetDefaultButton.setEnabled(hasSelection);
     }
 
     private void showAddSshKeyDialog() {
@@ -148,11 +136,6 @@ public class UserCredentialsPopup extends JFrame {
         keyPanel.add(new JScrollPane(sshKeyArea), BorderLayout.CENTER);
         panel.add(keyPanel, gbc);
 
-        gbc.gridy = 2; gbc.gridwidth = 2; gbc.weighty = 0;
-        gbc.fill = GridBagConstraints.NONE;
-        JCheckBox defaultCheck = new JCheckBox("Set as default key");
-        panel.add(defaultCheck, gbc);
-
         int result = JOptionPane.showConfirmDialog(this, panel, "Add SSH Key",
                 JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
         if (result == JOptionPane.OK_OPTION) {
@@ -163,7 +146,7 @@ public class UserCredentialsPopup extends JFrame {
                         "Validation Error", JOptionPane.WARNING_MESSAGE);
                 return;
             }
-            onSaveSshKey(keyName, sshKey, defaultCheck.isSelected());
+            onSaveSshKey(keyName, sshKey);
         }
     }
 
@@ -178,13 +161,6 @@ public class UserCredentialsPopup extends JFrame {
             long keyId = getIdForSshRow(row);
             onDeleteSshKey(keyId);
         }
-    }
-
-    private void handleSetDefaultSshKey() {
-        int row = sshTable.getSelectedRow();
-        if (row < 0) return;
-        long keyId = getIdForSshRow(row);
-        onSetDefaultSshKey(keyId);
     }
 
     // ── HTTPS Credentials Section ─────────────────────────────────────
@@ -317,8 +293,7 @@ public class UserCredentialsPopup extends JFrame {
             for (int i = 0; i < keys.getRowCount(); i++) {
                 sshKeyIds[i] = ((Number) keys.getValueAt(i, "id")).longValue();
                 sshTableModel.addRow(new Object[]{
-                        keys.getValueAt(i, "keyName"),
-                        keys.getValueAt(i, "isDefault")
+                        keys.getValueAt(i, "keyName")
                 });
             }
         } else {
@@ -354,9 +329,8 @@ public class UserCredentialsPopup extends JFrame {
 
     // ── Callbacks ─────────────────────────────────────────────────────
 
-    public void onSaveSshKey(String keyName, String sshKey, boolean isDefault) {}
+    public void onSaveSshKey(String keyName, String sshKey) {}
     public void onDeleteSshKey(long keyId) {}
-    public void onSetDefaultSshKey(long keyId) {}
     public void onSaveHttpsCredential(String hostPattern, String userName, String password) {}
     public void onDeleteHttpsCredential(long credentialId) {}
     public void onRefresh() {}

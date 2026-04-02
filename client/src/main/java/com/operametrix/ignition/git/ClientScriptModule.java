@@ -224,19 +224,13 @@ public class ClientScriptModule extends AbstractScriptModule {
     // ── User-level credential management ──────────────────────────────
 
     @Override
-    protected boolean saveUserSshKeyImpl(String ignitionUser, String keyName,
-                                          String sshKey, boolean isDefault) {
-        return rpc.saveUserSshKey(ignitionUser, keyName, sshKey, isDefault);
+    protected boolean saveUserSshKeyImpl(String ignitionUser, String keyName, String sshKey) {
+        return rpc.saveUserSshKey(ignitionUser, keyName, sshKey);
     }
 
     @Override
     protected boolean deleteUserSshKeyImpl(String ignitionUser, long keyId) {
         return rpc.deleteUserSshKey(ignitionUser, keyId);
-    }
-
-    @Override
-    protected boolean setDefaultSshKeyImpl(String ignitionUser, long keyId) {
-        return rpc.setDefaultSshKey(ignitionUser, keyId);
     }
 
     @Override

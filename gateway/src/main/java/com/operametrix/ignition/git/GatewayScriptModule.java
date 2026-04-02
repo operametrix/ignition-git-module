@@ -827,18 +827,13 @@ public class GatewayScriptModule extends AbstractScriptModule {
     // ── User-level SSH key management ─────────────────────────────────
 
     @Override
-    protected boolean saveUserSshKeyImpl(String ignitionUser, String keyName,
-                                          String sshKey, boolean isDefault) {
+    protected boolean saveUserSshKeyImpl(String ignitionUser, String keyName, String sshKey) {
         try {
-            if (isDefault) {
-                clearDefaultSshKeys(ignitionUser);
-            }
             GitUserSshKeyRecord record = context.getPersistenceInterface()
                     .createNew(GitUserSshKeyRecord.META);
             record.setIgnitionUser(ignitionUser);
             record.setKeyName(keyName);
             record.setSSHKey(sshKey);
-            record.setDefault(isDefault);
             context.getPersistenceInterface().save(record);
             return true;
         } catch (Exception e) {
@@ -875,45 +870,16 @@ public class GatewayScriptModule extends AbstractScriptModule {
     }
 
     @Override
-    protected boolean setDefaultSshKeyImpl(String ignitionUser, long keyId) {
-        try {
-            clearDefaultSshKeys(ignitionUser);
-            GitUserSshKeyRecord record = context.getPersistenceInterface().queryOne(
-                    new SQuery<>(GitUserSshKeyRecord.META)
-                            .eq(GitUserSshKeyRecord.Id, keyId)
-                            .eq(GitUserSshKeyRecord.IgnitionUser, ignitionUser));
-            if (record == null) return false;
-            record.setDefault(true);
-            context.getPersistenceInterface().save(record);
-            return true;
-        } catch (Exception e) {
-            logger.error("Error setting default SSH key", e);
-            return false;
-        }
-    }
-
-    private void clearDefaultSshKeys(String ignitionUser) {
-        List<GitUserSshKeyRecord> keys = context.getPersistenceInterface().query(
-                new SQuery<>(GitUserSshKeyRecord.META)
-                        .eq(GitUserSshKeyRecord.IgnitionUser, ignitionUser)
-                        .eq(GitUserSshKeyRecord.IsDefault, true));
-        for (GitUserSshKeyRecord key : keys) {
-            key.setDefault(false);
-            context.getPersistenceInterface().save(key);
-        }
-    }
-
-    @Override
     protected Dataset listUserSshKeysImpl(String ignitionUser) {
         try {
             List<GitUserSshKeyRecord> keys = context.getPersistenceInterface().query(
                     new SQuery<>(GitUserSshKeyRecord.META)
                             .eq(GitUserSshKeyRecord.IgnitionUser, ignitionUser));
             DatasetBuilder builder = new DatasetBuilder();
-            builder.colNames("id", "keyName", "isDefault");
-            builder.colTypes(Long.class, String.class, Boolean.class);
+            builder.colNames("id", "keyName");
+            builder.colTypes(Long.class, String.class);
             for (GitUserSshKeyRecord key : keys) {
-                builder.addRow(key.getId(), key.getKeyName(), key.isDefault());
+                builder.addRow(key.getId(), key.getKeyName());
             }
             return builder.build();
         } catch (Exception e) {

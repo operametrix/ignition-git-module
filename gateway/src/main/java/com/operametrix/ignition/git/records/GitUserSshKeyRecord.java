@@ -20,11 +20,6 @@ public class GitUserSshKeyRecord extends PersistentRecord {
     public static final StringField KeyName = new StringField(META, "KeyName",
             SFieldFlags.SMANDATORY, SFieldFlags.SDESCRIPTIVE);
     public static final StringField SSHKey = new StringField(META, "SSHKey");
-    public static final BooleanField IsDefault = new BooleanField(META, "IsDefault");
-
-    static final Category UserSshKeys = new Category(
-            "GitUserSshKeyRecord.Category.UserSshKeys", 1000)
-            .include(IgnitionUser, KeyName, SSHKey, IsDefault);
 
     public long getId() {
         return getLong(Id);
@@ -54,16 +49,7 @@ public class GitUserSshKeyRecord extends PersistentRecord {
         setString(SSHKey, sshKey);
     }
 
-    public boolean isDefault() {
-        return getBoolean(IsDefault);
-    }
-
-    public void setDefault(boolean isDefault) {
-        setBoolean(IsDefault, isDefault);
-    }
-
     static {
-        IsDefault.setDefault(false);
         SSHKey.getFormMeta().setEditorSource(new TextAreaEditorSource());
         SSHKey.setWide();
     }

@@ -140,12 +140,14 @@ public class GitManager {
         if (creds != null && creds.getSSHKey() != null && !creds.getSSHKey().isEmpty()) {
             return creds.getSSHKey();
         }
-        // Tier 3: User-level default SSH key
-        GitUserSshKeyRecord defaultKey = context.getPersistenceInterface().queryOne(
+        // Tier 3: User-level SSH key — use it if exactly one exists
+        List<GitUserSshKeyRecord> userKeys = context.getPersistenceInterface().query(
                 new SQuery<>(GitUserSshKeyRecord.META)
-                        .eq(GitUserSshKeyRecord.IgnitionUser, userName)
-                        .eq(GitUserSshKeyRecord.IsDefault, true));
-        return defaultKey != null ? defaultKey.getSSHKey() : null;
+                        .eq(GitUserSshKeyRecord.IgnitionUser, userName));
+        if (userKeys.size() == 1) {
+            return userKeys.get(0).getSSHKey();
+        }
+        return null;
     }
 
     /**

@@ -298,8 +298,8 @@ public class GitActionManager {
             } else {
                 userCredentialsPopup = new UserCredentialsPopup(context.getFrame()) {
                     @Override
-                    public void onSaveSshKey(String keyName, String sshKey, boolean isDefault) {
-                        boolean success = rpc.saveUserSshKey(userName, keyName, sshKey, isDefault);
+                    public void onSaveSshKey(String keyName, String sshKey) {
+                        boolean success = rpc.saveUserSshKey(userName, keyName, sshKey);
                         if (success) {
                             refreshUserCredentialsPopup(userName);
                         } else {
@@ -316,17 +316,6 @@ public class GitActionManager {
                         } else {
                             JOptionPane.showMessageDialog(userCredentialsPopup,
                                     "Failed to delete SSH key.", "Error", JOptionPane.ERROR_MESSAGE);
-                        }
-                    }
-
-                    @Override
-                    public void onSetDefaultSshKey(long keyId) {
-                        boolean success = rpc.setDefaultSshKey(userName, keyId);
-                        if (success) {
-                            refreshUserCredentialsPopup(userName);
-                        } else {
-                            JOptionPane.showMessageDialog(userCredentialsPopup,
-                                    "Failed to set default SSH key.", "Error", JOptionPane.ERROR_MESSAGE);
                         }
                     }
 
