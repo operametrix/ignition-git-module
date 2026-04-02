@@ -141,19 +141,20 @@ public class DesignerHook extends AbstractDesignerModuleHook {
         StatusBar statusBar = context.getStatusBar();
         gitStatusBar = new JPanel();
 
-        JLabel gitIconLabel = new JLabel(IconUtils.getIcon("/com/operametrix/ignition/git/icons/ic_git.svg"));
-        gitIconLabel.setSize(35, 35);
-        gitStatusBar.add(gitIconLabel);
-
-        JButton notConfiguredButton = new JButton("Not configured");
-        notConfiguredButton.setFont(notConfiguredButton.getFont().deriveFont(Font.ITALIC));
-        notConfiguredButton.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-        notConfiguredButton.setContentAreaFilled(false);
-        notConfiguredButton.setBorderPainted(false);
-        notConfiguredButton.setFocusPainted(false);
-        notConfiguredButton.setMargin(new Insets(0, 0, 0, 0));
+        // Git icon + "Not configured" — opens init wizard
+        JButton notConfiguredButton = new JButton("Configure",
+                IconUtils.getIcon("/com/operametrix/ignition/git/icons/ic_git.svg"));
+        styleStatusBarButton(notConfiguredButton);
         notConfiguredButton.addActionListener(e -> GitActionManager.showInitRepoPopup(projectName, userName));
         gitStatusBar.add(notConfiguredButton);
+
+        // User button — manage credentials before init
+        JButton userButton = new JButton(userName,
+                IconUtils.getIcon("/com/operametrix/ignition/git/icons/ic_unregister_user.svg"));
+        userButton.setToolTipText("Manage Git Credentials");
+        styleStatusBarButton(userButton);
+        userButton.addActionListener(e -> GitActionManager.showCredentialsPopup(projectName, userName));
+        gitStatusBar.add(userButton);
 
         statusBar.addDisplay(gitStatusBar);
     }
