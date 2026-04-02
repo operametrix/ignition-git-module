@@ -279,7 +279,8 @@ public class GatewayScriptModule extends AbstractScriptModule {
                     setupGitFromRemoteRepo(projectName, git);
                 }
             } catch (Exception e) {
-                logger.warn("An error occurred while setting up local repo for '" + projectName + "' project.", e);
+                logger.error("An error occurred while setting up local repo for '" + projectName + "' project.", e);
+                throw e;
             }
         }
     }
@@ -441,7 +442,8 @@ public class GatewayScriptModule extends AbstractScriptModule {
     @Override
     protected boolean initializeProjectImpl(String projectName, String repoUri, String ignitionUser,
                                              String gitUsername, String password,
-                                             String sshKey) throws Exception {
+                                             String sshKey, long sshKeyId,
+                                             long httpsCredentialId) throws Exception {
         // Check project not already registered
         if (isProjectRegisteredImpl(projectName)) {
             throw new Exception("Project '" + projectName + "' is already registered.");
@@ -476,6 +478,13 @@ public class GatewayScriptModule extends AbstractScriptModule {
             if (password != null && !password.isEmpty()) {
                 remoteCreds.setPassword(password);
             }
+        }
+        // Set user-level credential FK references so setAuthentication() can find them during clone
+        if (sshKeyId > 0) {
+            remoteCreds.setSshKeyId(sshKeyId);
+        }
+        if (httpsCredentialId > 0) {
+            remoteCreds.setHttpsCredentialId(httpsCredentialId);
         }
         context.getPersistenceInterface().save(remoteCreds);
 
@@ -749,12 +758,15 @@ public class GatewayScriptModule extends AbstractScriptModule {
 
     private void setupGitFromRemoteRepo(String projectName, Git git) throws Exception {
         try {
+            // Detect the remote's default branch from fetched remote-tracking refs
+            String defaultBranch = detectRemoteDefaultBranch(git);
+
             CheckoutCommand checkout = git.checkout()
-                    .setName("master")
+                    .setName(defaultBranch)
                     .setCreateBranch(true)
                     .setForced(true)
                     .setUpstreamMode(CreateBranchCommand.SetupUpstreamMode.TRACK)
-                    .setStartPoint("origin/master");
+                    .setStartPoint("origin/" + defaultBranch);
             checkout.call();
 
             git.clean().setForce(true).call();
@@ -771,6 +783,40 @@ public class GatewayScriptModule extends AbstractScriptModule {
             logger.error(e.toString());
             throw new RuntimeException(e);
         }
+    }
+
+    /**
+     * Detect the remote's default branch by checking HEAD symref first,
+     * then falling back to common branch names.
+     */
+    private String detectRemoteDefaultBranch(Git git) throws Exception {
+        org.eclipse.jgit.lib.Repository repo = git.getRepository();
+
+        // Check if origin/HEAD exists (set by some clones/fetches)
+        Ref originHead = repo.exactRef("refs/remotes/origin/HEAD");
+        if (originHead != null && originHead.getTarget() != null) {
+            String target = originHead.getTarget().getName();
+            if (target.startsWith("refs/remotes/origin/")) {
+                return target.substring("refs/remotes/origin/".length());
+            }
+        }
+
+        // Fall back: check for common default branch names in remote-tracking refs
+        for (String candidate : new String[]{"main", "master", "develop"}) {
+            if (repo.exactRef("refs/remotes/origin/" + candidate) != null) {
+                return candidate;
+            }
+        }
+
+        // Last resort: use the first remote branch found
+        List<Ref> remoteBranches = git.branchList()
+                .setListMode(ListBranchCommand.ListMode.REMOTE).call();
+        if (!remoteBranches.isEmpty()) {
+            String name = remoteBranches.get(0).getName();
+            return name.substring(name.lastIndexOf('/') + 1);
+        }
+
+        throw new Exception("No remote branches found to check out.");
     }
 
     private Path getProjectFolderPath(String projectName) {

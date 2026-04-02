@@ -302,14 +302,10 @@ public class InitRepoPopup extends JFrame {
         long selectedCredId = selectedIdx >= 0 && selectedIdx < credentialIds.size()
                 ? credentialIds.get(selectedIdx) : 0;
 
-        // Initialize with empty inline creds (credential is referenced by FK)
-        onInitialize(repoUri, "", "", "");
+        long sshKeyId = (!isHttps && selectedCredId > 0) ? selectedCredId : 0;
+        long httpsCredentialId = (isHttps && selectedCredId > 0) ? selectedCredId : 0;
 
-        // Associate the selected credential via FK
-        if (selectedCredId > 0) {
-            onSavedCredentialSelected(isHttps ? 0 : selectedCredId,
-                    isHttps ? selectedCredId : 0);
-        }
+        onInitialize(repoUri, "", "", "", sshKeyId, httpsCredentialId);
     }
 
     // ── Validation ──────────────────────────────────────────────────────
@@ -345,14 +341,11 @@ public class InitRepoPopup extends JFrame {
 
     // ── Callbacks ───────────────────────────────────────────────────────
 
-    public void onInitialize(String repoUri, String gitUsername, String password, String sshKey) {
+    public void onInitialize(String repoUri, String gitUsername, String password, String sshKey,
+                             long sshKeyId, long httpsCredentialId) {
     }
 
     public void onLocalInitialize() {
-    }
-
-    /** Called when the user selects a saved credential during init. */
-    public void onSavedCredentialSelected(long sshKeyId, long httpsCredentialId) {
     }
 
     /** Called when the user clicks "Configure..." to open the User Credentials popup. */

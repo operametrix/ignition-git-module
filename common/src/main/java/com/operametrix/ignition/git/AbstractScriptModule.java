@@ -162,8 +162,11 @@ public abstract class AbstractScriptModule implements GitScriptInterface {
                                      @ScriptArg("ignitionUser") String ignitionUser,
                                      @ScriptArg("gitUsername") String gitUsername,
                                      @ScriptArg("password") String password,
-                                     @ScriptArg("sshKey") String sshKey) throws Exception {
-        return initializeProjectImpl(projectName, repoUri, ignitionUser, gitUsername, password, sshKey);
+                                     @ScriptArg("sshKey") String sshKey,
+                                     @ScriptArg("sshKeyId") long sshKeyId,
+                                     @ScriptArg("httpsCredentialId") long httpsCredentialId) throws Exception {
+        return initializeProjectImpl(projectName, repoUri, ignitionUser, gitUsername, password, sshKey,
+                sshKeyId, httpsCredentialId);
     }
 
     @Override
@@ -225,7 +228,8 @@ public abstract class AbstractScriptModule implements GitScriptInterface {
     protected abstract boolean isProjectRegisteredImpl(String projectName);
     protected abstract boolean initializeProjectImpl(String projectName, String repoUri, String ignitionUser,
                                                       String gitUsername, String password,
-                                                      String sshKey) throws Exception;
+                                                      String sshKey, long sshKeyId,
+                                                      long httpsCredentialId) throws Exception;
     protected abstract List<String> getResourceDiffImpl(String projectName, String resourcePath);
     protected abstract Dataset getCommitHistoryImpl(String projectName, int skip, int limit);
     protected abstract List<String> getCommitFilesImpl(String projectName, String commitHash);

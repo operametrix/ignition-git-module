@@ -50,7 +50,8 @@ public interface GitScriptInterface {
      * On failure, rolls back any created records.
      */
     boolean initializeProject(String projectName, String repoUri, String ignitionUser,
-                              String gitUsername, String password, String sshKey) throws Exception;
+                              String gitUsername, String password, String sshKey,
+                              long sshKeyId, long httpsCredentialId) throws Exception;
 
     /** Get old (HEAD) and new (working tree) content for a resource, for diff viewing.
      *  Returns a 2-element list: [oldContent, newContent]. */

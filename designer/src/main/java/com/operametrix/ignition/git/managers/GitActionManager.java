@@ -485,9 +485,11 @@ public class GitActionManager {
 
             initRepoPopup = new InitRepoPopup(context.getFrame()) {
                 @Override
-                public void onInitialize(String repoUri, String gitUsername, String password, String sshKey) {
+                public void onInitialize(String repoUri, String gitUsername, String password, String sshKey,
+                                         long sshKeyId, long httpsCredentialId) {
                     try {
-                        rpc.initializeProject(projectName, repoUri, userName, gitUsername, password, sshKey);
+                        rpc.initializeProject(projectName, repoUri, userName, gitUsername, password, sshKey,
+                                sshKeyId, httpsCredentialId);
                         pullProjectFromGateway();
                         showConfirmPopup("Repository initialized successfully.", JOptionPane.INFORMATION_MESSAGE);
                         dispose();
@@ -510,15 +512,6 @@ public class GitActionManager {
                     } catch (Exception e) {
                         logger.error("Error initializing local repository", e);
                         showConfirmPopup("Failed to initialize local repository: " + e.getMessage(), JOptionPane.ERROR_MESSAGE);
-                    }
-                }
-
-                @Override
-                public void onSavedCredentialSelected(long sshKeyId, long httpsCredentialId) {
-                    try {
-                        rpc.setRemoteCredentialRef(projectName, "origin", userName, sshKeyId, httpsCredentialId);
-                    } catch (Exception e) {
-                        logger.error("Error setting credential reference for origin", e);
                     }
                 }
 

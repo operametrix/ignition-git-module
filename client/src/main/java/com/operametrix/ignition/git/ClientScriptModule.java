@@ -115,8 +115,10 @@ public class ClientScriptModule extends AbstractScriptModule {
     @Override
     protected boolean initializeProjectImpl(String projectName, String repoUri, String ignitionUser,
                                              String gitUsername, String password,
-                                             String sshKey) throws Exception {
-        return rpc.initializeProject(projectName, repoUri, ignitionUser, gitUsername, password, sshKey);
+                                             String sshKey, long sshKeyId,
+                                             long httpsCredentialId) throws Exception {
+        return rpc.initializeProject(projectName, repoUri, ignitionUser, gitUsername, password, sshKey,
+                sshKeyId, httpsCredentialId);
     }
 
     @Override
