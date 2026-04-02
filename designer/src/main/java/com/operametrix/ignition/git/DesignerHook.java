@@ -141,7 +141,7 @@ public class DesignerHook extends AbstractDesignerModuleHook {
         StatusBar statusBar = context.getStatusBar();
         gitStatusBar = new JPanel();
 
-        // Git icon + "Not configured" — opens init wizard
+        // Git icon + "Configure" — opens init wizard
         JButton notConfiguredButton = new JButton("Configure",
                 IconUtils.getIcon("/com/operametrix/ignition/git/icons/ic_git.svg"));
         styleStatusBarButton(notConfiguredButton);
@@ -149,14 +149,39 @@ public class DesignerHook extends AbstractDesignerModuleHook {
         gitStatusBar.add(notConfiguredButton);
 
         // User button — manage credentials before init
-        JButton userButton = new JButton(userName,
-                IconUtils.getIcon("/com/operametrix/ignition/git/icons/ic_unregister_user.svg"));
+        boolean hasCredentials = hasUserCredentials(userName);
+        String userIconPath = hasCredentials
+                ? "/com/operametrix/ignition/git/icons/ic_verified_user.svg"
+                : "/com/operametrix/ignition/git/icons/ic_unregister_user.svg";
+        JButton userButton = new JButton(userName, IconUtils.getIcon(userIconPath));
         userButton.setToolTipText("Manage Git Credentials");
         styleStatusBarButton(userButton);
         userButton.addActionListener(e -> GitActionManager.showCredentialsPopup(projectName, userName));
         gitStatusBar.add(userButton);
 
         statusBar.addDisplay(gitStatusBar);
+
+        // Poll to update user icon when credentials are added/removed
+        gitUserTimer = new Timer(10000, e -> {
+            boolean hasCreds = hasUserCredentials(userName);
+            String iconPath = hasCreds
+                    ? "/com/operametrix/ignition/git/icons/ic_verified_user.svg"
+                    : "/com/operametrix/ignition/git/icons/ic_unregister_user.svg";
+            userButton.setIcon(IconUtils.getIcon(iconPath));
+        });
+        gitUserTimer.start();
+    }
+
+    private boolean hasUserCredentials(String userName) {
+        try {
+            Dataset sshKeys = rpc.listUserSshKeys(userName);
+            if (sshKeys != null && sshKeys.getRowCount() > 0) return true;
+            Dataset httpsCreds = rpc.listUserHttpsCredentials(userName);
+            if (httpsCreds != null && httpsCreds.getRowCount() > 0) return true;
+        } catch (Exception e) {
+            // ignore
+        }
+        return false;
     }
 
     private static void styleStatusBarButton(JButton button) {
