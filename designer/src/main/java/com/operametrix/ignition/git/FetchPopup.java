@@ -11,11 +11,12 @@ import java.util.List;
  * Only shown when the project has multiple remotes; single-remote
  * projects skip this popup entirely and fetch immediately.
  */
-public class FetchPopup extends JFrame {
+public class FetchPopup extends JDialog {
 
     private JComboBox<String> remoteCombo;
 
     public FetchPopup(Component parent) {
+        super(SwingUtilities.getWindowAncestor(parent));
         setTitle("Fetch");
         setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
         setContentPane(buildUI());

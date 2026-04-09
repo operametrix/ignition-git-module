@@ -17,7 +17,7 @@ import java.util.List;
  *   Card 2a "Remote" — URI + email + credential dropdown
  *   Card 2b "Local"  — local-only init (email only)
  */
-public class InitRepoPopup extends JFrame {
+public class InitRepoPopup extends JDialog {
 
     private static final String CARD_CHOOSE = "Choose";
     private static final String CARD_REMOTE = "Remote";
@@ -41,6 +41,7 @@ public class InitRepoPopup extends JFrame {
     // Local card (no fields needed — email comes from Ignition user profile)
 
     public InitRepoPopup(Component parent) {
+        super(SwingUtilities.getWindowAncestor(parent));
         setTitle("Initialize Git Repository");
         setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
         setContentPane(buildUI());

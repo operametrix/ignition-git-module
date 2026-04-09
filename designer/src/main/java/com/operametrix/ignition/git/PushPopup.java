@@ -11,11 +11,12 @@ import java.util.List;
  * Only shown when the project has multiple remotes; single-remote
  * projects skip this popup entirely and push immediately.
  */
-public class PushPopup extends JFrame {
+public class PushPopup extends JDialog {
 
     private JComboBox<String> remoteCombo;
 
     public PushPopup(Component parent) {
+        super(SwingUtilities.getWindowAncestor(parent));
         setTitle("Push");
         setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
         setContentPane(buildUI());

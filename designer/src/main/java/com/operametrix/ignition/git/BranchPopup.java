@@ -12,7 +12,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
 
-public class BranchPopup extends JFrame {
+public class BranchPopup extends JDialog {
     private final Logger logger = LoggerFactory.getLogger(getClass());
 
     private JLabel currentBranchLabel;
@@ -24,6 +24,7 @@ public class BranchPopup extends JFrame {
     private JTextField startPointField;
 
     public BranchPopup(String currentBranch, List<String> localBranches, List<String> remoteBranches, Component parent) {
+        super(SwingUtilities.getWindowAncestor(parent));
         try {
             InputStream iconStream = getClass().getResourceAsStream("/com/operametrix/ignition/git/icons/ic_branch.svg");
             if (iconStream != null) {

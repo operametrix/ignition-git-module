@@ -16,7 +16,7 @@ import java.util.Map;
  *   - SSH Keys (host-independent, with default marking)
  *   - HTTPS Credentials (per-host, with provider hint text)
  */
-public class UserCredentialsPopup extends JFrame {
+public class UserCredentialsPopup extends JDialog {
 
     private static final Map<String, String> HTTPS_HINTS = new HashMap<>();
     static {
@@ -37,6 +37,7 @@ public class UserCredentialsPopup extends JFrame {
     private JButton httpsRemoveButton;
 
     public UserCredentialsPopup(Component parent) {
+        super(SwingUtilities.getWindowAncestor(parent));
         setTitle("User Credentials");
         setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
         setContentPane(buildUI());

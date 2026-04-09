@@ -6,7 +6,7 @@ import javax.swing.*;
 import java.awt.*;
 import java.util.List;
 
-public class PullPopup extends JFrame {
+public class PullPopup extends JDialog {
 
     private JComboBox<String> remoteCombo;
     private JLabel remoteLabel;
@@ -15,6 +15,7 @@ public class PullPopup extends JFrame {
     private JCheckBox tagsCheckBox;
 
     public PullPopup(Component parent) {
+        super(SwingUtilities.getWindowAncestor(parent));
         setTitle("Pull Settings");
         setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
         setContentPane(buildUI());

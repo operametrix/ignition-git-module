@@ -23,7 +23,7 @@ import java.util.List;
  * overridden by {@link com.operametrix.ignition.git.managers.GitActionManager}
  * to open the {@link CommitDetailPopup}.
  */
-public class HistoryPopup extends JFrame {
+public class HistoryPopup extends JDialog {
     private final Logger logger = LoggerFactory.getLogger(getClass());
 
     public static final int PAGE_SIZE = 50;
@@ -35,6 +35,7 @@ public class HistoryPopup extends JFrame {
     private List<String> fullHashes = new ArrayList<>();
 
     public HistoryPopup(Dataset data, Component parent) {
+        super(SwingUtilities.getWindowAncestor(parent));
         try {
             InputStream iconStream = getClass().getResourceAsStream("/com/operametrix/ignition/git/icons/ic_history.svg");
             if (iconStream != null) {

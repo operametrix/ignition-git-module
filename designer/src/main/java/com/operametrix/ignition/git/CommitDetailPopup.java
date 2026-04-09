@@ -25,7 +25,7 @@ import java.util.List;
  * Not cached — a new instance is created each time so multiple commit details
  * can be viewed side by side.
  */
-public class CommitDetailPopup extends JFrame {
+public class CommitDetailPopup extends JDialog {
     private final Logger logger = LoggerFactory.getLogger(getClass());
 
     private final String commitHash;
@@ -37,6 +37,7 @@ public class CommitDetailPopup extends JFrame {
     public CommitDetailPopup(String commitHash, String shortHash, String message,
                              String author, String date,
                              List<String> files, Component parent) {
+        super(SwingUtilities.getWindowAncestor(parent));
         this.commitHash = commitHash;
         this.shortHash = shortHash;
         this.message = message;

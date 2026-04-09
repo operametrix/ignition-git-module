@@ -15,7 +15,7 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 
-public class DiffViewerPopup extends JFrame {
+public class DiffViewerPopup extends JDialog {
     private final Logger logger = LoggerFactory.getLogger(getClass());
 
     private static final Color ADDED_COLOR = new Color(220, 255, 220);
@@ -28,6 +28,7 @@ public class DiffViewerPopup extends JFrame {
 
     public DiffViewerPopup(String resourcePath, String oldContent, String newContent, Component parent,
                            String leftHeaderText, String rightHeaderText) {
+        super(SwingUtilities.getWindowAncestor(parent));
         try {
             InputStream iconStream = getClass().getResourceAsStream("/com/operametrix/ignition/git/icons/ic_commit.svg");
             if (iconStream != null) {

@@ -17,7 +17,7 @@ import java.util.List;
  *   Card 1 "List" — table of remotes + Add/Edit/Remove/Close buttons
  *   Card 2 "Form" — add/edit remote with URL and credential dropdown
  */
-public class RemotesPopup extends JFrame {
+public class RemotesPopup extends JDialog {
 
     private static final String CARD_LIST = "List";
     private static final String CARD_FORM = "Form";
@@ -46,6 +46,7 @@ public class RemotesPopup extends JFrame {
     private Dataset savedHttpsCreds;
 
     public RemotesPopup(Component parent) {
+        super(SwingUtilities.getWindowAncestor(parent));
         setTitle("Manage Remotes");
         setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
         setContentPane(buildUI());

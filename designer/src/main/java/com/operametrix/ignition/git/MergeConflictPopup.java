@@ -24,11 +24,11 @@ import java.util.Map;
  * with per-file "Accept Ours" / "Accept Theirs" resolution and global actions
  * (accept all ours, accept all theirs, abort merge, complete merge).
  * <p>
- * Follows the {@link CommitDetailPopup} pattern: extends JFrame, BorderLayout,
+ * Follows the {@link CommitDetailPopup} pattern: extends JDialog, BorderLayout,
  * empty callback methods overridden by {@link com.operametrix.ignition.git.managers.GitActionManager}.
  * Not cached — created fresh for each conflict occurrence.
  */
-public class MergeConflictPopup extends JFrame {
+public class MergeConflictPopup extends JDialog {
     private final Logger logger = LoggerFactory.getLogger(getClass());
 
     private static final String STATUS_UNRESOLVED = "Unresolved";
@@ -41,6 +41,7 @@ public class MergeConflictPopup extends JFrame {
     private JButton completeMergeBtn;
 
     public MergeConflictPopup(List<String> conflictingFiles, Component parent) {
+        super(SwingUtilities.getWindowAncestor(parent));
         try {
             InputStream iconStream = getClass().getResourceAsStream("/com/operametrix/ignition/git/icons/ic_pull.svg");
             if (iconStream != null) {

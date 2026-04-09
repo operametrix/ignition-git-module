@@ -24,7 +24,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
-public class CommitPopup extends JFrame {
+public class CommitPopup extends JDialog {
     private final Logger logger = LoggerFactory.getLogger(getClass());
     private JPanel panel;
     private JTextArea messageTextArea;
@@ -36,6 +36,7 @@ public class CommitPopup extends JFrame {
     private JCheckBox amendCheckBox;
 
     public CommitPopup(Object[][] data, Component parent) {
+        super(SwingUtilities.getWindowAncestor(parent));
         try {
             InputStream commitIconStream = getClass().getResourceAsStream("/com/operametrix/ignition/git/icons/ic_commit.svg");
             ImageIcon commitIcon = new ImageIcon(ImageIO.read(commitIconStream));
