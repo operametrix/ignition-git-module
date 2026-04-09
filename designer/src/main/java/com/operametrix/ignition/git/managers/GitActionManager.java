@@ -7,6 +7,7 @@ import com.operametrix.ignition.git.UserCredentialsPopup;
 import com.operametrix.ignition.git.DesignerHook;
 import com.operametrix.ignition.git.DiffViewerPopup;
 import com.operametrix.ignition.git.HistoryPopup;
+import com.operametrix.ignition.git.InitProgressDialog;
 import com.operametrix.ignition.git.InitRepoPopup;
 import com.operametrix.ignition.git.PullPopup;
 import com.operametrix.ignition.git.PushPopup;
@@ -476,32 +477,73 @@ public class GitActionManager {
                 @Override
                 public void onInitialize(String repoUri, String gitUsername, String password, String sshKey,
                                          long sshKeyId, long httpsCredentialId) {
-                    try {
-                        rpc.initializeProject(projectName, repoUri, userName, gitUsername, password, sshKey,
-                                sshKeyId, httpsCredentialId);
-                        pullProjectFromGateway();
-                        showConfirmPopup("Repository initialized successfully.", JOptionPane.INFORMATION_MESSAGE);
-                        dispose();
-                        initRepoPopup = null;
-                        DesignerHook.instance.reinitializeAfterSetup();
-                    } catch (Exception e) {
-                        logger.error("Error initializing repository", e);
-                        showConfirmPopup("Failed to initialize repository: " + e.getMessage(), JOptionPane.ERROR_MESSAGE);
-                    }
+                    setEnabled(false);
+                    InitProgressDialog progress = new InitProgressDialog(context.getFrame(), 3, "Cloning Repository");
+                    new SwingWorker<Void, Void>() {
+                        @Override
+                        protected Void doInBackground() throws Exception {
+                            progress.updateProgress(1, "Connecting to remote and cloning repository...");
+                            rpc.initializeProject(projectName, repoUri, userName, gitUsername, password, sshKey,
+                                    sshKeyId, httpsCredentialId);
+                            return null;
+                        }
+
+                        @Override
+                        protected void done() {
+                            try {
+                                get();
+                                progress.updateProgress(2, "Syncing project to Designer...");
+                                pullProjectFromGateway();
+                                progress.updateProgress(3, "Complete");
+                                progress.complete();
+                                showConfirmPopup("Repository initialized successfully.", JOptionPane.INFORMATION_MESSAGE);
+                                dispose();
+                                initRepoPopup = null;
+                                DesignerHook.instance.reinitializeAfterSetup();
+                            } catch (Exception e) {
+                                progress.complete();
+                                Throwable cause = e.getCause() != null ? e.getCause() : e;
+                                logger.error("Error initializing repository", cause);
+                                showConfirmPopup("Failed to initialize repository: " + cause.getMessage(), JOptionPane.ERROR_MESSAGE);
+                                setEnabled(true);
+                            }
+                        }
+                    }.execute();
+                    progress.setVisible(true);
                 }
 
                 @Override
                 public void onLocalInitialize() {
-                    try {
-                        rpc.initializeLocalProject(projectName, userName);
-                        showConfirmPopup("Local repository initialized successfully.", JOptionPane.INFORMATION_MESSAGE);
-                        dispose();
-                        initRepoPopup = null;
-                        DesignerHook.instance.reinitializeAfterSetup();
-                    } catch (Exception e) {
-                        logger.error("Error initializing local repository", e);
-                        showConfirmPopup("Failed to initialize local repository: " + e.getMessage(), JOptionPane.ERROR_MESSAGE);
-                    }
+                    setEnabled(false);
+                    InitProgressDialog progress = new InitProgressDialog(context.getFrame(), 2, "Initializing Repository");
+                    new SwingWorker<Void, Void>() {
+                        @Override
+                        protected Void doInBackground() throws Exception {
+                            progress.updateProgress(1, "Creating local repository...");
+                            rpc.initializeLocalProject(projectName, userName);
+                            return null;
+                        }
+
+                        @Override
+                        protected void done() {
+                            try {
+                                get();
+                                progress.updateProgress(2, "Complete");
+                                progress.complete();
+                                showConfirmPopup("Local repository initialized successfully.", JOptionPane.INFORMATION_MESSAGE);
+                                dispose();
+                                initRepoPopup = null;
+                                DesignerHook.instance.reinitializeAfterSetup();
+                            } catch (Exception e) {
+                                progress.complete();
+                                Throwable cause = e.getCause() != null ? e.getCause() : e;
+                                logger.error("Error initializing local repository", cause);
+                                showConfirmPopup("Failed to initialize local repository: " + cause.getMessage(), JOptionPane.ERROR_MESSAGE);
+                                setEnabled(true);
+                            }
+                        }
+                    }.execute();
+                    progress.setVisible(true);
                 }
 
                 @Override

@@ -264,19 +264,34 @@ public class GatewayScriptModule extends AbstractScriptModule {
 
                 git.remoteAdd().setName("origin").setUri(urIish).call();
 
-                FetchCommand fetch = git.fetch().setRemote("origin");
+                // Lightweight ls-remote to detect the default branch without downloading objects
+                LsRemoteCommand lsRemote = git.lsRemote().setRemote("origin").setHeads(true);
+                setAuthentication(lsRemote, projectName, userName, "origin");
+                java.util.Collection<Ref> remoteRefs = lsRemote.call();
 
-                setAuthentication(fetch, projectName, userName, "origin");
-                fetch.call();
-
-                ListBranchCommand listBranches = git.branchList();
-                listBranches.setListMode(ListBranchCommand.ListMode.REMOTE);
-                List<Ref> branches = listBranches.call();
-
-                if (branches.isEmpty()) {
+                if (remoteRefs.isEmpty()) {
+                    // Empty remote — push current project as initial content
                     setupGitFromCurrentFolder(projectName, userName, git);
                 } else {
-                    setupGitFromRemoteRepo(projectName, git);
+                    // Detect default branch, then shallow-fetch only that branch
+                    String defaultBranch = detectDefaultBranchFromRefs(remoteRefs);
+
+                    FetchCommand fetch = git.fetch()
+                            .setRemote("origin")
+                            .setRefSpecs(new RefSpec(
+                                    "+refs/heads/" + defaultBranch + ":refs/remotes/origin/" + defaultBranch))
+                            .setDepth(1);
+                    setAuthentication(fetch, projectName, userName, "origin");
+                    fetch.call();
+
+                    setupGitFromRemoteRepo(projectName, defaultBranch, git);
+
+                    // Unshallow to pull full commit history for the History panel
+                    FetchCommand unshallow = git.fetch()
+                            .setRemote("origin")
+                            .setUnshallow(true);
+                    setAuthentication(unshallow, projectName, userName, "origin");
+                    unshallow.call();
                 }
             } catch (Exception e) {
                 logger.error("An error occurred while setting up local repo for '" + projectName + "' project.", e);
@@ -726,6 +741,7 @@ public class GatewayScriptModule extends AbstractScriptModule {
         try (Git git = getGit(getProjectFolderPath(projectName))) {
             FetchCommand fetch = git.fetch();
             fetch.setRemote(remoteName);
+            fetch.setUnshallow(true);
             setAuthentication(fetch, projectName, userName, remoteName);
             fetch.call();
             logger.info("Fetch from '" + remoteName + "' was successful.");
@@ -756,11 +772,8 @@ public class GatewayScriptModule extends AbstractScriptModule {
         }
     }
 
-    private void setupGitFromRemoteRepo(String projectName, Git git) throws Exception {
+    private void setupGitFromRemoteRepo(String projectName, String defaultBranch, Git git) throws Exception {
         try {
-            // Detect the remote's default branch from fetched remote-tracking refs
-            String defaultBranch = detectRemoteDefaultBranch(git);
-
             CheckoutCommand checkout = git.checkout()
                     .setName(defaultBranch)
                     .setCreateBranch(true)
@@ -783,6 +796,30 @@ public class GatewayScriptModule extends AbstractScriptModule {
             logger.error(e.toString());
             throw new RuntimeException(e);
         }
+    }
+
+    /**
+     * Detect the default branch from ls-remote refs (lightweight, no data transfer needed).
+     * Checks for HEAD symref target first, then falls back to common names.
+     */
+    private String detectDefaultBranchFromRefs(java.util.Collection<Ref> refs) {
+        // Check for well-known default branch names among the heads
+        java.util.Set<String> refNames = new java.util.HashSet<>();
+        for (Ref ref : refs) {
+            refNames.add(ref.getName());
+        }
+        for (String candidate : new String[]{"main", "master", "develop"}) {
+            if (refNames.contains("refs/heads/" + candidate)) {
+                return candidate;
+            }
+        }
+        // Last resort: first branch ref found
+        for (Ref ref : refs) {
+            if (ref.getName().startsWith("refs/heads/")) {
+                return ref.getName().substring("refs/heads/".length());
+            }
+        }
+        return "main";
     }
 
     /**
