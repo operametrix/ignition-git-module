@@ -11,12 +11,13 @@ import java.awt.*;
 import java.awt.event.*;
 
 public class SelectAllHeader extends JCheckBox implements TableCellRenderer {
-    private JTable table;
-    private TableModel tableModel;
-    private JTableHeader header;
-    private TableColumnModel tcm;
-    private int targetColumn;
+    private final JTable table;
+    private final TableModel tableModel;
+    private final JTableHeader header;
+    private final TableColumnModel tcm;
+    private final int targetColumn;
     private int viewColumn;
+    private boolean updating;
 
     private final Logger logger = LoggerFactory.getLogger(getClass());
     public SelectAllHeader(JTable table, int targetColumn) {
@@ -31,13 +32,12 @@ public class SelectAllHeader extends JCheckBox implements TableCellRenderer {
         setHorizontalAlignment(JCheckBox.CENTER);
         this.tcm = table.getColumnModel();
         this.applyUI();
-        this.addItemListener(new ItemHandler());
         header.addMouseListener(new MouseHandler());
         setBorderPainted(true);
         setBorder(BorderFactory.createMatteBorder(0, 0, 0, 1,new Color(-4143670)));
         tableModel.addTableModelListener(new ModelHandler());
 
-        refreshState();
+        syncCheckboxToModel();
     }
 
     @Override
@@ -45,18 +45,6 @@ public class SelectAllHeader extends JCheckBox implements TableCellRenderer {
             JTable table, Object value, boolean isSelected,
             boolean hasFocus, int row, int column) {
         return this;
-    }
-
-    private class ItemHandler implements ItemListener {
-
-        @Override
-        public void itemStateChanged(ItemEvent e) {
-            boolean state = e.getStateChange() == ItemEvent.SELECTED;
-            setSelected(state);
-            for (int r = 0; r < table.getRowCount(); r++) {
-                table.setValueAt(state, r, viewColumn);
-            }
-        }
     }
 
     @Override
@@ -79,7 +67,16 @@ public class SelectAllHeader extends JCheckBox implements TableCellRenderer {
             viewColumn = header.columnAtPoint(e.getPoint());
             int modelColumn = tcm.getColumn(viewColumn).getModelIndex();
             if (modelColumn == targetColumn) {
-                doClick();
+                boolean newState = !isSelected();
+                updating = true;
+                try {
+                    for (int r = 0; r < tableModel.getRowCount(); r++) {
+                        tableModel.setValueAt(newState, r, targetColumn);
+                    }
+                    setSelected(newState);
+                } finally {
+                    updating = false;
+                }
                 header.repaint();
             }
         }
@@ -89,25 +86,27 @@ public class SelectAllHeader extends JCheckBox implements TableCellRenderer {
 
         @Override
         public void tableChanged(TableModelEvent e) {
-            refreshState();
+            if (!updating) {
+                syncCheckboxToModel();
+            }
         }
     }
 
-    // Return true if this toggle needs to match the model.
-    private boolean needsToggle() {
+    private void syncCheckboxToModel() {
+        if (tableModel.getRowCount() == 0) {
+            setSelected(false);
+            header.repaint();
+            return;
+        }
         boolean allTrue = true;
-        boolean allFalse = true;
         for (int r = 0; r < tableModel.getRowCount(); r++) {
-            boolean b = (Boolean) tableModel.getValueAt(r, targetColumn);
-            allTrue &= b;
-            allFalse &= !b;
+            if (!(Boolean) tableModel.getValueAt(r, targetColumn)) {
+                allTrue = false;
+                break;
+            }
         }
-        return allTrue && !isSelected() || allFalse && isSelected();
-    }
-
-    private void refreshState(){
-        if (needsToggle()) {
-            doClick();
+        if (allTrue != isSelected()) {
+            setSelected(allTrue);
             header.repaint();
         }
     }
