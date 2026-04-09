@@ -1,5 +1,6 @@
 package com.operametrix.ignition.git.actions;
 
+import com.operametrix.ignition.git.InitProgressDialog;
 import com.operametrix.ignition.git.utils.IconUtils;
 import com.inductiveautomation.ignition.client.util.action.BaseAction;
 import com.inductiveautomation.ignition.client.util.gui.ErrorUtil;
@@ -107,38 +108,90 @@ public class GitBaseAction extends BaseAction {
         String message = BundleUtil.get().getStringLenient(GitActionType.PUSH.baseBundleKey + ".ConfirmMessage");
         int messageType = JOptionPane.INFORMATION_MESSAGE;
 
-        try {
-            rpc.push(projectName, userName, remoteName, false, false, false);
-            SwingUtilities.invokeLater(new Thread(() -> showConfirmPopup(message, messageType)));
-        } catch (Exception ex) {
-            String exMsg = ex.getMessage() != null ? ex.getMessage() : "";
-            if (exMsg.contains("REJECTED_NONFASTFORWARD")) {
-                int choice = JOptionPane.showConfirmDialog(
-                        context.getFrame(),
-                        "Push was rejected because the remote contains commits not present locally.\n"
-                                + "This typically happens after amending a pushed commit.\n\n"
-                                + "Do you want to force push? This will overwrite the remote branch.",
-                        "Push Rejected",
-                        JOptionPane.YES_NO_OPTION,
-                        JOptionPane.WARNING_MESSAGE
-                );
-                if (choice == JOptionPane.YES_OPTION) {
-                    try {
-                        rpc.push(projectName, userName, remoteName, false, false, true);
-                        SwingUtilities.invokeLater(new Thread(() -> showConfirmPopup(message, messageType)));
-                    } catch (Exception ex2) {
-                        ErrorUtil.showError(ex2);
+        InitProgressDialog progress = new InitProgressDialog(context.getFrame(), "Pushing");
+        new SwingWorker<Void, Void>() {
+            private boolean rejected = false;
+
+            @Override
+            protected Void doInBackground() throws Exception {
+                progress.setStatus("Pushing to " + remoteName + "...");
+                try {
+                    rpc.push(projectName, userName, remoteName, false, false, false);
+                } catch (Exception ex) {
+                    String exMsg = ex.getMessage() != null ? ex.getMessage() : "";
+                    if (exMsg.contains("REJECTED_NONFASTFORWARD")) {
+                        rejected = true;
+                    } else {
+                        throw ex;
                     }
                 }
-            } else {
-                ErrorUtil.showError(ex);
+                return null;
             }
-        } finally {
-            if (instance != null) {
-                instance.refreshCommitPanel();
-                instance.refreshHistoryPanel();
+
+            @Override
+            protected void done() {
+                progress.complete();
+                try {
+                    get();
+                    if (rejected) {
+                        int choice = JOptionPane.showConfirmDialog(
+                                context.getFrame(),
+                                "Push was rejected because the remote contains commits not present locally.\n"
+                                        + "This typically happens after amending a pushed commit.\n\n"
+                                        + "Do you want to force push? This will overwrite the remote branch.",
+                                "Push Rejected",
+                                JOptionPane.YES_NO_OPTION,
+                                JOptionPane.WARNING_MESSAGE
+                        );
+                        if (choice == JOptionPane.YES_OPTION) {
+                            handleForcePush(remoteName, message, messageType);
+                            return;
+                        }
+                    } else {
+                        showConfirmPopup(message, messageType);
+                    }
+                } catch (Exception e) {
+                    Throwable cause = e.getCause() != null ? e.getCause() : e;
+                    ErrorUtil.showError(cause.getMessage(), cause);
+                } finally {
+                    if (instance != null) {
+                        instance.refreshCommitPanel();
+                        instance.refreshHistoryPanel();
+                    }
+                }
             }
-        }
+        }.execute();
+        progress.setVisible(true);
+    }
+
+    private static void handleForcePush(String remoteName, String message, int messageType) {
+        InitProgressDialog progress = new InitProgressDialog(context.getFrame(), "Force Pushing");
+        new SwingWorker<Void, Void>() {
+            @Override
+            protected Void doInBackground() throws Exception {
+                progress.setStatus("Force pushing to " + remoteName + "...");
+                rpc.push(projectName, userName, remoteName, false, false, true);
+                return null;
+            }
+
+            @Override
+            protected void done() {
+                progress.complete();
+                try {
+                    get();
+                    showConfirmPopup(message, messageType);
+                } catch (Exception e) {
+                    Throwable cause = e.getCause() != null ? e.getCause() : e;
+                    ErrorUtil.showError(cause.getMessage(), cause);
+                } finally {
+                    if (instance != null) {
+                        instance.refreshCommitPanel();
+                        instance.refreshHistoryPanel();
+                    }
+                }
+            }
+        }.execute();
+        progress.setVisible(true);
     }
 
     public static void handlePullAction(String remoteName, boolean importTags, boolean importTheme, boolean importImages) {
@@ -152,31 +205,49 @@ public class GitBaseAction extends BaseAction {
         String message = BundleUtil.get().getStringLenient(GitActionType.PULL.baseBundleKey + ".ConfirmMessage");
         int messageType = JOptionPane.INFORMATION_MESSAGE;
 
-        try {
-            rpc.pull(projectName, userName, remoteName, importTags, importTheme, importImages);
-            pullProjectFromGateway();
-            SwingUtilities.invokeLater(new Thread(() -> showConfirmPopup(message, messageType)));
-        } catch (Exception ex) {
-            String exMsg = ex.getMessage() != null ? ex.getMessage() : "";
-            if (exMsg.contains("MERGE_CONFLICT:")) {
-                String filesPart = exMsg.substring(exMsg.indexOf("MERGE_CONFLICT:") + "MERGE_CONFLICT:".length());
-                List<String> conflictingFiles = new ArrayList<>();
-                for (String f : filesPart.split("\n")) {
-                    String trimmed = f.trim();
-                    if (!trimmed.isEmpty()) {
-                        conflictingFiles.add(trimmed);
+        InitProgressDialog progress = new InitProgressDialog(context.getFrame(), "Pulling");
+        new SwingWorker<Void, Void>() {
+            @Override
+            protected Void doInBackground() throws Exception {
+                progress.setStatus("Pulling from " + remoteName + "...");
+                rpc.pull(projectName, userName, remoteName, importTags, importTheme, importImages);
+                return null;
+            }
+
+            @Override
+            protected void done() {
+                try {
+                    get();
+                    progress.setStatus("Syncing project to Designer...");
+                    pullProjectFromGateway();
+                    progress.complete();
+                    showConfirmPopup(message, messageType);
+                } catch (Exception e) {
+                    progress.complete();
+                    Throwable cause = e.getCause() != null ? e.getCause() : e;
+                    String exMsg = cause.getMessage() != null ? cause.getMessage() : "";
+                    if (exMsg.contains("MERGE_CONFLICT:")) {
+                        String filesPart = exMsg.substring(exMsg.indexOf("MERGE_CONFLICT:") + "MERGE_CONFLICT:".length());
+                        List<String> conflictingFiles = new ArrayList<>();
+                        for (String f : filesPart.split("\n")) {
+                            String trimmed = f.trim();
+                            if (!trimmed.isEmpty()) {
+                                conflictingFiles.add(trimmed);
+                            }
+                        }
+                        showMergeConflictPopup(projectName, userName, conflictingFiles);
+                    } else {
+                        ErrorUtil.showError(cause.getMessage(), cause);
+                    }
+                } finally {
+                    if (instance != null) {
+                        instance.refreshCommitPanel();
+                        instance.refreshHistoryPanel();
                     }
                 }
-                showMergeConflictPopup(projectName, userName, conflictingFiles);
-            } else {
-                ErrorUtil.showError(ex);
             }
-        } finally {
-            if (instance != null) {
-                instance.refreshCommitPanel();
-                instance.refreshHistoryPanel();
-            }
-        }
+        }.execute();
+        progress.setVisible(true);
     }
 
     public static void handleCheckoutAction(String branchName) {
@@ -336,17 +407,33 @@ public class GitBaseAction extends BaseAction {
             return;
         }
 
-        try {
-            rpc.fetch(projectName, userName, remoteName);
-            String message = BundleUtil.get().getStringLenient("DesignerHook.Actions.Fetch.ConfirmMessage");
-            SwingUtilities.invokeLater(new Thread(() -> showConfirmPopup(message, JOptionPane.INFORMATION_MESSAGE)));
-        } catch (Exception ex) {
-            ErrorUtil.showError(ex);
-        } finally {
-            if (instance != null) {
-                instance.refreshHistoryPanel();
+        InitProgressDialog progress = new InitProgressDialog(context.getFrame(), "Fetching");
+        new SwingWorker<Void, Void>() {
+            @Override
+            protected Void doInBackground() throws Exception {
+                progress.setStatus("Fetching from " + remoteName + "...");
+                rpc.fetch(projectName, userName, remoteName);
+                return null;
             }
-        }
+
+            @Override
+            protected void done() {
+                progress.complete();
+                try {
+                    get();
+                    String message = BundleUtil.get().getStringLenient("DesignerHook.Actions.Fetch.ConfirmMessage");
+                    showConfirmPopup(message, JOptionPane.INFORMATION_MESSAGE);
+                } catch (Exception e) {
+                    Throwable cause = e.getCause() != null ? e.getCause() : e;
+                    ErrorUtil.showError(cause.getMessage(), cause);
+                } finally {
+                    if (instance != null) {
+                        instance.refreshHistoryPanel();
+                    }
+                }
+            }
+        }.execute();
+        progress.setVisible(true);
     }
 
     public static void handleRevertCommitAction(String commitHash, String shortHash, String message) {

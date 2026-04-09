@@ -4,19 +4,15 @@ import javax.swing.*;
 import java.awt.*;
 
 /**
- * Non-modal progress dialog shown during repository initialization.
- * Displays an indeterminate progress bar with a phase label that updates
- * as the init flow progresses through its stages.
+ * Modal progress dialog shown during git operations (init, push, pull, fetch).
+ * Displays an indeterminate progress bar with a status label.
  */
 public class InitProgressDialog extends JDialog {
 
     private final JLabel statusLabel;
-    private final JProgressBar progressBar;
-    private final int totalSteps;
 
-    public InitProgressDialog(Component parent, int totalSteps, String title) {
+    public InitProgressDialog(Component parent, String title) {
         super(SwingUtilities.getWindowAncestor(parent), title, ModalityType.APPLICATION_MODAL);
-        this.totalSteps = totalSteps;
 
         setDefaultCloseOperation(DO_NOTHING_ON_CLOSE);
         setResizable(false);
@@ -24,13 +20,12 @@ public class InitProgressDialog extends JDialog {
         JPanel content = new JPanel(new BorderLayout(10, 10));
         content.setBorder(BorderFactory.createEmptyBorder(15, 20, 15, 20));
 
-        statusLabel = new JLabel("Initializing...");
+        statusLabel = new JLabel(" ");
         statusLabel.setFont(statusLabel.getFont().deriveFont(Font.PLAIN, 12f));
         content.add(statusLabel, BorderLayout.NORTH);
 
-        progressBar = new JProgressBar(0, totalSteps);
-        progressBar.setValue(0);
-        progressBar.setStringPainted(true);
+        JProgressBar progressBar = new JProgressBar();
+        progressBar.setIndeterminate(true);
         progressBar.setPreferredSize(new Dimension(350, 22));
         content.add(progressBar, BorderLayout.CENTER);
 
@@ -40,13 +35,10 @@ public class InitProgressDialog extends JDialog {
     }
 
     /**
-     * Update the progress bar and status label. Safe to call from any thread.
+     * Update the status label. Safe to call from any thread.
      */
-    public void updateProgress(int step, String message) {
-        SwingUtilities.invokeLater(() -> {
-            progressBar.setValue(step);
-            statusLabel.setText(message);
-        });
+    public void setStatus(String message) {
+        SwingUtilities.invokeLater(() -> statusLabel.setText(message));
     }
 
     /**

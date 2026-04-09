@@ -478,11 +478,11 @@ public class GitActionManager {
                 public void onInitialize(String repoUri, String gitUsername, String password, String sshKey,
                                          long sshKeyId, long httpsCredentialId) {
                     setEnabled(false);
-                    InitProgressDialog progress = new InitProgressDialog(context.getFrame(), 3, "Cloning Repository");
+                    InitProgressDialog progress = new InitProgressDialog(context.getFrame(), "Cloning Repository");
                     new SwingWorker<Void, Void>() {
                         @Override
                         protected Void doInBackground() throws Exception {
-                            progress.updateProgress(1, "Connecting to remote and cloning repository...");
+                            progress.setStatus("Connecting to remote and cloning repository...");
                             rpc.initializeProject(projectName, repoUri, userName, gitUsername, password, sshKey,
                                     sshKeyId, httpsCredentialId);
                             return null;
@@ -492,9 +492,9 @@ public class GitActionManager {
                         protected void done() {
                             try {
                                 get();
-                                progress.updateProgress(2, "Syncing project to Designer...");
+                                progress.setStatus("Syncing project to Designer...");
                                 pullProjectFromGateway();
-                                progress.updateProgress(3, "Complete");
+                                progress.setStatus("Complete");
                                 progress.complete();
                                 showConfirmPopup("Repository initialized successfully.", JOptionPane.INFORMATION_MESSAGE);
                                 dispose();
@@ -515,11 +515,11 @@ public class GitActionManager {
                 @Override
                 public void onLocalInitialize() {
                     setEnabled(false);
-                    InitProgressDialog progress = new InitProgressDialog(context.getFrame(), 2, "Initializing Repository");
+                    InitProgressDialog progress = new InitProgressDialog(context.getFrame(), "Initializing Repository");
                     new SwingWorker<Void, Void>() {
                         @Override
                         protected Void doInBackground() throws Exception {
-                            progress.updateProgress(1, "Creating local repository...");
+                            progress.setStatus("Creating local repository...");
                             rpc.initializeLocalProject(projectName, userName);
                             return null;
                         }
@@ -528,7 +528,7 @@ public class GitActionManager {
                         protected void done() {
                             try {
                                 get();
-                                progress.updateProgress(2, "Complete");
+                                progress.setStatus("Complete");
                                 progress.complete();
                                 showConfirmPopup("Local repository initialized successfully.", JOptionPane.INFORMATION_MESSAGE);
                                 dispose();
