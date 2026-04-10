@@ -20,8 +20,6 @@ public class BranchPopup extends JDialog {
     private JList<String> remoteBranchList;
     private DefaultListModel<String> localModel;
     private DefaultListModel<String> remoteModel;
-    private JTextField branchNameField;
-    private JTextField startPointField;
 
     public BranchPopup(String currentBranch, List<String> localBranches, List<String> remoteBranches, Component parent) {
         super(SwingUtilities.getWindowAncestor(parent));
@@ -40,8 +38,8 @@ public class BranchPopup extends JDialog {
         setContentPane(buildUI());
         setData(currentBranch, localBranches, remoteBranches);
 
-        setSize(600, 500);
-        setMinimumSize(new Dimension(500, 400));
+        setSize(600, 420);
+        setMinimumSize(new Dimension(500, 350));
         setVisible(true);
 
         CommonUI.centerComponent(this, parent);
@@ -97,29 +95,7 @@ public class BranchPopup extends JDialog {
         listsPanel.add(remotePanel);
         main.add(listsPanel, BorderLayout.CENTER);
 
-        // Bottom: create section + buttons
-        JPanel bottomPanel = new JPanel(new BorderLayout(5, 5));
-
-        JPanel createPanel = new JPanel(new GridBagLayout());
-        createPanel.setBorder(BorderFactory.createTitledBorder("Create New Branch"));
-        GridBagConstraints gbc = new GridBagConstraints();
-        gbc.insets = new Insets(2, 5, 2, 5);
-        gbc.anchor = GridBagConstraints.WEST;
-
-        gbc.gridx = 0; gbc.gridy = 0;
-        createPanel.add(new JLabel("Branch Name:"), gbc);
-        gbc.gridx = 1; gbc.fill = GridBagConstraints.HORIZONTAL; gbc.weightx = 1.0;
-        branchNameField = new JTextField(20);
-        createPanel.add(branchNameField, gbc);
-
-        gbc.gridx = 0; gbc.gridy = 1; gbc.fill = GridBagConstraints.NONE; gbc.weightx = 0;
-        createPanel.add(new JLabel("Start Point (optional):"), gbc);
-        gbc.gridx = 1; gbc.fill = GridBagConstraints.HORIZONTAL; gbc.weightx = 1.0;
-        startPointField = new JTextField(20);
-        createPanel.add(startPointField, gbc);
-
-        bottomPanel.add(createPanel, BorderLayout.CENTER);
-
+        // Bottom: button row
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 5, 5));
 
         JButton checkoutBtn = new JButton("Checkout");
@@ -132,17 +108,10 @@ public class BranchPopup extends JDialog {
             }
         });
 
-        JButton createBtn = new JButton("Create");
+        JButton createBtn = new JButton("Create Branch...");
         createBtn.setBackground(new Color(71, 137, 199));
         createBtn.setForeground(Color.WHITE);
-        createBtn.addActionListener(e -> {
-            String name = branchNameField.getText().trim();
-            if (!name.isEmpty()) {
-                onCreateBranch(name, startPointField.getText().trim());
-                branchNameField.setText("");
-                startPointField.setText("");
-            }
-        });
+        createBtn.addActionListener(e -> onCreateBranchRequested());
 
         JButton deleteBtn = new JButton("Delete");
         deleteBtn.setBackground(new Color(199, 71, 71));
@@ -171,9 +140,7 @@ public class BranchPopup extends JDialog {
         buttonPanel.add(refreshBtn);
         buttonPanel.add(cancelBtn);
 
-        bottomPanel.add(buttonPanel, BorderLayout.SOUTH);
-
-        main.add(bottomPanel, BorderLayout.SOUTH);
+        main.add(buttonPanel, BorderLayout.SOUTH);
 
         return main;
     }
@@ -209,7 +176,8 @@ public class BranchPopup extends JDialog {
     public void onCheckoutBranch(String branchName) {
     }
 
-    public void onCreateBranch(String branchName, String startPoint) {
+    /** Called when the user clicks "Create Branch..." — caller should open CreateBranchPopup. */
+    public void onCreateBranchRequested() {
     }
 
     public void onDeleteBranch(String branchName) {

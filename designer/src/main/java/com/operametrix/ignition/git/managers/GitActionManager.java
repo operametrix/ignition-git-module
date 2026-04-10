@@ -2,6 +2,7 @@ package com.operametrix.ignition.git.managers;
 
 import com.operametrix.ignition.git.BranchPopup;
 import com.operametrix.ignition.git.CommitDetailPopup;
+import com.operametrix.ignition.git.CreateBranchPopup;
 import com.operametrix.ignition.git.CommitPopup;
 import com.operametrix.ignition.git.UserCredentialsPopup;
 import com.operametrix.ignition.git.DesignerHook;
@@ -261,9 +262,15 @@ public class GitActionManager {
                     }
 
                     @Override
-                    public void onCreateBranch(String branchName, String startPoint) {
-                        handleCreateBranchAction(branchName, startPoint);
-                        onRefresh();
+                    public void onCreateBranchRequested() {
+                        BranchPopup branchPopupRef = this;
+                        new CreateBranchPopup(context.getFrame()) {
+                            @Override
+                            public void onCreateBranch(String branchName) {
+                                handleCreateBranchAction(branchName, "");
+                                branchPopupRef.onRefresh();
+                            }
+                        };
                     }
 
                     @Override
