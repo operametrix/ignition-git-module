@@ -59,15 +59,20 @@ public class BranchPopup extends JDialog {
         localBranchList = new JList<>(localModel);
         localBranchList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         localBranchList.setCellRenderer(new CurrentBranchRenderer());
+        attachLocalListHandlers();
         JPanel localPanel = new JPanel(new BorderLayout());
-        localPanel.add(buildListHeader("Local Branches", e -> onRefresh()), BorderLayout.NORTH);
+        JButton createBtn = buildIconButton(VectorIcons.get("add"), "Create Branch...", e -> onCreateBranchRequested());
+        JButton localRefreshBtn = buildIconButton(VectorIcons.get("refresh"), "Refresh", e -> onRefresh());
+        localPanel.add(buildListHeader("Local Branches", createBtn, localRefreshBtn), BorderLayout.NORTH);
         localPanel.add(new JScrollPane(localBranchList), BorderLayout.CENTER);
 
         remoteModel = new DefaultListModel<>();
         remoteBranchList = new JList<>(remoteModel);
         remoteBranchList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        attachRemoteListHandlers();
         JPanel remotePanel = new JPanel(new BorderLayout());
-        remotePanel.add(buildListHeader("Remote Branches", e -> onRefreshFromRemote()), BorderLayout.NORTH);
+        JButton remoteRefreshBtn = buildIconButton(VectorIcons.get("refresh"), "Refresh", e -> onRefreshFromRemote());
+        remotePanel.add(buildListHeader("Remote Branches", remoteRefreshBtn), BorderLayout.NORTH);
         remotePanel.add(new JScrollPane(remoteBranchList), BorderLayout.CENTER);
 
         // Mutual exclusivity on selection
@@ -86,53 +91,113 @@ public class BranchPopup extends JDialog {
         listsPanel.add(remotePanel);
         main.add(listsPanel, BorderLayout.CENTER);
 
-        // Bottom: button row
-        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 5, 5));
-
-        JButton checkoutBtn = new JButton("Checkout");
-        checkoutBtn.setBackground(new Color(71, 137, 199));
-        checkoutBtn.setForeground(Color.WHITE);
-        checkoutBtn.addActionListener(e -> {
-            String selected = getSelectedBranch();
-            if (selected != null) {
-                onCheckoutBranch(selected);
-            }
-        });
-
-        JButton createBtn = new JButton("Create Branch...");
-        createBtn.setBackground(new Color(71, 137, 199));
-        createBtn.setForeground(Color.WHITE);
-        createBtn.addActionListener(e -> onCreateBranchRequested());
-
-        JButton deleteBtn = new JButton("Delete");
-        deleteBtn.setBackground(new Color(199, 71, 71));
-        deleteBtn.setForeground(Color.WHITE);
-        deleteBtn.addActionListener(e -> {
-            String selected = localBranchList.getSelectedValue();
-            if (selected != null) {
-                int confirm = JOptionPane.showConfirmDialog(this,
-                        "Are you sure you want to delete branch '" + selected + "'?",
-                        "Confirm Delete", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
-                if (confirm == JOptionPane.YES_OPTION) {
-                    onDeleteBranch(selected);
-                }
-            }
-        });
-
-        JButton cancelBtn = new JButton("Cancel");
-        cancelBtn.addActionListener(e -> dispose());
-
-        buttonPanel.add(checkoutBtn);
-        buttonPanel.add(createBtn);
-        buttonPanel.add(deleteBtn);
-        buttonPanel.add(cancelBtn);
-
-        main.add(buttonPanel, BorderLayout.SOUTH);
-
         return main;
     }
 
-    private JPanel buildListHeader(String title, java.awt.event.ActionListener refreshAction) {
+    private void attachLocalListHandlers() {
+        localBranchList.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                if (e.getClickCount() == 2 && SwingUtilities.isLeftMouseButton(e)) {
+                    String selected = localBranchList.getSelectedValue();
+                    if (selected != null && !selected.equals(currentBranch)) {
+                        onCheckoutBranch(selected);
+                    }
+                }
+            }
+
+            @Override
+            public void mousePressed(MouseEvent e) {
+                handlePopup(e);
+            }
+
+            @Override
+            public void mouseReleased(MouseEvent e) {
+                handlePopup(e);
+            }
+
+            private void handlePopup(MouseEvent e) {
+                if (!e.isPopupTrigger()) return;
+                int index = localBranchList.locationToIndex(e.getPoint());
+                if (index < 0) return;
+                localBranchList.setSelectedIndex(index);
+                String branch = localModel.getElementAt(index);
+
+                JPopupMenu menu = new JPopupMenu();
+
+                JMenuItem checkoutItem = new JMenuItem("Checkout");
+                checkoutItem.setEnabled(!branch.equals(currentBranch));
+                checkoutItem.addActionListener(a -> onCheckoutBranch(branch));
+                menu.add(checkoutItem);
+
+                menu.addSeparator();
+
+                JMenuItem deleteItem = new JMenuItem("Delete");
+                deleteItem.setForeground(new Color(0xCC0000));
+                deleteItem.setEnabled(!branch.equals(currentBranch));
+                deleteItem.addActionListener(a -> {
+                    int confirm = JOptionPane.showConfirmDialog(BranchPopup.this,
+                            "Are you sure you want to delete branch '" + branch + "'?",
+                            "Confirm Delete", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+                    if (confirm == JOptionPane.YES_OPTION) {
+                        onDeleteBranch(branch);
+                    }
+                });
+                menu.add(deleteItem);
+
+                menu.show(localBranchList, e.getX(), e.getY());
+            }
+        });
+    }
+
+    private void attachRemoteListHandlers() {
+        remoteBranchList.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                if (e.getClickCount() == 2 && SwingUtilities.isLeftMouseButton(e)) {
+                    String branch = stripRemotePrefix(remoteBranchList.getSelectedValue());
+                    if (branch != null && !branch.equals(currentBranch)) {
+                        onCheckoutBranch(branch);
+                    }
+                }
+            }
+
+            @Override
+            public void mousePressed(MouseEvent e) {
+                handlePopup(e);
+            }
+
+            @Override
+            public void mouseReleased(MouseEvent e) {
+                handlePopup(e);
+            }
+
+            private void handlePopup(MouseEvent e) {
+                if (!e.isPopupTrigger()) return;
+                int index = remoteBranchList.locationToIndex(e.getPoint());
+                if (index < 0) return;
+                remoteBranchList.setSelectedIndex(index);
+                String branch = stripRemotePrefix(remoteModel.getElementAt(index));
+                if (branch == null) return;
+
+                JPopupMenu menu = new JPopupMenu();
+                JMenuItem checkoutItem = new JMenuItem("Checkout");
+                checkoutItem.setEnabled(!branch.equals(currentBranch));
+                checkoutItem.addActionListener(a -> onCheckoutBranch(branch));
+                menu.add(checkoutItem);
+
+                menu.show(remoteBranchList, e.getX(), e.getY());
+            }
+        });
+    }
+
+    private String stripRemotePrefix(String remote) {
+        if (remote == null) return null;
+        if (remote.startsWith("origin/")) return remote.substring("origin/".length());
+        return remote;
+    }
+
+    private JPanel buildListHeader(String title, JButton... trailingButtons) {
         JPanel header = new JPanel(new BorderLayout());
         header.setBorder(BorderFactory.createEmptyBorder(4, 6, 4, 4));
         header.setBackground(UIManager.getColor("Panel.background"));
@@ -141,44 +206,39 @@ public class BranchPopup extends JDialog {
         label.setFont(label.getFont().deriveFont(Font.BOLD));
         header.add(label, BorderLayout.WEST);
 
-        JButton refreshButton = new JButton(VectorIcons.get("refresh"));
-        refreshButton.setToolTipText("Refresh");
-        refreshButton.setContentAreaFilled(false);
-        refreshButton.setBorderPainted(false);
-        refreshButton.setFocusPainted(false);
-        refreshButton.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-        refreshButton.setMargin(new Insets(2, 2, 2, 2));
-        refreshButton.addMouseListener(new MouseAdapter() {
-            @Override
-            public void mouseEntered(MouseEvent e) {
-                refreshButton.setContentAreaFilled(true);
-                refreshButton.setBorderPainted(true);
-            }
-
-            @Override
-            public void mouseExited(MouseEvent e) {
-                refreshButton.setContentAreaFilled(false);
-                refreshButton.setBorderPainted(false);
-            }
-        });
-        refreshButton.addActionListener(refreshAction);
-        header.add(refreshButton, BorderLayout.EAST);
+        JPanel buttonBox = new JPanel(new FlowLayout(FlowLayout.RIGHT, 2, 0));
+        buttonBox.setOpaque(false);
+        for (JButton btn : trailingButtons) {
+            buttonBox.add(btn);
+        }
+        header.add(buttonBox, BorderLayout.EAST);
 
         return header;
     }
 
-    private String getSelectedBranch() {
-        String local = localBranchList.getSelectedValue();
-        if (local != null) return local;
-        String remote = remoteBranchList.getSelectedValue();
-        if (remote != null) {
-            // Strip "origin/" prefix for checkout
-            if (remote.startsWith("origin/")) {
-                return remote.substring("origin/".length());
+    private JButton buildIconButton(Icon icon, String tooltip, java.awt.event.ActionListener action) {
+        JButton button = new JButton(icon);
+        button.setToolTipText(tooltip);
+        button.setContentAreaFilled(false);
+        button.setBorderPainted(false);
+        button.setFocusPainted(false);
+        button.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        button.setMargin(new Insets(2, 2, 2, 2));
+        button.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseEntered(MouseEvent e) {
+                button.setContentAreaFilled(true);
+                button.setBorderPainted(true);
             }
-            return remote;
-        }
-        return null;
+
+            @Override
+            public void mouseExited(MouseEvent e) {
+                button.setContentAreaFilled(false);
+                button.setBorderPainted(false);
+            }
+        });
+        button.addActionListener(action);
+        return button;
     }
 
     public void setData(String currentBranch, List<String> localBranches, List<String> remoteBranches) {
