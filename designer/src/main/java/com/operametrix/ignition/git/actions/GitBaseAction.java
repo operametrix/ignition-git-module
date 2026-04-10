@@ -344,24 +344,16 @@ public class GitBaseAction extends BaseAction {
     }
 
     public static void handleCreateBranchAction(String branchName, String startPoint) {
-        String message = BundleUtil.get().getStringLenient(GitActionType.BRANCH.baseBundleKey + ".CreateConfirmMessage");
-        int messageType = JOptionPane.INFORMATION_MESSAGE;
-
         try {
             rpc.createBranch(projectName, branchName, startPoint);
-            SwingUtilities.invokeLater(new Thread(() -> showConfirmPopup(message, messageType)));
         } catch (Exception ex) {
             ErrorUtil.showError(ex);
         }
     }
 
     public static void handleDeleteBranchAction(String branchName) {
-        String message = BundleUtil.get().getStringLenient(GitActionType.BRANCH.baseBundleKey + ".DeleteConfirmMessage");
-        int messageType = JOptionPane.INFORMATION_MESSAGE;
-
         try {
             rpc.deleteBranch(projectName, branchName);
-            SwingUtilities.invokeLater(new Thread(() -> showConfirmPopup(message, messageType)));
         } catch (Exception ex) {
             ErrorUtil.showError(ex);
         }
