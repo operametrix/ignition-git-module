@@ -1,7 +1,7 @@
 package com.operametrix.ignition.git;
 
 import com.operametrix.ignition.git.components.SelectAllHeader;
-import com.operametrix.ignition.git.utils.IconUtils;
+import com.inductiveautomation.ignition.client.icons.VectorIcons;
 import com.inductiveautomation.ignition.common.Dataset;
 
 import javax.swing.*;
@@ -34,13 +34,6 @@ public class CommitPanel extends JPanel {
     public CommitPanel() {
         setLayout(new BorderLayout(0, 4));
         setBorder(BorderFactory.createEmptyBorder(4, 4, 4, 4));
-
-        // Top toolbar
-        JPanel toolbar = new JPanel(new FlowLayout(FlowLayout.LEFT, 2, 0));
-        toolbar.add(createToolbarButton("/com/operametrix/ignition/git/icons/ic_history.svg", "Refresh", () -> {
-            if (onRefreshRequested != null) onRefreshRequested.run();
-        }));
-        add(toolbar, BorderLayout.NORTH);
 
         // Center: commit section + changes table
         JPanel centerPanel = new JPanel(new BorderLayout(0, 4));
@@ -93,10 +86,38 @@ public class CommitPanel extends JPanel {
         commitSection.add(bottomControls, BorderLayout.SOUTH);
         centerPanel.add(commitSection, BorderLayout.NORTH);
 
-        // Changes count label
+        // Changes header: label + right-aligned refresh button
         changesCountLabel = new JLabel("Changes (0)");
         changesCountLabel.setFont(changesCountLabel.getFont().deriveFont(Font.BOLD));
-        changesCountLabel.setBorder(BorderFactory.createEmptyBorder(4, 0, 2, 0));
+
+        JButton refreshButton = new JButton(VectorIcons.get("refresh"));
+        refreshButton.setToolTipText("Refresh");
+        refreshButton.setContentAreaFilled(false);
+        refreshButton.setBorderPainted(false);
+        refreshButton.setFocusPainted(false);
+        refreshButton.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        refreshButton.setMargin(new Insets(2, 2, 2, 2));
+        refreshButton.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseEntered(MouseEvent e) {
+                refreshButton.setContentAreaFilled(true);
+                refreshButton.setBorderPainted(true);
+            }
+
+            @Override
+            public void mouseExited(MouseEvent e) {
+                refreshButton.setContentAreaFilled(false);
+                refreshButton.setBorderPainted(false);
+            }
+        });
+        refreshButton.addActionListener(e -> {
+            if (onRefreshRequested != null) onRefreshRequested.run();
+        });
+
+        JPanel changesHeader = new JPanel(new BorderLayout());
+        changesHeader.setBorder(BorderFactory.createEmptyBorder(4, 0, 2, 0));
+        changesHeader.add(changesCountLabel, BorderLayout.WEST);
+        changesHeader.add(refreshButton, BorderLayout.EAST);
 
         // Changes table
         String[] columnNames = {"", "Resource", "Type"};
@@ -198,23 +219,11 @@ public class CommitPanel extends JPanel {
         });
 
         JPanel tableSection = new JPanel(new BorderLayout());
-        tableSection.add(changesCountLabel, BorderLayout.NORTH);
+        tableSection.add(changesHeader, BorderLayout.NORTH);
         tableSection.add(new JScrollPane(changesTable), BorderLayout.CENTER);
         centerPanel.add(tableSection, BorderLayout.CENTER);
 
         add(centerPanel, BorderLayout.CENTER);
-    }
-
-    private JButton createToolbarButton(String iconPath, String tooltip, Runnable action) {
-        JButton button = new JButton(IconUtils.getIcon(iconPath));
-        button.setToolTipText(tooltip);
-        button.setContentAreaFilled(false);
-        button.setBorderPainted(false);
-        button.setFocusPainted(false);
-        button.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-        button.setMargin(new Insets(2, 2, 2, 2));
-        button.addActionListener(e -> action.run());
-        return button;
     }
 
     private List<String> getSelectedResources() {
