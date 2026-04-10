@@ -113,12 +113,8 @@ public class HistoryPopup extends JDialog {
         JButton refreshBtn = new JButton("Refresh");
         refreshBtn.addActionListener(e -> onRefresh());
 
-        JButton closeBtn = new JButton("Close");
-        closeBtn.addActionListener(e -> dispose());
-
         buttonPanel.add(loadMoreBtn);
         buttonPanel.add(refreshBtn);
-        buttonPanel.add(closeBtn);
 
         bottomPanel.add(buttonPanel, BorderLayout.EAST);
         main.add(bottomPanel, BorderLayout.SOUTH);

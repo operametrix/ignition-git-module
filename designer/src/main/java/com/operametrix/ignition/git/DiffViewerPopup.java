@@ -92,13 +92,6 @@ public class DiffViewerPopup extends JDialog {
 
         mainPanel.add(splitPane, BorderLayout.CENTER);
 
-        // Close button
-        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-        JButton closeBtn = new JButton("Close");
-        closeBtn.addActionListener(e -> dispose());
-        buttonPanel.add(closeBtn);
-        mainPanel.add(buttonPanel, BorderLayout.SOUTH);
-
         setContentPane(mainPanel);
         CommonUI.centerComponent(this, parent);
         setVisible(true);

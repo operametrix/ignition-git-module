@@ -115,13 +115,9 @@ public class RemotesPopup extends JDialog {
         removeButton.setEnabled(false);
         removeButton.addActionListener(e -> handleRemove());
 
-        JButton closeButton = new JButton("Close");
-        closeButton.addActionListener(e -> dispose());
-
         buttonPanel.add(addButton);
         buttonPanel.add(editButton);
         buttonPanel.add(removeButton);
-        buttonPanel.add(closeButton);
 
         panel.add(buttonPanel, BorderLayout.SOUTH);
 

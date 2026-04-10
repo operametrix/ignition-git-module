@@ -61,13 +61,6 @@ public class UserCredentialsPopup extends JDialog {
 
         main.add(sectionsPanel, BorderLayout.CENTER);
 
-        // Bottom: Close button
-        JPanel bottomPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 5, 5));
-        JButton closeBtn = new JButton("Close");
-        closeBtn.addActionListener(e -> dispose());
-        bottomPanel.add(closeBtn);
-        main.add(bottomPanel, BorderLayout.SOUTH);
-
         return main;
     }
 

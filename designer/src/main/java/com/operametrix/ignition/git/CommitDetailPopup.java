@@ -143,7 +143,7 @@ public class CommitDetailPopup extends JDialog {
         JScrollPane scrollPane = new JScrollPane(table);
         main.add(scrollPane, BorderLayout.CENTER);
 
-        // Bottom: checkout + revert + close buttons
+        // Bottom: checkout + revert buttons
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 5, 5));
         JButton checkoutBtn = new JButton("Checkout");
         checkoutBtn.addActionListener(e -> onCheckoutRequested(commitHash, shortHash));
@@ -151,9 +151,6 @@ public class CommitDetailPopup extends JDialog {
         JButton revertBtn = new JButton("Revert Commit");
         revertBtn.addActionListener(e -> onRevertRequested(commitHash, shortHash, message));
         buttonPanel.add(revertBtn);
-        JButton closeBtn = new JButton("Close");
-        closeBtn.addActionListener(e -> dispose());
-        buttonPanel.add(closeBtn);
         main.add(buttonPanel, BorderLayout.SOUTH);
 
         return main;
