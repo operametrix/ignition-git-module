@@ -1,13 +1,15 @@
 package com.operametrix.ignition.git;
 
+import com.inductiveautomation.ignition.client.icons.VectorIcons;
 import com.inductiveautomation.ignition.designer.gui.CommonUI;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.imageio.ImageIO;
 import javax.swing.*;
-import javax.swing.border.TitledBorder;
 import java.awt.*;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
@@ -63,20 +65,14 @@ public class BranchPopup extends JDialog {
         localBranchList = new JList<>(localModel);
         localBranchList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         JPanel localPanel = new JPanel(new BorderLayout());
-        localPanel.setBorder(BorderFactory.createTitledBorder(
-                BorderFactory.createLineBorder(Color.GRAY), "Local Branches",
-                TitledBorder.DEFAULT_JUSTIFICATION, TitledBorder.DEFAULT_POSITION,
-                null, null));
+        localPanel.add(buildListHeader("Local Branches", e -> onRefresh()), BorderLayout.NORTH);
         localPanel.add(new JScrollPane(localBranchList), BorderLayout.CENTER);
 
         remoteModel = new DefaultListModel<>();
         remoteBranchList = new JList<>(remoteModel);
         remoteBranchList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         JPanel remotePanel = new JPanel(new BorderLayout());
-        remotePanel.setBorder(BorderFactory.createTitledBorder(
-                BorderFactory.createLineBorder(Color.GRAY), "Remote Branches",
-                TitledBorder.DEFAULT_JUSTIFICATION, TitledBorder.DEFAULT_POSITION,
-                null, null));
+        remotePanel.add(buildListHeader("Remote Branches", e -> onRefreshFromRemote()), BorderLayout.NORTH);
         remotePanel.add(new JScrollPane(remoteBranchList), BorderLayout.CENTER);
 
         // Mutual exclusivity on selection
@@ -128,21 +124,52 @@ public class BranchPopup extends JDialog {
             }
         });
 
-        JButton refreshBtn = new JButton("Refresh");
-        refreshBtn.addActionListener(e -> onRefreshFromRemote());
-
         JButton cancelBtn = new JButton("Cancel");
         cancelBtn.addActionListener(e -> dispose());
 
         buttonPanel.add(checkoutBtn);
         buttonPanel.add(createBtn);
         buttonPanel.add(deleteBtn);
-        buttonPanel.add(refreshBtn);
         buttonPanel.add(cancelBtn);
 
         main.add(buttonPanel, BorderLayout.SOUTH);
 
         return main;
+    }
+
+    private JPanel buildListHeader(String title, java.awt.event.ActionListener refreshAction) {
+        JPanel header = new JPanel(new BorderLayout());
+        header.setBorder(BorderFactory.createEmptyBorder(4, 6, 4, 4));
+        header.setBackground(UIManager.getColor("Panel.background"));
+
+        JLabel label = new JLabel(title);
+        label.setFont(label.getFont().deriveFont(Font.BOLD));
+        header.add(label, BorderLayout.WEST);
+
+        JButton refreshButton = new JButton(VectorIcons.get("refresh"));
+        refreshButton.setToolTipText("Refresh");
+        refreshButton.setContentAreaFilled(false);
+        refreshButton.setBorderPainted(false);
+        refreshButton.setFocusPainted(false);
+        refreshButton.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        refreshButton.setMargin(new Insets(2, 2, 2, 2));
+        refreshButton.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseEntered(MouseEvent e) {
+                refreshButton.setContentAreaFilled(true);
+                refreshButton.setBorderPainted(true);
+            }
+
+            @Override
+            public void mouseExited(MouseEvent e) {
+                refreshButton.setContentAreaFilled(false);
+                refreshButton.setBorderPainted(false);
+            }
+        });
+        refreshButton.addActionListener(refreshAction);
+        header.add(refreshButton, BorderLayout.EAST);
+
+        return header;
     }
 
     private String getSelectedBranch() {
