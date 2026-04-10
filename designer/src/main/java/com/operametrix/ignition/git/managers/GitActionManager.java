@@ -7,7 +7,6 @@ import com.operametrix.ignition.git.CommitPopup;
 import com.operametrix.ignition.git.UserCredentialsPopup;
 import com.operametrix.ignition.git.DesignerHook;
 import com.operametrix.ignition.git.DiffViewerPopup;
-import com.operametrix.ignition.git.HistoryPopup;
 import com.operametrix.ignition.git.InitProgressDialog;
 import com.operametrix.ignition.git.InitRepoPopup;
 import com.operametrix.ignition.git.PullPopup;
@@ -43,7 +42,6 @@ public class GitActionManager {
     static BranchPopup branchPopup;
     static UserCredentialsPopup userCredentialsPopup;
     static InitRepoPopup initRepoPopup;
-    static HistoryPopup historyPopup;
     static RemotesPopup remotesPopup;
     private static final Logger logger = LoggerFactory.getLogger(GitActionManager.class);
 
@@ -624,47 +622,6 @@ public class GitActionManager {
             JOptionPane.showMessageDialog(context.getFrame(),
                     "Failed to load diff: " + e.getMessage(),
                     "Error", JOptionPane.ERROR_MESSAGE);
-        }
-    }
-
-    public static void showHistoryPopup(String projectName) {
-        try {
-            Dataset data = rpc.getCommitHistory(projectName, 0, HistoryPopup.PAGE_SIZE);
-            if (historyPopup != null) {
-                historyPopup.setData(data, false);
-                historyPopup.setVisible(true);
-                historyPopup.toFront();
-            } else {
-                historyPopup = new HistoryPopup(data, context.getFrame()) {
-                    @Override
-                    public void onCommitSelected(String fullHash, String shortHash, String message,
-                                                  String author, String date) {
-                        showCommitDetailPopup(projectName, fullHash, shortHash, message, author, date);
-                    }
-
-                    @Override
-                    public void onLoadMore() {
-                        try {
-                            Dataset moreData = rpc.getCommitHistory(projectName, getCurrentOffset(), getPageSize());
-                            setData(moreData, true);
-                        } catch (Exception ex) {
-                            logger.error("Error loading more commits", ex);
-                        }
-                    }
-
-                    @Override
-                    public void onRefresh() {
-                        try {
-                            Dataset freshData = rpc.getCommitHistory(projectName, 0, HistoryPopup.PAGE_SIZE);
-                            setData(freshData, false);
-                        } catch (Exception ex) {
-                            logger.error("Error refreshing commit history", ex);
-                        }
-                    }
-                };
-            }
-        } catch (Exception e) {
-            logger.error("Error showing history popup", e);
         }
     }
 
