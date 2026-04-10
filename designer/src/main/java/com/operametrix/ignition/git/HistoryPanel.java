@@ -1,6 +1,7 @@
 package com.operametrix.ignition.git;
 
 import com.operametrix.ignition.git.utils.IconUtils;
+import com.inductiveautomation.ignition.client.icons.VectorIcons;
 import com.inductiveautomation.ignition.common.Dataset;
 
 import javax.swing.*;
@@ -52,18 +53,18 @@ public class HistoryPanel extends JPanel {
         setLayout(new BorderLayout(0, 4));
         setBorder(BorderFactory.createEmptyBorder(4, 4, 4, 4));
 
-        // Top toolbar: Refresh, Push, Pull
+        // Top toolbar: Refresh, Push, Fetch, Pull
         JPanel toolbar = new JPanel(new FlowLayout(FlowLayout.LEFT, 2, 0));
-        toolbar.add(createToolbarButton("/com/operametrix/ignition/git/icons/ic_history.svg", "Refresh", () -> {
+        toolbar.add(createToolbarButton(VectorIcons.get("refresh"), "Refresh", () -> {
             if (onRefreshRequested != null) onRefreshRequested.run();
         }));
-        toolbar.add(createToolbarButton("/com/operametrix/ignition/git/icons/ic_push.svg", "Push", () -> {
+        toolbar.add(createToolbarButton(IconUtils.getIcon("/com/operametrix/ignition/git/icons/ic_push.svg"), "Push", () -> {
             if (onPushRequested != null) onPushRequested.run();
         }));
-        toolbar.add(createToolbarButton("/com/operametrix/ignition/git/icons/ic_fetch.svg", "Fetch", () -> {
+        toolbar.add(createToolbarButton(IconUtils.getIcon("/com/operametrix/ignition/git/icons/ic_fetch.svg"), "Fetch", () -> {
             if (onFetchRequested != null) onFetchRequested.run();
         }));
-        toolbar.add(createToolbarButton("/com/operametrix/ignition/git/icons/ic_pull.svg", "Pull", () -> {
+        toolbar.add(createToolbarButton(IconUtils.getIcon("/com/operametrix/ignition/git/icons/ic_pull.svg"), "Pull", () -> {
             if (onPullRequested != null) onPullRequested.run();
         }));
         add(toolbar, BorderLayout.NORTH);
@@ -320,14 +321,27 @@ public class HistoryPanel extends JPanel {
 
     // --- Toolbar helper ---
 
-    private JButton createToolbarButton(String iconPath, String tooltip, Runnable action) {
-        JButton button = new JButton(IconUtils.getIcon(iconPath));
+    private JButton createToolbarButton(Icon icon, String tooltip, Runnable action) {
+        JButton button = new JButton(icon);
         button.setToolTipText(tooltip);
         button.setContentAreaFilled(false);
         button.setBorderPainted(false);
         button.setFocusPainted(false);
         button.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         button.setMargin(new Insets(2, 2, 2, 2));
+        button.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseEntered(MouseEvent e) {
+                button.setContentAreaFilled(true);
+                button.setBorderPainted(true);
+            }
+
+            @Override
+            public void mouseExited(MouseEvent e) {
+                button.setContentAreaFilled(false);
+                button.setBorderPainted(false);
+            }
+        });
         button.addActionListener(e -> action.run());
         return button;
     }
