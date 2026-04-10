@@ -283,6 +283,49 @@ public class GitActionManager {
                             logger.error("Error refreshing branch data", ex);
                         }
                     }
+
+                    @Override
+                    public void onRefreshFromRemote() {
+                        BranchPopup popup = this;
+                        InitProgressDialog progress = new InitProgressDialog(context.getFrame(), "Refreshing Branches");
+                        new SwingWorker<Void, Void>() {
+                            @Override
+                            protected Void doInBackground() throws Exception {
+                                if (rpc.hasRemoteRepository(projectName)) {
+                                    Dataset remotes = rpc.listRemotes(projectName);
+                                    for (int i = 0; i < remotes.getRowCount(); i++) {
+                                        String remoteName = (String) remotes.getValueAt(i, "name");
+                                        progress.setStatus("Fetching from " + remoteName + "...");
+                                        try {
+                                            rpc.fetch(projectName, userName, remoteName);
+                                        } catch (Exception fetchEx) {
+                                            logger.warn("Fetch from '" + remoteName + "' failed; continuing with local refresh", fetchEx);
+                                        }
+                                    }
+                                }
+                                return null;
+                            }
+
+                            @Override
+                            protected void done() {
+                                progress.complete();
+                                try {
+                                    get();
+                                    String current = rpc.getCurrentBranch(projectName);
+                                    List<String> local = rpc.getLocalBranches(projectName);
+                                    List<String> remote = rpc.getRemoteBranches(projectName);
+                                    popup.setData(current, local, remote);
+                                    if (DesignerHook.instance != null) {
+                                        DesignerHook.instance.refreshHistoryPanel();
+                                    }
+                                } catch (Exception ex) {
+                                    Throwable cause = ex.getCause() != null ? ex.getCause() : ex;
+                                    logger.error("Error refreshing branch data", cause);
+                                }
+                            }
+                        }.execute();
+                        progress.setVisible(true);
+                    }
                 };
             }
         } catch (Exception e) {

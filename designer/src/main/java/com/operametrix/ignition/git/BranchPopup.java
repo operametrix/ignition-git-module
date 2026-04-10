@@ -160,7 +160,7 @@ public class BranchPopup extends JDialog {
         });
 
         JButton refreshBtn = new JButton("Refresh");
-        refreshBtn.addActionListener(e -> onRefresh());
+        refreshBtn.addActionListener(e -> onRefreshFromRemote());
 
         JButton cancelBtn = new JButton("Cancel");
         cancelBtn.addActionListener(e -> dispose());
@@ -216,5 +216,9 @@ public class BranchPopup extends JDialog {
     }
 
     public void onRefresh() {
+    }
+
+    /** Called when the user clicks the Refresh button — fetches from remote first. */
+    public void onRefreshFromRemote() {
     }
 }
