@@ -17,11 +17,11 @@ import java.util.List;
 public class BranchPopup extends JDialog {
     private final Logger logger = LoggerFactory.getLogger(getClass());
 
-    private JLabel currentBranchLabel;
     private JList<String> localBranchList;
     private JList<String> remoteBranchList;
     private DefaultListModel<String> localModel;
     private DefaultListModel<String> remoteModel;
+    private String currentBranch = "";
 
     public BranchPopup(String currentBranch, List<String> localBranches, List<String> remoteBranches, Component parent) {
         super(SwingUtilities.getWindowAncestor(parent));
@@ -52,18 +52,13 @@ public class BranchPopup extends JDialog {
         JPanel main = new JPanel(new BorderLayout(5, 5));
         main.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
-        // Top: current branch
-        currentBranchLabel = new JLabel("Current Branch: ");
-        currentBranchLabel.setFont(currentBranchLabel.getFont().deriveFont(Font.BOLD));
-        currentBranchLabel.setForeground(new Color(0, 128, 0));
-        main.add(currentBranchLabel, BorderLayout.NORTH);
-
         // Center: branch lists side by side
         JPanel listsPanel = new JPanel(new GridLayout(1, 2, 10, 0));
 
         localModel = new DefaultListModel<>();
         localBranchList = new JList<>(localModel);
         localBranchList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        localBranchList.setCellRenderer(new CurrentBranchRenderer());
         JPanel localPanel = new JPanel(new BorderLayout());
         localPanel.add(buildListHeader("Local Branches", e -> onRefresh()), BorderLayout.NORTH);
         localPanel.add(new JScrollPane(localBranchList), BorderLayout.CENTER);
@@ -187,7 +182,7 @@ public class BranchPopup extends JDialog {
     }
 
     public void setData(String currentBranch, List<String> localBranches, List<String> remoteBranches) {
-        currentBranchLabel.setText("Current Branch: " + currentBranch);
+        this.currentBranch = currentBranch != null ? currentBranch : "";
 
         localModel.clear();
         for (String b : localBranches) {
@@ -197,6 +192,27 @@ public class BranchPopup extends JDialog {
         remoteModel.clear();
         for (String b : remoteBranches) {
             remoteModel.addElement(b);
+        }
+
+        localBranchList.repaint();
+    }
+
+    /**
+     * Renders the current branch with a bold "* " prefix in green.
+     */
+    private class CurrentBranchRenderer extends DefaultListCellRenderer {
+        @Override
+        public Component getListCellRendererComponent(JList<?> list, Object value,
+                                                      int index, boolean isSelected, boolean cellHasFocus) {
+            super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
+            String branch = value != null ? value.toString() : "";
+            if (branch.equals(currentBranch)) {
+                setFont(getFont().deriveFont(Font.BOLD));
+                if (!isSelected) {
+                    setBackground(new Color(0xE8F0FE));
+                }
+            }
+            return this;
         }
     }
 
