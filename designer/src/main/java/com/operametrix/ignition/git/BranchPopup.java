@@ -199,14 +199,14 @@ public class BranchPopup extends JDialog {
 
     private JPanel buildListHeader(String title, JButton... trailingButtons) {
         JPanel header = new JPanel(new BorderLayout());
-        header.setBorder(BorderFactory.createEmptyBorder(4, 6, 4, 4));
+        header.setBorder(BorderFactory.createEmptyBorder(4, 0, 4, 0));
         header.setBackground(UIManager.getColor("Panel.background"));
 
         JLabel label = new JLabel(title);
         label.setFont(label.getFont().deriveFont(Font.BOLD));
         header.add(label, BorderLayout.WEST);
 
-        JPanel buttonBox = new JPanel(new FlowLayout(FlowLayout.RIGHT, 2, 0));
+        JPanel buttonBox = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
         buttonBox.setOpaque(false);
         for (JButton btn : trailingButtons) {
             buttonBox.add(btn);
