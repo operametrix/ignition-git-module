@@ -1,5 +1,6 @@
 package com.operametrix.ignition.git;
 
+import com.inductiveautomation.ignition.client.icons.VectorIcons;
 import com.inductiveautomation.ignition.common.Dataset;
 import com.inductiveautomation.ignition.designer.gui.CommonUI;
 
@@ -8,13 +9,15 @@ import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.util.ArrayList;
 import java.util.List;
 
 /**
  * Designer popup dialog for managing git remotes.
  * CardLayout-based with two cards:
- *   Card 1 "List" — table of remotes + Add/Edit/Remove/Close buttons
+ *   Card 1 "List" — table of remotes with header + icon for Add; right-click for Edit/Remove; double-click for Edit
  *   Card 2 "Form" — add/edit remote with URL and credential dropdown
  */
 public class RemotesPopup extends JDialog {
@@ -28,8 +31,6 @@ public class RemotesPopup extends JDialog {
     // List card
     private DefaultTableModel tableModel;
     private JTable remotesTable;
-    private JButton editButton;
-    private JButton removeButton;
 
     // Form card
     private boolean formIsEdit;
@@ -78,9 +79,9 @@ public class RemotesPopup extends JDialog {
     private JPanel buildListCard() {
         JPanel panel = new JPanel(new BorderLayout(5, 5));
 
-        JLabel titleLabel = new JLabel("Configured Remotes");
-        titleLabel.setFont(titleLabel.getFont().deriveFont(Font.BOLD));
-        panel.add(titleLabel, BorderLayout.NORTH);
+        // Header: title + add icon
+        JButton addBtn = buildIconButton(VectorIcons.get("add"), "Add Remote", e -> showFormForAdd());
+        panel.add(buildSectionHeader("Configured Remotes", addBtn), BorderLayout.NORTH);
 
         // Table
         tableModel = new DefaultTableModel(new String[]{"Name", "URL"}, 0) {
@@ -93,41 +94,95 @@ public class RemotesPopup extends JDialog {
         remotesTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         remotesTable.getColumnModel().getColumn(0).setPreferredWidth(100);
         remotesTable.getColumnModel().getColumn(1).setPreferredWidth(350);
-        remotesTable.getSelectionModel().addListSelectionListener(e -> updateListButtons());
+
+        // Double-click → Edit
+        remotesTable.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                if (e.getClickCount() == 2 && SwingUtilities.isLeftMouseButton(e)) {
+                    if (remotesTable.getSelectedRow() >= 0) {
+                        showFormForEdit();
+                    }
+                }
+            }
+
+            @Override
+            public void mousePressed(MouseEvent e) {
+                handlePopup(e);
+            }
+
+            @Override
+            public void mouseReleased(MouseEvent e) {
+                handlePopup(e);
+            }
+
+            private void handlePopup(MouseEvent e) {
+                if (!e.isPopupTrigger()) return;
+                int row = remotesTable.rowAtPoint(e.getPoint());
+                if (row < 0) return;
+                remotesTable.setRowSelectionInterval(row, row);
+
+                JPopupMenu menu = new JPopupMenu();
+                JMenuItem editItem = new JMenuItem("Edit");
+                editItem.addActionListener(a -> showFormForEdit());
+                menu.add(editItem);
+                menu.addSeparator();
+                JMenuItem removeItem = new JMenuItem("Remove");
+                removeItem.setForeground(new Color(0xCC0000));
+                removeItem.addActionListener(a -> handleRemove());
+                menu.add(removeItem);
+                menu.show(remotesTable, e.getX(), e.getY());
+            }
+        });
 
         JScrollPane scrollPane = new JScrollPane(remotesTable);
         scrollPane.setPreferredSize(new Dimension(500, 150));
         panel.add(scrollPane, BorderLayout.CENTER);
 
-        // Buttons
-        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 5, 5));
-
-        JButton addButton = new JButton("Add Remote");
-        addButton.setBackground(new Color(71, 137, 199));
-        addButton.setForeground(Color.WHITE);
-        addButton.addActionListener(e -> showFormForAdd());
-
-        editButton = new JButton("Edit");
-        editButton.setEnabled(false);
-        editButton.addActionListener(e -> showFormForEdit());
-
-        removeButton = new JButton("Remove");
-        removeButton.setEnabled(false);
-        removeButton.addActionListener(e -> handleRemove());
-
-        buttonPanel.add(addButton);
-        buttonPanel.add(editButton);
-        buttonPanel.add(removeButton);
-
-        panel.add(buttonPanel, BorderLayout.SOUTH);
-
         return panel;
     }
 
-    private void updateListButtons() {
-        boolean hasSelection = remotesTable.getSelectedRow() >= 0;
-        editButton.setEnabled(hasSelection);
-        removeButton.setEnabled(hasSelection);
+    private JPanel buildSectionHeader(String title, JButton... trailingButtons) {
+        JPanel header = new JPanel(new BorderLayout());
+        header.setBorder(BorderFactory.createEmptyBorder(4, 6, 4, 4));
+
+        JLabel label = new JLabel(title);
+        label.setFont(label.getFont().deriveFont(Font.BOLD));
+        header.add(label, BorderLayout.WEST);
+
+        JPanel buttonBox = new JPanel(new FlowLayout(FlowLayout.RIGHT, 2, 0));
+        buttonBox.setOpaque(false);
+        for (JButton btn : trailingButtons) {
+            buttonBox.add(btn);
+        }
+        header.add(buttonBox, BorderLayout.EAST);
+
+        return header;
+    }
+
+    private JButton buildIconButton(Icon icon, String tooltip, java.awt.event.ActionListener action) {
+        JButton button = new JButton(icon);
+        button.setToolTipText(tooltip);
+        button.setContentAreaFilled(false);
+        button.setBorderPainted(false);
+        button.setFocusPainted(false);
+        button.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        button.setMargin(new Insets(2, 2, 2, 2));
+        button.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseEntered(MouseEvent e) {
+                button.setContentAreaFilled(true);
+                button.setBorderPainted(true);
+            }
+
+            @Override
+            public void mouseExited(MouseEvent e) {
+                button.setContentAreaFilled(false);
+                button.setBorderPainted(false);
+            }
+        });
+        button.addActionListener(action);
+        return button;
     }
 
     // ── Card 2: Form ───────────────────────────────────────────────────
@@ -384,7 +439,6 @@ public class RemotesPopup extends JDialog {
                 });
             }
         }
-        updateListButtons();
         showCard(CARD_LIST);
     }
 

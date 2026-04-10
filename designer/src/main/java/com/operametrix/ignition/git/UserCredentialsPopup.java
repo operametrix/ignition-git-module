@@ -1,5 +1,6 @@
 package com.operametrix.ignition.git;
 
+import com.inductiveautomation.ignition.client.icons.VectorIcons;
 import com.inductiveautomation.ignition.common.Dataset;
 import com.inductiveautomation.ignition.designer.gui.CommonUI;
 
@@ -8,6 +9,8 @@ import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -29,12 +32,10 @@ public class UserCredentialsPopup extends JDialog {
     // SSH Keys table
     private DefaultTableModel sshTableModel;
     private JTable sshTable;
-    private JButton sshRemoveButton;
 
     // HTTPS Credentials table
     private DefaultTableModel httpsTableModel;
     private JTable httpsTable;
-    private JButton httpsRemoveButton;
 
     public UserCredentialsPopup(Component parent) {
         super(SwingUtilities.getWindowAncestor(parent));
@@ -68,7 +69,9 @@ public class UserCredentialsPopup extends JDialog {
 
     private JPanel buildSshSection() {
         JPanel section = new JPanel(new BorderLayout(5, 5));
-        section.setBorder(BorderFactory.createTitledBorder("SSH Keys"));
+
+        JButton addBtn = buildIconButton(VectorIcons.get("add"), "Add SSH Key", e -> showAddSshKeyDialog());
+        section.add(buildSectionHeader("SSH Keys", addBtn), BorderLayout.NORTH);
 
         sshTableModel = new DefaultTableModel(new String[]{"Key Name"}, 0) {
             @Override
@@ -79,34 +82,22 @@ public class UserCredentialsPopup extends JDialog {
         sshTable = new JTable(sshTableModel);
         sshTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         sshTable.getColumnModel().getColumn(0).setPreferredWidth(300);
-        sshTable.getSelectionModel().addListSelectionListener(e -> updateSshButtons());
+        attachRemoveContextMenu(sshTable, sshTableModel, row -> {
+            String keyName = (String) sshTableModel.getValueAt(row, 0);
+            int confirm = JOptionPane.showConfirmDialog(this,
+                    "Remove SSH key '" + keyName + "'?", "Confirm Remove",
+                    JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+            if (confirm == JOptionPane.YES_OPTION) {
+                long keyId = getIdForSshRow(row);
+                onDeleteSshKey(keyId);
+            }
+        });
 
         JScrollPane scrollPane = new JScrollPane(sshTable);
         scrollPane.setPreferredSize(new Dimension(400, 120));
         section.add(scrollPane, BorderLayout.CENTER);
 
-        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 5));
-
-        JButton addButton = new JButton("Add");
-        addButton.setBackground(new Color(71, 137, 199));
-        addButton.setForeground(Color.WHITE);
-        addButton.addActionListener(e -> showAddSshKeyDialog());
-
-        sshRemoveButton = new JButton("Remove");
-        sshRemoveButton.setEnabled(false);
-        sshRemoveButton.addActionListener(e -> handleRemoveSshKey());
-
-        buttonPanel.add(addButton);
-        buttonPanel.add(sshRemoveButton);
-
-        section.add(buttonPanel, BorderLayout.SOUTH);
-
         return section;
-    }
-
-    private void updateSshButtons() {
-        boolean hasSelection = sshTable.getSelectedRow() >= 0;
-        sshRemoveButton.setEnabled(hasSelection);
     }
 
     private void showAddSshKeyDialog() {
@@ -144,24 +135,13 @@ public class UserCredentialsPopup extends JDialog {
         }
     }
 
-    private void handleRemoveSshKey() {
-        int row = sshTable.getSelectedRow();
-        if (row < 0) return;
-        String keyName = (String) sshTableModel.getValueAt(row, 0);
-        int confirm = JOptionPane.showConfirmDialog(this,
-                "Remove SSH key '" + keyName + "'?", "Confirm Remove",
-                JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
-        if (confirm == JOptionPane.YES_OPTION) {
-            long keyId = getIdForSshRow(row);
-            onDeleteSshKey(keyId);
-        }
-    }
-
     // ── HTTPS Credentials Section ─────────────────────────────────────
 
     private JPanel buildHttpsSection() {
         JPanel section = new JPanel(new BorderLayout(5, 5));
-        section.setBorder(BorderFactory.createTitledBorder("HTTPS Credentials"));
+
+        JButton addBtn = buildIconButton(VectorIcons.get("add"), "Add HTTPS Credential", e -> showAddHttpsDialog());
+        section.add(buildSectionHeader("HTTPS Credentials", addBtn), BorderLayout.NORTH);
 
         httpsTableModel = new DefaultTableModel(new String[]{"Host", "Username"}, 0) {
             @Override
@@ -173,34 +153,22 @@ public class UserCredentialsPopup extends JDialog {
         httpsTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         httpsTable.getColumnModel().getColumn(0).setPreferredWidth(200);
         httpsTable.getColumnModel().getColumn(1).setPreferredWidth(200);
-        httpsTable.getSelectionModel().addListSelectionListener(e -> updateHttpsButtons());
+        attachRemoveContextMenu(httpsTable, httpsTableModel, row -> {
+            String host = (String) httpsTableModel.getValueAt(row, 0);
+            int confirm = JOptionPane.showConfirmDialog(this,
+                    "Remove HTTPS credential for '" + host + "'?", "Confirm Remove",
+                    JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+            if (confirm == JOptionPane.YES_OPTION) {
+                long credId = getIdForHttpsRow(row);
+                onDeleteHttpsCredential(credId);
+            }
+        });
 
         JScrollPane scrollPane = new JScrollPane(httpsTable);
         scrollPane.setPreferredSize(new Dimension(400, 120));
         section.add(scrollPane, BorderLayout.CENTER);
 
-        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 5));
-
-        JButton addButton = new JButton("Add");
-        addButton.setBackground(new Color(71, 137, 199));
-        addButton.setForeground(Color.WHITE);
-        addButton.addActionListener(e -> showAddHttpsDialog());
-
-        httpsRemoveButton = new JButton("Remove");
-        httpsRemoveButton.setEnabled(false);
-        httpsRemoveButton.addActionListener(e -> handleRemoveHttpsCredential());
-
-        buttonPanel.add(addButton);
-        buttonPanel.add(httpsRemoveButton);
-
-        section.add(buttonPanel, BorderLayout.SOUTH);
-
         return section;
-    }
-
-    private void updateHttpsButtons() {
-        boolean hasSelection = httpsTable.getSelectedRow() >= 0;
-        httpsRemoveButton.setEnabled(hasSelection);
     }
 
     private void showAddHttpsDialog() {
@@ -261,17 +229,78 @@ public class UserCredentialsPopup extends JDialog {
         }
     }
 
-    private void handleRemoveHttpsCredential() {
-        int row = httpsTable.getSelectedRow();
-        if (row < 0) return;
-        String host = (String) httpsTableModel.getValueAt(row, 0);
-        int confirm = JOptionPane.showConfirmDialog(this,
-                "Remove HTTPS credential for '" + host + "'?", "Confirm Remove",
-                JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
-        if (confirm == JOptionPane.YES_OPTION) {
-            long credId = getIdForHttpsRow(row);
-            onDeleteHttpsCredential(credId);
+    // ── Section header + icon button helpers ──────────────────────────
+
+    private JPanel buildSectionHeader(String title, JButton... trailingButtons) {
+        JPanel header = new JPanel(new BorderLayout());
+        header.setBorder(BorderFactory.createEmptyBorder(4, 6, 4, 4));
+
+        JLabel label = new JLabel(title);
+        label.setFont(label.getFont().deriveFont(Font.BOLD));
+        header.add(label, BorderLayout.WEST);
+
+        JPanel buttonBox = new JPanel(new FlowLayout(FlowLayout.RIGHT, 2, 0));
+        buttonBox.setOpaque(false);
+        for (JButton btn : trailingButtons) {
+            buttonBox.add(btn);
         }
+        header.add(buttonBox, BorderLayout.EAST);
+
+        return header;
+    }
+
+    private JButton buildIconButton(Icon icon, String tooltip, java.awt.event.ActionListener action) {
+        JButton button = new JButton(icon);
+        button.setToolTipText(tooltip);
+        button.setContentAreaFilled(false);
+        button.setBorderPainted(false);
+        button.setFocusPainted(false);
+        button.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        button.setMargin(new Insets(2, 2, 2, 2));
+        button.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseEntered(MouseEvent e) {
+                button.setContentAreaFilled(true);
+                button.setBorderPainted(true);
+            }
+
+            @Override
+            public void mouseExited(MouseEvent e) {
+                button.setContentAreaFilled(false);
+                button.setBorderPainted(false);
+            }
+        });
+        button.addActionListener(action);
+        return button;
+    }
+
+    private void attachRemoveContextMenu(JTable table, DefaultTableModel model,
+                                          java.util.function.IntConsumer onRemove) {
+        table.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mousePressed(MouseEvent e) {
+                handlePopup(e);
+            }
+
+            @Override
+            public void mouseReleased(MouseEvent e) {
+                handlePopup(e);
+            }
+
+            private void handlePopup(MouseEvent e) {
+                if (!e.isPopupTrigger()) return;
+                int row = table.rowAtPoint(e.getPoint());
+                if (row < 0) return;
+                table.setRowSelectionInterval(row, row);
+
+                JPopupMenu menu = new JPopupMenu();
+                JMenuItem removeItem = new JMenuItem("Remove");
+                removeItem.setForeground(new Color(0xCC0000));
+                removeItem.addActionListener(a -> onRemove.accept(row));
+                menu.add(removeItem);
+                menu.show(table, e.getX(), e.getY());
+            }
+        });
     }
 
     // ── Data population ───────────────────────────────────────────────
@@ -293,7 +322,6 @@ public class UserCredentialsPopup extends JDialog {
         } else {
             sshKeyIds = new long[0];
         }
-        updateSshButtons();
     }
 
     public void setHttpsCredentialData(Dataset creds) {
@@ -310,7 +338,6 @@ public class UserCredentialsPopup extends JDialog {
         } else {
             httpsCredentialIds = new long[0];
         }
-        updateHttpsButtons();
     }
 
     private long getIdForSshRow(int row) {
