@@ -265,7 +265,7 @@ public class GitActionManager {
                         new CreateBranchPopup(context.getFrame()) {
                             @Override
                             public void onCreateBranch(String branchName) {
-                                handleCreateBranchAction(branchName, "");
+                                handleCreateBranchAction(branchName);
                                 branchPopupRef.onRefresh();
                             }
                         };

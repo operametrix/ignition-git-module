@@ -326,8 +326,8 @@ public class GatewayScriptModule extends AbstractScriptModule {
     }
 
     @Override
-    protected boolean createBranchImpl(String projectName, String branchName, String startPoint) throws Exception {
-        return GitManager.createBranch(getProjectFolderPath(projectName), branchName, startPoint);
+    protected boolean createBranchImpl(String projectName, String branchName) throws Exception {
+        return GitManager.createBranch(getProjectFolderPath(projectName), branchName);
     }
 
     @Override

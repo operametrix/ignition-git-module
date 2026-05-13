@@ -732,13 +732,9 @@ public class GitManager {
         }
     }
 
-    public static boolean createBranch(Path projectFolderPath, String branchName, String startPoint) throws Exception {
+    public static boolean createBranch(Path projectFolderPath, String branchName) throws Exception {
         try (Git git = getGit(projectFolderPath)) {
-            CreateBranchCommand command = git.branchCreate().setName(branchName);
-            if (startPoint != null && !startPoint.isEmpty()) {
-                command.setStartPoint(startPoint);
-            }
-            command.call();
+            git.branchCreate().setName(branchName).call();
             return true;
         }
     }

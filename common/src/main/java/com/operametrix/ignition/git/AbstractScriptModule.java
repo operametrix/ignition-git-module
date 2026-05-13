@@ -103,9 +103,8 @@ public abstract class AbstractScriptModule implements GitScriptInterface {
     @Override
     @ScriptFunction(docBundlePrefix = "AbstractScriptModule")
     public boolean createBranch(@ScriptArg("projectName") String projectName,
-                                @ScriptArg("branchName") String branchName,
-                                @ScriptArg("startPoint") String startPoint) throws Exception {
-        return createBranchImpl(projectName, branchName, startPoint);
+                                @ScriptArg("branchName") String branchName) throws Exception {
+        return createBranchImpl(projectName, branchName);
     }
 
     @Override
@@ -193,7 +192,7 @@ public abstract class AbstractScriptModule implements GitScriptInterface {
     protected abstract List<String> getLocalBranchesImpl(String projectName) throws Exception;
     protected abstract List<String> getRemoteBranchesImpl(String projectName) throws Exception;
     protected abstract String getCurrentBranchImpl(String projectName) throws Exception;
-    protected abstract boolean createBranchImpl(String projectName, String branchName, String startPoint) throws Exception;
+    protected abstract boolean createBranchImpl(String projectName, String branchName) throws Exception;
     protected abstract boolean checkoutBranchImpl(String projectName, String branchName) throws Exception;
     protected abstract boolean deleteBranchImpl(String projectName, String branchName) throws Exception;
     protected abstract boolean isSSHAuthenticationImpl(String projectName);

@@ -73,8 +73,8 @@ public class ClientScriptModule extends AbstractScriptModule {
     }
 
     @Override
-    protected boolean createBranchImpl(String projectName, String branchName, String startPoint) throws Exception {
-        return rpc.createBranch(projectName, branchName, startPoint);
+    protected boolean createBranchImpl(String projectName, String branchName) throws Exception {
+        return rpc.createBranch(projectName, branchName);
     }
 
     @Override

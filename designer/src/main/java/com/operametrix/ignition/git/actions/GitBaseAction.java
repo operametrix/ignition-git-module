@@ -343,9 +343,9 @@ public class GitBaseAction extends BaseAction {
         }
     }
 
-    public static void handleCreateBranchAction(String branchName, String startPoint) {
+    public static void handleCreateBranchAction(String branchName) {
         try {
-            rpc.createBranch(projectName, branchName, startPoint);
+            rpc.createBranch(projectName, branchName);
         } catch (Exception ex) {
             ErrorUtil.showError(ex);
         }
