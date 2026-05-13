@@ -5,7 +5,6 @@ import com.operametrix.ignition.git.records.GitRemoteCredentialsRecord;
 import com.operametrix.ignition.git.records.GitReposUsersRecord;
 import com.operametrix.ignition.git.records.GitUserHttpsCredentialRecord;
 import com.operametrix.ignition.git.records.GitUserSshKeyRecord;
-import com.inductiveautomation.ignition.common.BundleUtil;
 import com.inductiveautomation.ignition.common.licensing.LicenseState;
 import com.inductiveautomation.ignition.gateway.clientcomm.ClientReqSession;
 import com.inductiveautomation.ignition.gateway.model.AbstractGatewayModuleHook;
@@ -26,7 +25,6 @@ public class GatewayHook extends AbstractGatewayModuleHook {
     public void setup(GatewayContext gatewayContext) {
         context = gatewayContext;
         scriptModule = new GatewayScriptModule(context);
-        BundleUtil.get().addBundle("bundle_git", getClass(), "bundle_git");
         verifySchema(gatewayContext);
 
         logger.info("setup()");
