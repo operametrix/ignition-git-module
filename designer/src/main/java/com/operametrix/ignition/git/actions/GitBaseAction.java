@@ -1,15 +1,12 @@
 package com.operametrix.ignition.git.actions;
 
 import com.operametrix.ignition.git.InitProgressDialog;
-import com.operametrix.ignition.git.utils.IconUtils;
-import com.inductiveautomation.ignition.client.util.action.BaseAction;
 import com.inductiveautomation.ignition.client.util.gui.ErrorUtil;
 import com.inductiveautomation.ignition.common.BundleUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.swing.*;
-import java.awt.event.ActionEvent;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -19,65 +16,11 @@ import java.util.List;
 import static com.operametrix.ignition.git.DesignerHook.*;
 import static com.operametrix.ignition.git.managers.GitActionManager.*;
 
-public class GitBaseAction extends BaseAction {
+public class GitBaseAction {
     private static final Logger logger = LoggerFactory.getLogger(GitBaseAction.class);
 
-    public enum GitActionType {
-        PULL(
-            "DesignerHook.Actions.Pull",
-            "/com/operametrix/ignition/git/icons/ic_pull.svg"
-        ),
-        PUSH(
-            "DesignerHook.Actions.Push",
-            "/com/operametrix/ignition/git/icons/ic_push.svg"
-        ),
-        COMMIT(
-            "DesignerHook.Actions.Commit",
-            "/com/operametrix/ignition/git/icons/ic_commit.svg"
-        ),
-        EXPORT(
-            "DesignerHook.Actions.ExportGatewayConfig",
-            "/com/operametrix/ignition/git/icons/ic_folder.svg"
-        ),
-
-        REPO(
-            "DesignerHook.Actions.Repo",
-            "/com/operametrix/ignition/git/icons/ic_git.svg"
-        ),
-
-        BRANCH(
-            "DesignerHook.Actions.Branch",
-            "/com/operametrix/ignition/git/icons/ic_branch.svg"
-        );
-
-        private final String baseBundleKey;
-        private final String resourcePath;
-
-        GitActionType(String baseBundleKey, String resourcePath) {
-            this.baseBundleKey = baseBundleKey;
-            this.resourcePath = resourcePath;
-        }
-
-        public Icon getIcon() {
-            return IconUtils.getIcon(resourcePath);
-        }
-    }
-
-    GitActionType type;
-
-    public GitBaseAction(GitActionType type) {
-        super(type.baseBundleKey, type.getIcon());
-        this.type = type;
-    }
-
-    @Override
-    public void actionPerformed(ActionEvent e) {
-        handleAction(type);
-    }
-
-    // Todo : Find a way to refactor with handleAction
     public static void handleCommitAction(List<String> changes, String commitMessage, boolean amend) {
-        String message = BundleUtil.get().getStringLenient(GitActionType.COMMIT.baseBundleKey + ".ConfirmMessage");
+        String message = BundleUtil.get().getStringLenient("DesignerHook.Actions.Commit.ConfirmMessage");
         int messageType = JOptionPane.INFORMATION_MESSAGE;
 
         try {
@@ -100,7 +43,7 @@ public class GitBaseAction extends BaseAction {
             return;
         }
 
-        String message = BundleUtil.get().getStringLenient(GitActionType.PUSH.baseBundleKey + ".ConfirmMessage");
+        String message = BundleUtil.get().getStringLenient("DesignerHook.Actions.Push.ConfirmMessage");
         int messageType = JOptionPane.INFORMATION_MESSAGE;
 
         InitProgressDialog progress = new InitProgressDialog(context.getFrame(), "Pushing");
@@ -197,7 +140,7 @@ public class GitBaseAction extends BaseAction {
             return;
         }
 
-        String message = BundleUtil.get().getStringLenient(GitActionType.PULL.baseBundleKey + ".ConfirmMessage");
+        String message = BundleUtil.get().getStringLenient("DesignerHook.Actions.Pull.ConfirmMessage");
         int messageType = JOptionPane.INFORMATION_MESSAGE;
 
         InitProgressDialog progress = new InitProgressDialog(context.getFrame(), "Pulling");
@@ -246,7 +189,7 @@ public class GitBaseAction extends BaseAction {
     }
 
     public static void handleCheckoutAction(String branchName) {
-        String message = BundleUtil.get().getStringLenient(GitActionType.BRANCH.baseBundleKey + ".CheckoutConfirmMessage");
+        String message = BundleUtil.get().getStringLenient("DesignerHook.Actions.Branch.CheckoutConfirmMessage");
         int messageType = JOptionPane.INFORMATION_MESSAGE;
 
         try {
@@ -446,37 +389,9 @@ public class GitBaseAction extends BaseAction {
         }
     }
 
-    public static void handleAction(GitActionType type) {
-        String message = BundleUtil.get().getStringLenient(type.baseBundleKey + ".ConfirmMessage");
-        int messageType = JOptionPane.INFORMATION_MESSAGE;
-        boolean confirmPopup = Boolean.TRUE;
-
+    public static void handleBranchAction() {
         try {
-            switch (type) {
-                case PULL:
-                    confirmPopup = Boolean.FALSE;
-                    showPullPopup(projectName, userName);
-                    break;
-                case PUSH:
-                    confirmPopup = Boolean.FALSE;
-                    showPushPopup(projectName, userName);
-                    break;
-                case COMMIT:
-                    confirmPopup = Boolean.FALSE;
-                    showCommitPopup(projectName, userName);
-                    break;
-                case EXPORT:
-                    rpc.exportConfig(projectName);
-                    break;
-                case REPO:
-                    openRepositoryLink(projectName);
-                    break;
-                case BRANCH:
-                    confirmPopup = Boolean.FALSE;
-                    showBranchPopup(projectName, userName);
-                    break;
-            }
-            if(confirmPopup) SwingUtilities.invokeLater(new Thread(() -> showConfirmPopup(message, messageType)));
+            showBranchPopup(projectName, userName);
             if (instance != null) {
                 instance.refreshCommitPanel();
                 instance.refreshHistoryPanel();

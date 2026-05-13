@@ -90,7 +90,7 @@ public class DesignerHook extends AbstractDesignerModuleHook {
         }
         branchButton.setFont(branchButton.getFont().deriveFont(Font.BOLD));
         styleStatusBarButton(branchButton);
-        branchButton.addActionListener(e -> GitBaseAction.handleAction(GitBaseAction.GitActionType.BRANCH));
+        branchButton.addActionListener(e -> GitBaseAction.handleBranchAction());
         gitStatusBar.add(branchButton);
 
         // Remotes button: filled cloud icon + "Remotes" label

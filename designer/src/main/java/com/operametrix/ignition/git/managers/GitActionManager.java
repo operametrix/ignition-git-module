@@ -26,7 +26,6 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
-import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -121,22 +120,6 @@ public class GitActionManager {
             };
         }
     }
-    public static void openRepositoryLink(String projectName) {
-        try {
-            String repoLink = rpc.getRepoURL(projectName);
-            if (repoLink == null || repoLink.isEmpty()) {
-                JOptionPane.showMessageDialog(context.getFrame(),
-                        "No remote repository configured.",
-                        "Info", JOptionPane.INFORMATION_MESSAGE);
-                return;
-            }
-            Desktop desktop = Desktop.getDesktop();
-            desktop.browse(new URI(repoLink));
-        } catch (Exception e) {
-            logger.error("Error opening repository link", e);
-        }
-    }
-
 
 
     public static void showPullPopup(String projectName, String userName) {
