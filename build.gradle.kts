@@ -22,19 +22,17 @@ ignitionModule {
     requiredIgnitionVersion.set(sdk_version)
 
     projectScopes.putAll(mapOf(
-        ":client" to "C",
-        ":common" to "CDG",
-        ":designer" to "CD",
+        ":common" to "DG",
+        ":designer" to "D",
         ":gateway" to "G"
     ))
 
     moduleDependencies.set(mapOf<String, String>())
 
     hooks.putAll(mapOf(
-        "com.operametrix.ignition.git.ClientHook" to "C",
         "com.operametrix.ignition.git.DesignerHook" to "D",
         "com.operametrix.ignition.git.GatewayHook" to "G"
     ))
 
-    skipModlSigning.set(true)
+    skipModlSigning.set(false)
 }

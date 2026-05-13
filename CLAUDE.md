@@ -20,27 +20,25 @@ There are no automated tests in this project. Testing is done manually by instal
 
 ## Architecture
 
-This is a Gradle multi-module project following the **Ignition Module SDK pattern** with four scope-specific subprojects:
+This is a Gradle multi-module project following the **Ignition Module SDK pattern** with three scope-specific subprojects:
 
 ```
-common    (scope: CDG)  — Shared interface + abstract base class
-client    (scope: C)    — Vision client hook (minimal)
-designer  (scope: CD)   — Designer UI: dockable panels, popups, status bar
-gateway   (scope: G)    — Backend: all git operations, persistence, web config pages
+common    (scope: DG)   — Shared interface + abstract base class
+designer  (scope: D)    — Designer UI: dockable panels, popups, status bar
+gateway   (scope: G)    — Backend: all git operations, persistence
 ```
 
 The root `build.gradle.kts` uses the `io.ia.sdk.modl` Gradle plugin to assemble the `.modl` file.
 
-**Scopes**: C = Client, D = Designer, G = Gateway. Code in a given scope only runs in that Ignition context.
+**Scopes**: D = Designer, G = Gateway. Code in a given scope only runs in that Ignition context. (The Vision client scope is unused — there is no `system.git.*` script module on Vision clients.)
 
 ### Key Design Patterns
 
 **Hook classes** are the entry points for each scope. Each implements the Ignition lifecycle (`setup`/`startup`/`shutdown`):
-- `ClientHook` — registers the script module on the client
 - `DesignerHook` — initializes status bar (three hover-highlighted buttons when registered: git icon + branch name, cloud icon + "Remotes", user icon + username), dockable panels, and user verification timer; uses `ModuleRPCFactory` to call gateway methods remotely. On startup, checks `isProjectRegistered()` — if unregistered, shows a two-button status bar ("Configure" + user button) so credentials can be added before initialization. After successful init via `InitRepoPopup`, calls `reinitializeAfterSetup()` to rebuild the full status bar. Exposes a static `instance` field for callbacks from `GitActionManager`. A 1-second polling `Timer` (`panelVisibilityTimer`) keeps the Commit and History dockable panels visible across workspace switches — checks `isHidden()`, null (removed from DockingManager), and `!isDisplayable()` (detached from Swing hierarchy) to catch all workspace transition behaviors.
 - `GatewayHook` — creates DB schema and registers the gateway RPC handler
 
-**Script interface pattern**: `GitScriptInterface` (common) defines the API (includes `initializeLocalProject()` for local-only init, `hasRemoteRepository()` for remote detection, `fetch()` for fetching without merge, and merge conflict resolution methods: `getConflictingFiles`, `resolveConflict`, `abortMerge`, `completeMergeCommit`, `getConflictDiff`). `AbstractScriptModule` (common) decorates it with Ignition annotations. `GatewayScriptModule` (gateway) provides the real implementation. `ClientScriptModule` (client) proxies all calls via RPC. Designer calls gateway methods via RPC.
+**Script interface pattern**: `GitScriptInterface` (common) defines the API (includes `initializeLocalProject()` for local-only init, `hasRemoteRepository()` for remote detection, `fetch()` for fetching without merge, and merge conflict resolution methods: `getConflictingFiles`, `resolveConflict`, `abortMerge`, `completeMergeCommit`, `getConflictDiff`). `AbstractScriptModule` (common) decorates it with Ignition annotations. `GatewayScriptModule` (gateway) provides the real implementation. The Designer calls gateway methods through `ModuleRPCFactory.create(GitScriptInterface.class)`.
 
 **Designer project refresh**: After any gateway-side operation that modifies the Ignition project (pull, checkout, init), the Designer must call `GitBaseAction.pullProjectFromGateway()` to sync its local project state with the gateway via reflection on the Designer frame's `pullAndResolve()` method. Without this call, gateway-side `GitProjectManager.importProject()` updates the gateway but the Designer UI won't reflect the changes.
 

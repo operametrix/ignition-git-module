@@ -9,7 +9,6 @@ java {
 }
 
 dependencies {
-    api(project(":client"))
     api(project(":common"))
 
     modlImplementation("com.intellij:forms_rt:7.0.3")
