@@ -1,8 +1,6 @@
 package com.operametrix.ignition.git.records;
 
 import com.inductiveautomation.ignition.gateway.localdb.persistence.*;
-import com.inductiveautomation.ignition.gateway.web.components.editors.PasswordEditorSource;
-import com.inductiveautomation.ignition.gateway.web.components.editors.TextAreaEditorSource;
 import simpleorm.dataset.SFieldFlags;
 
 public class GitRemoteCredentialsRecord extends PersistentRecord {
@@ -24,16 +22,13 @@ public class GitRemoteCredentialsRecord extends PersistentRecord {
             SFieldFlags.SMANDATORY, SFieldFlags.SDESCRIPTIVE);
     public static final StringField RemoteName = new StringField(META, "RemoteName",
             SFieldFlags.SMANDATORY, SFieldFlags.SDESCRIPTIVE);
-    public static final StringField UserName = new StringField(META, "UserName");
-    public static final EncodedStringField Password = new EncodedStringField(META, "Password");
-    public static final StringField SSHKey = new StringField(META, "SSHKey");
 
     public static final LongField SshKeyId = new LongField(META, "SshKeyId");
     public static final LongField HttpsCredentialId = new LongField(META, "HttpsCredentialId");
 
     static final Category RemoteCredentials = new Category(
             "GitRemoteCredentialsRecord.Category.RemoteCredentials", 1000)
-            .include(ProjectName, IgnitionUser, RemoteName, UserName, Password, SSHKey);
+            .include(ProjectName, IgnitionUser, RemoteName, SshKeyId, HttpsCredentialId);
 
     public int getId() {
         return this.getInt(Id);
@@ -51,18 +46,6 @@ public class GitRemoteCredentialsRecord extends PersistentRecord {
         return this.getString(RemoteName);
     }
 
-    public String getUserName() {
-        return this.getString(UserName);
-    }
-
-    public String getPassword() {
-        return this.getString(Password);
-    }
-
-    public String getSSHKey() {
-        return this.getString(SSHKey);
-    }
-
     public void setProjectId(long projectId) {
         this.setLong(ProjectId, projectId);
     }
@@ -73,18 +56,6 @@ public class GitRemoteCredentialsRecord extends PersistentRecord {
 
     public void setRemoteName(String remoteName) {
         setString(RemoteName, remoteName);
-    }
-
-    public void setUserName(String userName) {
-        setString(UserName, userName);
-    }
-
-    public void setPassword(String password) {
-        setString(Password, password);
-    }
-
-    public void setSSHKey(String sshKey) {
-        setString(SSHKey, sshKey);
     }
 
     public long getSshKeyId() {
@@ -101,11 +72,5 @@ public class GitRemoteCredentialsRecord extends PersistentRecord {
 
     public void setHttpsCredentialId(long httpsCredentialId) {
         setLong(HttpsCredentialId, httpsCredentialId);
-    }
-
-    static {
-        SSHKey.getFormMeta().setEditorSource(new TextAreaEditorSource());
-        SSHKey.setWide();
-        Password.getFormMeta().setEditorSource(PasswordEditorSource.getSharedInstance());
     }
 }

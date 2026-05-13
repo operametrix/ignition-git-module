@@ -397,11 +397,10 @@ public class RemotesPopup extends JDialog {
                 ? credentialIds.get(selectedIdx) : 0;
         boolean isHttps = url.toLowerCase().startsWith("http");
 
-        // Add/edit the remote with empty inline creds (credential is referenced by FK)
         if (formIsEdit) {
-            onEditRemote(name, url, "", "", "");
+            onEditRemote(name, url);
         } else {
-            onAddRemote(name, url, "", "", "");
+            onAddRemote(name, url);
         }
 
         // Associate the selected credential via FK
@@ -453,10 +452,10 @@ public class RemotesPopup extends JDialog {
 
     // ── Callbacks ──────────────────────────────────────────────────────
 
-    public void onAddRemote(String name, String url, String gitUsername, String password, String sshKey) {
+    public void onAddRemote(String name, String url) {
     }
 
-    public void onEditRemote(String name, String newUrl, String gitUsername, String password, String sshKey) {
+    public void onEditRemote(String name, String newUrl) {
     }
 
     public void onRemoveRemote(String name) {

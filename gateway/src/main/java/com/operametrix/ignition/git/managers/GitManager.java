@@ -94,10 +94,9 @@ public class GitManager {
     }
 
     /**
-     * Set authentication on a transport command using a three-tier credential lookup:
-     * 1. Project-level FK reference to a user-level credential record
-     * 2. Project-level inline credentials (existing behavior)
-     * 3. User-level fallback (SSH: default key; HTTPS: match by host)
+     * Set authentication on a transport command using a two-tier credential lookup:
+     * 1. FK reference from GitRemoteCredentialsRecord to a user-level credential record
+     * 2. User-level fallback (SSH: lone default key; HTTPS: match by host)
      *
      * Auth type (SSH vs HTTPS) is determined from the remote's URL in .git/config.
      */
@@ -123,9 +122,6 @@ public class GitManager {
         }
     }
 
-    /**
-     * Resolve an SSH key using the three-tier fallback chain.
-     */
     private static String resolveSshKey(GitRemoteCredentialsRecord creds, String userName) {
         // Tier 1: FK reference to user-level SSH key
         if (creds != null && creds.getSshKeyId() > 0) {
@@ -136,11 +132,7 @@ public class GitManager {
                 return keyRecord.getSSHKey();
             }
         }
-        // Tier 2: Inline project-level credentials
-        if (creds != null && creds.getSSHKey() != null && !creds.getSSHKey().isEmpty()) {
-            return creds.getSSHKey();
-        }
-        // Tier 3: User-level SSH key — use it if exactly one exists
+        // Tier 2: User-level SSH key — use it if exactly one exists
         List<GitUserSshKeyRecord> userKeys = context.getPersistenceInterface().query(
                 new SQuery<>(GitUserSshKeyRecord.META)
                         .eq(GitUserSshKeyRecord.IgnitionUser, userName));
@@ -150,10 +142,7 @@ public class GitManager {
         return null;
     }
 
-    /**
-     * Resolve HTTPS credentials using the three-tier fallback chain.
-     * @return [username, password] or null if no credentials found
-     */
+    /** @return [username, password] or null if no credentials found */
     private static String[] resolveHttpsCredentials(GitRemoteCredentialsRecord creds,
                                                      String userName, String url) {
         // Tier 1: FK reference to user-level HTTPS credential
@@ -165,11 +154,7 @@ public class GitManager {
                 return new String[]{httpRecord.getUserName(), httpRecord.getPassword()};
             }
         }
-        // Tier 2: Inline project-level credentials
-        if (creds != null && creds.getUserName() != null && !creds.getUserName().isEmpty()) {
-            return new String[]{creds.getUserName(), creds.getPassword()};
-        }
-        // Tier 3: User-level HTTPS credential matched by host
+        // Tier 2: User-level HTTPS credential matched by host
         String host = extractHost(url);
         if (host != null) {
             GitUserHttpsCredentialRecord hostRecord = context.getPersistenceInterface().queryOne(

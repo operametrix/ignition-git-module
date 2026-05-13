@@ -7,8 +7,6 @@ An Ignition module that embeds a Git client directly into the Ignition Designer,
 ## Features
 
 - Initialize a git repository directly from the Designer — a wizard-style setup dialog asks whether you have a remote repository. Choose "Yes, clone from remote" to enter a repo URI and pick a pre-configured credential (auto-filtered to SSH keys or HTTPS credentials based on the URI), or "No, initialize locally" to create a local-only git repo (the commit author email is taken from your Ignition user profile). Local repositories can have a remote added later. The status bar shows a "Configure" button for unregistered projects; click it to open the setup wizard.
-- Link an Ignition project with a remote repo (Gateway Webpage)
-- Link an Ignition user to a git project, with SSH or user/password authentication (Gateway Webpage)
 - Manage remotes: add, edit, and remove named git remotes (e.g. "origin", "upstream") from a dedicated status bar button; each remote points to a user-level credential (SSH key or HTTPS credential) selected from a dropdown
 - Manage user-level git credentials (SSH keys and HTTPS credentials per host, with provider-specific hint text for GitHub/GitLab/Azure/Bitbucket) from the Designer by clicking the user icon in the status bar; these credentials are shared across all projects and selectable per-remote
 - Commit resources with last-modification timestamps shown per resource (Designer, on project saved or from git toolbar); supports amending the last commit (fix the message or add forgotten files) via an "Amend last commit" checkbox in both the Commit popup and Commit panel

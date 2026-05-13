@@ -42,7 +42,7 @@ public class GatewayHook extends AbstractGatewayModuleHook {
                     GitUserHttpsCredentialRecord.META,
                     GitRemoteCredentialsRecord.META);
         } catch (SQLException e) {
-            logger.error("Error verifying persistent record schemas for HomeConnect records.", e);
+            logger.error("Error verifying persistent record schemas for Git records.", e);
         }
     }
 

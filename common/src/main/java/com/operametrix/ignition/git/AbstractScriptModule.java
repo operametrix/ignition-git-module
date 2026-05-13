@@ -130,27 +130,6 @@ public abstract class AbstractScriptModule implements GitScriptInterface {
 
     @Override
     @ScriptFunction(docBundlePrefix = "AbstractScriptModule")
-    public boolean saveUserCredentials(@ScriptArg("projectName") String projectName,
-                                       @ScriptArg("ignitionUser") String ignitionUser) {
-        return saveUserCredentialsImpl(projectName, ignitionUser);
-    }
-
-    @Override
-    @ScriptFunction(docBundlePrefix = "AbstractScriptModule")
-    public String getUserEmail(@ScriptArg("projectName") String projectName,
-                               @ScriptArg("ignitionUser") String ignitionUser) {
-        return getUserEmailImpl(projectName, ignitionUser);
-    }
-
-    @Override
-    @ScriptFunction(docBundlePrefix = "AbstractScriptModule")
-    public String getUserGitUsername(@ScriptArg("projectName") String projectName,
-                                     @ScriptArg("ignitionUser") String ignitionUser) {
-        return getUserGitUsernameImpl(projectName, ignitionUser);
-    }
-
-    @Override
-    @ScriptFunction(docBundlePrefix = "AbstractScriptModule")
     public boolean isProjectRegistered(@ScriptArg("projectName") String projectName) {
         return isProjectRegisteredImpl(projectName);
     }
@@ -160,13 +139,9 @@ public abstract class AbstractScriptModule implements GitScriptInterface {
     public boolean initializeProject(@ScriptArg("projectName") String projectName,
                                      @ScriptArg("repoUri") String repoUri,
                                      @ScriptArg("ignitionUser") String ignitionUser,
-                                     @ScriptArg("gitUsername") String gitUsername,
-                                     @ScriptArg("password") String password,
-                                     @ScriptArg("sshKey") String sshKey,
                                      @ScriptArg("sshKeyId") long sshKeyId,
                                      @ScriptArg("httpsCredentialId") long httpsCredentialId) throws Exception {
-        return initializeProjectImpl(projectName, repoUri, ignitionUser, gitUsername, password, sshKey,
-                sshKeyId, httpsCredentialId);
+        return initializeProjectImpl(projectName, repoUri, ignitionUser, sshKeyId, httpsCredentialId);
     }
 
     @Override
@@ -222,14 +197,9 @@ public abstract class AbstractScriptModule implements GitScriptInterface {
     protected abstract boolean checkoutBranchImpl(String projectName, String branchName) throws Exception;
     protected abstract boolean deleteBranchImpl(String projectName, String branchName) throws Exception;
     protected abstract boolean isSSHAuthenticationImpl(String projectName);
-    protected abstract boolean saveUserCredentialsImpl(String projectName, String ignitionUser);
-    protected abstract String getUserEmailImpl(String projectName, String ignitionUser);
-    protected abstract String getUserGitUsernameImpl(String projectName, String ignitionUser);
     protected abstract boolean isProjectRegisteredImpl(String projectName);
     protected abstract boolean initializeProjectImpl(String projectName, String repoUri, String ignitionUser,
-                                                      String gitUsername, String password,
-                                                      String sshKey, long sshKeyId,
-                                                      long httpsCredentialId) throws Exception;
+                                                      long sshKeyId, long httpsCredentialId) throws Exception;
     protected abstract List<String> getResourceDiffImpl(String projectName, String resourcePath);
     protected abstract Dataset getCommitHistoryImpl(String projectName, int skip, int limit);
     protected abstract List<String> getCommitFilesImpl(String projectName, String commitHash);
@@ -291,11 +261,8 @@ public abstract class AbstractScriptModule implements GitScriptInterface {
     public boolean addRemote(@ScriptArg("projectName") String projectName,
                              @ScriptArg("remoteName") String remoteName,
                              @ScriptArg("remoteUrl") String remoteUrl,
-                             @ScriptArg("ignitionUser") String ignitionUser,
-                             @ScriptArg("gitUsername") String gitUsername,
-                             @ScriptArg("password") String password,
-                             @ScriptArg("sshKey") String sshKey) throws Exception {
-        return addRemoteImpl(projectName, remoteName, remoteUrl, ignitionUser, gitUsername, password, sshKey);
+                             @ScriptArg("ignitionUser") String ignitionUser) throws Exception {
+        return addRemoteImpl(projectName, remoteName, remoteUrl, ignitionUser);
     }
 
     @Override
@@ -311,22 +278,17 @@ public abstract class AbstractScriptModule implements GitScriptInterface {
     public boolean setRemoteUrl(@ScriptArg("projectName") String projectName,
                                 @ScriptArg("remoteName") String remoteName,
                                 @ScriptArg("newUrl") String newUrl,
-                                @ScriptArg("ignitionUser") String ignitionUser,
-                                @ScriptArg("gitUsername") String gitUsername,
-                                @ScriptArg("password") String password,
-                                @ScriptArg("sshKey") String sshKey) throws Exception {
-        return setRemoteUrlImpl(projectName, remoteName, newUrl, ignitionUser, gitUsername, password, sshKey);
+                                @ScriptArg("ignitionUser") String ignitionUser) throws Exception {
+        return setRemoteUrlImpl(projectName, remoteName, newUrl, ignitionUser);
     }
 
     protected abstract Dataset listRemotesImpl(String projectName) throws Exception;
     protected abstract boolean addRemoteImpl(String projectName, String remoteName, String remoteUrl,
-                                              String ignitionUser, String gitUsername, String password,
-                                              String sshKey) throws Exception;
+                                              String ignitionUser) throws Exception;
     protected abstract boolean removeRemoteImpl(String projectName, String remoteName,
                                                  String ignitionUser) throws Exception;
     protected abstract boolean setRemoteUrlImpl(String projectName, String remoteName, String newUrl,
-                                                 String ignitionUser, String gitUsername, String password,
-                                                 String sshKey) throws Exception;
+                                                 String ignitionUser) throws Exception;
 
     @Override
     @ScriptFunction(docBundlePrefix = "AbstractScriptModule")

@@ -434,9 +434,9 @@ public class GitActionManager {
             } else {
                 remotesPopup = new RemotesPopup(context.getFrame()) {
                     @Override
-                    public void onAddRemote(String name, String url, String gitUsername, String password, String sshKey) {
+                    public void onAddRemote(String name, String url) {
                         try {
-                            rpc.addRemote(projectName, name, url, userName, gitUsername, password, sshKey);
+                            rpc.addRemote(projectName, name, url, userName);
                             showConfirmPopup("Remote '" + name + "' added successfully.", JOptionPane.INFORMATION_MESSAGE);
                             onRefresh();
                         } catch (Exception e) {
@@ -446,9 +446,9 @@ public class GitActionManager {
                     }
 
                     @Override
-                    public void onEditRemote(String name, String newUrl, String gitUsername, String password, String sshKey) {
+                    public void onEditRemote(String name, String newUrl) {
                         try {
-                            rpc.setRemoteUrl(projectName, name, newUrl, userName, gitUsername, password, sshKey);
+                            rpc.setRemoteUrl(projectName, name, newUrl, userName);
                             showConfirmPopup("Remote '" + name + "' updated successfully.", JOptionPane.INFORMATION_MESSAGE);
                             onRefresh();
                         } catch (Exception e) {
@@ -523,16 +523,14 @@ public class GitActionManager {
 
             initRepoPopup = new InitRepoPopup(context.getFrame()) {
                 @Override
-                public void onInitialize(String repoUri, String gitUsername, String password, String sshKey,
-                                         long sshKeyId, long httpsCredentialId) {
+                public void onInitialize(String repoUri, long sshKeyId, long httpsCredentialId) {
                     setEnabled(false);
                     InitProgressDialog progress = new InitProgressDialog(context.getFrame(), "Cloning Repository");
                     new SwingWorker<Void, Void>() {
                         @Override
                         protected Void doInBackground() throws Exception {
                             progress.setStatus("Connecting to remote and cloning repository...");
-                            rpc.initializeProject(projectName, repoUri, userName, gitUsername, password, sshKey,
-                                    sshKeyId, httpsCredentialId);
+                            rpc.initializeProject(projectName, repoUri, userName, sshKeyId, httpsCredentialId);
                             return null;
                         }
 

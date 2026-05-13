@@ -305,7 +305,7 @@ public class InitRepoPopup extends JDialog {
         long sshKeyId = (!isHttps && selectedCredId > 0) ? selectedCredId : 0;
         long httpsCredentialId = (isHttps && selectedCredId > 0) ? selectedCredId : 0;
 
-        onInitialize(repoUri, "", "", "", sshKeyId, httpsCredentialId);
+        onInitialize(repoUri, sshKeyId, httpsCredentialId);
     }
 
     // ── Validation ──────────────────────────────────────────────────────
@@ -341,8 +341,7 @@ public class InitRepoPopup extends JDialog {
 
     // ── Callbacks ───────────────────────────────────────────────────────
 
-    public void onInitialize(String repoUri, String gitUsername, String password, String sshKey,
-                             long sshKeyId, long httpsCredentialId) {
+    public void onInitialize(String repoUri, long sshKeyId, long httpsCredentialId) {
     }
 
     public void onLocalInitialize() {

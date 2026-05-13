@@ -354,43 +354,6 @@ public class GatewayScriptModule extends AbstractScriptModule {
     }
 
     @Override
-    protected boolean saveUserCredentialsImpl(String projectName, String ignitionUser) {
-        try {
-            GitProjectsConfigRecord gitProjectsConfigRecord = getGitProjectConfigRecord(projectName);
-            try {
-                getGitReposUserRecord(gitProjectsConfigRecord, ignitionUser);
-                // Record already exists
-            } catch (Exception e) {
-                // Create new registration record
-                GitReposUsersRecord user = context.getPersistenceInterface().createNew(GitReposUsersRecord.META);
-                user.setProjectId(gitProjectsConfigRecord.getId());
-                user.setIgnitionUser(ignitionUser);
-                context.getPersistenceInterface().save(user);
-            }
-            return true;
-        } catch (Exception e) {
-            logger.error("Error saving user credentials", e);
-            return false;
-        }
-    }
-
-    @Override
-    protected String getUserEmailImpl(String projectName, String ignitionUser) {
-        return GitManager.resolveUserEmail(ignitionUser);
-    }
-
-    @Override
-    protected String getUserGitUsernameImpl(String projectName, String ignitionUser) {
-        try {
-            GitProjectsConfigRecord gitProjectsConfigRecord = getGitProjectConfigRecord(projectName);
-            GitReposUsersRecord user = getGitReposUserRecord(gitProjectsConfigRecord, ignitionUser);
-            return user.getUserName();
-        } catch (Exception e) {
-            return "";
-        }
-    }
-
-    @Override
     protected boolean isProjectRegisteredImpl(String projectName) {
         try {
             getGitProjectConfigRecord(projectName);
@@ -456,9 +419,7 @@ public class GatewayScriptModule extends AbstractScriptModule {
 
     @Override
     protected boolean initializeProjectImpl(String projectName, String repoUri, String ignitionUser,
-                                             String gitUsername, String password,
-                                             String sshKey, long sshKeyId,
-                                             long httpsCredentialId) throws Exception {
+                                             long sshKeyId, long httpsCredentialId) throws Exception {
         // Check project not already registered
         if (isProjectRegisteredImpl(projectName)) {
             throw new Exception("Project '" + projectName + "' is already registered.");
@@ -479,22 +440,11 @@ public class GatewayScriptModule extends AbstractScriptModule {
         userRecord.setIgnitionUser(ignitionUser);
         context.getPersistenceInterface().save(userRecord);
 
-        // Create per-remote credential record for "origin"
+        // Create per-remote credential record for "origin" with FK refs to user-level credentials
         GitRemoteCredentialsRecord remoteCreds = context.getPersistenceInterface().createNew(GitRemoteCredentialsRecord.META);
         remoteCreds.setProjectId(projectRecord.getId());
         remoteCreds.setIgnitionUser(ignitionUser);
         remoteCreds.setRemoteName("origin");
-        remoteCreds.setUserName(gitUsername != null ? gitUsername : "");
-        if (!repoUri.toLowerCase().startsWith("http")) {
-            if (sshKey != null && !sshKey.isEmpty()) {
-                remoteCreds.setSSHKey(sshKey);
-            }
-        } else {
-            if (password != null && !password.isEmpty()) {
-                remoteCreds.setPassword(password);
-            }
-        }
-        // Set user-level credential FK references so setAuthentication() can find them during clone
         if (sshKeyId > 0) {
             remoteCreds.setSshKeyId(sshKeyId);
         }
@@ -604,24 +554,16 @@ public class GatewayScriptModule extends AbstractScriptModule {
 
     @Override
     protected boolean addRemoteImpl(String projectName, String remoteName, String remoteUrl,
-                                     String ignitionUser, String gitUsername, String password,
-                                     String sshKey) throws Exception {
+                                     String ignitionUser) throws Exception {
         Path projectPath = getProjectFolderPath(projectName);
         GitManager.addRemote(projectPath, remoteName, remoteUrl);
 
-        // Create credential record
+        // Create empty credential record — FK refs are attached separately via setRemoteCredentialRef
         GitProjectsConfigRecord projectRecord = getGitProjectConfigRecord(projectName);
         GitRemoteCredentialsRecord creds = context.getPersistenceInterface().createNew(GitRemoteCredentialsRecord.META);
         creds.setProjectId(projectRecord.getId());
         creds.setIgnitionUser(ignitionUser);
         creds.setRemoteName(remoteName);
-        creds.setUserName(gitUsername != null ? gitUsername : "");
-        if (password != null && !password.isEmpty()) {
-            creds.setPassword(password);
-        }
-        if (sshKey != null && !sshKey.isEmpty()) {
-            creds.setSSHKey(sshKey);
-        }
         context.getPersistenceInterface().save(creds);
 
         // DB sync: if "origin", update GitProjectsConfigRecord.URI
@@ -662,12 +604,11 @@ public class GatewayScriptModule extends AbstractScriptModule {
 
     @Override
     protected boolean setRemoteUrlImpl(String projectName, String remoteName, String newUrl,
-                                        String ignitionUser, String gitUsername, String password,
-                                        String sshKey) throws Exception {
+                                        String ignitionUser) throws Exception {
         Path projectPath = getProjectFolderPath(projectName);
         GitManager.setRemoteUrl(projectPath, remoteName, newUrl);
 
-        // Update credential record
+        // Ensure a credential record exists for this remote (FK refs are set via setRemoteCredentialRef)
         GitProjectsConfigRecord projectRecord = getGitProjectConfigRecord(projectName);
         SQuery<GitRemoteCredentialsRecord> query = new SQuery<>(GitRemoteCredentialsRecord.META)
                 .eq(GitRemoteCredentialsRecord.ProjectId, projectRecord.getId())
@@ -679,15 +620,8 @@ public class GatewayScriptModule extends AbstractScriptModule {
             creds.setProjectId(projectRecord.getId());
             creds.setIgnitionUser(ignitionUser);
             creds.setRemoteName(remoteName);
+            context.getPersistenceInterface().save(creds);
         }
-        creds.setUserName(gitUsername != null ? gitUsername : "");
-        if (password != null && !password.isEmpty()) {
-            creds.setPassword(password);
-        }
-        if (sshKey != null && !sshKey.isEmpty()) {
-            creds.setSSHKey(sshKey);
-        }
-        context.getPersistenceInterface().save(creds);
 
         // DB sync: if "origin", update GitProjectsConfigRecord.URI
         if ("origin".equals(remoteName)) {
@@ -1024,14 +958,6 @@ public class GatewayScriptModule extends AbstractScriptModule {
             }
             creds.setSshKeyId(sshKeyId);
             creds.setHttpsCredentialId(httpsCredentialId);
-            // Clear inline fields when setting FK references
-            if (sshKeyId > 0) {
-                creds.setSSHKey("");
-            }
-            if (httpsCredentialId > 0) {
-                creds.setUserName("");
-                creds.setPassword("");
-            }
             context.getPersistenceInterface().save(creds);
             return true;
         } catch (Exception e) {

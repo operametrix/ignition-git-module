@@ -29,18 +29,6 @@ public interface GitScriptInterface {
      */
     boolean isSSHAuthentication(String projectName);
 
-    /**
-     * Ensure a user registration record exists for the given project.
-     * Creates a new record if none exists.
-     */
-    boolean saveUserCredentials(String projectName, String ignitionUser);
-
-    /** Get the configured email address for a git user, or empty string if not found. */
-    String getUserEmail(String projectName, String ignitionUser);
-
-    /** Get the configured git username for a user, or empty string if not found. */
-    String getUserGitUsername(String projectName, String ignitionUser);
-
     /** Check whether the given project is registered in the gateway's git configuration. */
     boolean isProjectRegistered(String projectName);
 
@@ -50,7 +38,6 @@ public interface GitScriptInterface {
      * On failure, rolls back any created records.
      */
     boolean initializeProject(String projectName, String repoUri, String ignitionUser,
-                              String gitUsername, String password, String sshKey,
                               long sshKeyId, long httpsCredentialId) throws Exception;
 
     /** Get old (HEAD) and new (working tree) content for a resource, for diff viewing.
@@ -94,16 +81,16 @@ public interface GitScriptInterface {
     /** List all remotes configured in the project's git repository. Returns Dataset with [name, url]. */
     Dataset listRemotes(String projectName) throws Exception;
 
-    /** Add a named remote with URL and credentials. */
+    /** Add a named remote with URL. Use setRemoteCredentialRef to attach credentials afterwards. */
     boolean addRemote(String projectName, String remoteName, String remoteUrl,
-                      String ignitionUser, String gitUsername, String password, String sshKey) throws Exception;
+                      String ignitionUser) throws Exception;
 
     /** Remove a named remote and its credentials. */
     boolean removeRemote(String projectName, String remoteName, String ignitionUser) throws Exception;
 
-    /** Update a remote's URL and credentials. */
+    /** Update a remote's URL. Credentials remain unchanged; use setRemoteCredentialRef to change them. */
     boolean setRemoteUrl(String projectName, String remoteName, String newUrl,
-                         String ignitionUser, String gitUsername, String password, String sshKey) throws Exception;
+                         String ignitionUser) throws Exception;
 
     /** Get list of files currently in merge conflict. */
     List<String> getConflictingFiles(String projectName);

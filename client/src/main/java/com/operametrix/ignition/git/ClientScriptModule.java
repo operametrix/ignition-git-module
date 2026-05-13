@@ -93,32 +93,14 @@ public class ClientScriptModule extends AbstractScriptModule {
     }
 
     @Override
-    protected boolean saveUserCredentialsImpl(String projectName, String ignitionUser) {
-        return rpc.saveUserCredentials(projectName, ignitionUser);
-    }
-
-    @Override
-    protected String getUserEmailImpl(String projectName, String ignitionUser) {
-        return rpc.getUserEmail(projectName, ignitionUser);
-    }
-
-    @Override
-    protected String getUserGitUsernameImpl(String projectName, String ignitionUser) {
-        return rpc.getUserGitUsername(projectName, ignitionUser);
-    }
-
-    @Override
     protected boolean isProjectRegisteredImpl(String projectName) {
         return rpc.isProjectRegistered(projectName);
     }
 
     @Override
     protected boolean initializeProjectImpl(String projectName, String repoUri, String ignitionUser,
-                                             String gitUsername, String password,
-                                             String sshKey, long sshKeyId,
-                                             long httpsCredentialId) throws Exception {
-        return rpc.initializeProject(projectName, repoUri, ignitionUser, gitUsername, password, sshKey,
-                sshKeyId, httpsCredentialId);
+                                             long sshKeyId, long httpsCredentialId) throws Exception {
+        return rpc.initializeProject(projectName, repoUri, ignitionUser, sshKeyId, httpsCredentialId);
     }
 
     @Override
@@ -178,9 +160,8 @@ public class ClientScriptModule extends AbstractScriptModule {
 
     @Override
     protected boolean addRemoteImpl(String projectName, String remoteName, String remoteUrl,
-                                     String ignitionUser, String gitUsername, String password,
-                                     String sshKey) throws Exception {
-        return rpc.addRemote(projectName, remoteName, remoteUrl, ignitionUser, gitUsername, password, sshKey);
+                                     String ignitionUser) throws Exception {
+        return rpc.addRemote(projectName, remoteName, remoteUrl, ignitionUser);
     }
 
     @Override
@@ -191,9 +172,8 @@ public class ClientScriptModule extends AbstractScriptModule {
 
     @Override
     protected boolean setRemoteUrlImpl(String projectName, String remoteName, String newUrl,
-                                        String ignitionUser, String gitUsername, String password,
-                                        String sshKey) throws Exception {
-        return rpc.setRemoteUrl(projectName, remoteName, newUrl, ignitionUser, gitUsername, password, sshKey);
+                                        String ignitionUser) throws Exception {
+        return rpc.setRemoteUrl(projectName, remoteName, newUrl, ignitionUser);
     }
 
     @Override
