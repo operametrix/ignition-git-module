@@ -25,6 +25,9 @@ public class CommitPanel extends JPanel {
     private final JLabel changesCountLabel;
 
     private Runnable onRefreshRequested;
+    private Runnable onSnapshotTagsRequested;
+    private Runnable onSnapshotThemesRequested;
+    private Runnable onSnapshotImagesRequested;
     private BiConsumer<String, String> onDiffRequested;
     private Consumer<List<String>> onDiscardRequested;
     private BiConsumer<List<String>, String> onCommitRequested;
@@ -90,34 +93,29 @@ public class CommitPanel extends JPanel {
         changesCountLabel = new JLabel("Changes (0)");
         changesCountLabel.setFont(changesCountLabel.getFont().deriveFont(Font.BOLD));
 
-        JButton refreshButton = new JButton(VectorIcons.get("refresh"));
-        refreshButton.setToolTipText("Refresh");
-        refreshButton.setContentAreaFilled(false);
-        refreshButton.setBorderPainted(false);
-        refreshButton.setFocusPainted(false);
-        refreshButton.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-        refreshButton.setMargin(new Insets(2, 2, 2, 2));
-        refreshButton.addMouseListener(new MouseAdapter() {
-            @Override
-            public void mouseEntered(MouseEvent e) {
-                refreshButton.setContentAreaFilled(true);
-                refreshButton.setBorderPainted(true);
-            }
+        Icon snapshotIcon = VectorIcons.get("project-update");
+        JButton snapshotTagsButton = createHeaderTextButton(snapshotIcon, "Tags",
+                "Snapshot gateway tag-provider state into project files so changes appear in the list below",
+                () -> { if (onSnapshotTagsRequested != null) onSnapshotTagsRequested.run(); });
+        JButton snapshotThemesButton = createHeaderTextButton(snapshotIcon, "Themes",
+                "Snapshot gateway Perspective theme files into the project",
+                () -> { if (onSnapshotThemesRequested != null) onSnapshotThemesRequested.run(); });
+        JButton snapshotImagesButton = createHeaderTextButton(snapshotIcon, "Images",
+                "Snapshot gateway image manager state into the project",
+                () -> { if (onSnapshotImagesRequested != null) onSnapshotImagesRequested.run(); });
+        JButton refreshButton = createHeaderIconButton(VectorIcons.get("refresh"), "Refresh",
+                () -> { if (onRefreshRequested != null) onRefreshRequested.run(); });
 
-            @Override
-            public void mouseExited(MouseEvent e) {
-                refreshButton.setContentAreaFilled(false);
-                refreshButton.setBorderPainted(false);
-            }
-        });
-        refreshButton.addActionListener(e -> {
-            if (onRefreshRequested != null) onRefreshRequested.run();
-        });
+        JPanel headerButtons = new JPanel(new FlowLayout(FlowLayout.RIGHT, 2, 0));
+        headerButtons.add(snapshotTagsButton);
+        headerButtons.add(snapshotThemesButton);
+        headerButtons.add(snapshotImagesButton);
+        headerButtons.add(refreshButton);
 
         JPanel changesHeader = new JPanel(new BorderLayout());
         changesHeader.setBorder(BorderFactory.createEmptyBorder(4, 0, 2, 0));
         changesHeader.add(changesCountLabel, BorderLayout.WEST);
-        changesHeader.add(refreshButton, BorderLayout.EAST);
+        changesHeader.add(headerButtons, BorderLayout.EAST);
 
         // Changes table
         String[] columnNames = {"", "Resource", "Type"};
@@ -286,6 +284,52 @@ public class CommitPanel extends JPanel {
 
     public void setOnRefreshRequested(Runnable onRefreshRequested) {
         this.onRefreshRequested = onRefreshRequested;
+    }
+
+    public void setOnSnapshotTagsRequested(Runnable r) {
+        this.onSnapshotTagsRequested = r;
+    }
+
+    public void setOnSnapshotThemesRequested(Runnable r) {
+        this.onSnapshotThemesRequested = r;
+    }
+
+    public void setOnSnapshotImagesRequested(Runnable r) {
+        this.onSnapshotImagesRequested = r;
+    }
+
+    private JButton createHeaderIconButton(Icon icon, String tooltip, Runnable action) {
+        JButton b = new JButton(icon);
+        styleHeaderButton(b, tooltip, action);
+        return b;
+    }
+
+    private JButton createHeaderTextButton(Icon icon, String label, String tooltip, Runnable action) {
+        JButton b = new JButton(label, icon);
+        b.setFont(b.getFont().deriveFont(Font.PLAIN, 11f));
+        b.setIconTextGap(3);
+        b.setMargin(new Insets(2, 6, 2, 6));
+        styleHeaderButton(b, tooltip, action);
+        return b;
+    }
+
+    private void styleHeaderButton(JButton b, String tooltip, Runnable action) {
+        b.setToolTipText(tooltip);
+        b.setContentAreaFilled(false);
+        b.setBorderPainted(false);
+        b.setFocusPainted(false);
+        b.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        b.addMouseListener(new MouseAdapter() {
+            @Override public void mouseEntered(MouseEvent e) {
+                b.setContentAreaFilled(true);
+                b.setBorderPainted(true);
+            }
+            @Override public void mouseExited(MouseEvent e) {
+                b.setContentAreaFilled(false);
+                b.setBorderPainted(false);
+            }
+        });
+        b.addActionListener(e -> action.run());
     }
 
     public void setOnDiffRequested(BiConsumer<String, String> onDiffRequested) {

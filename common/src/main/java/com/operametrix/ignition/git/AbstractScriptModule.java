@@ -33,8 +33,18 @@ public abstract class AbstractScriptModule implements GitScriptInterface {
     }
 
     @Override
-    public boolean exportConfig(String projectName) {
-        return exportConfigImpl(projectName);
+    public boolean snapshotTags(String projectName) {
+        return snapshotTagsImpl(projectName);
+    }
+
+    @Override
+    public boolean snapshotThemes(String projectName) {
+        return snapshotThemesImpl(projectName);
+    }
+
+    @Override
+    public boolean snapshotImages(String projectName) {
+        return snapshotImagesImpl(projectName);
     }
 
     @Override
@@ -233,7 +243,9 @@ public abstract class AbstractScriptModule implements GitScriptInterface {
     protected abstract boolean commitImpl(String projectName, String userName, List<String> changes, String message, boolean amend);
     protected abstract Dataset getUncommitedChangesImpl(String projectName, String userName);
     protected abstract boolean isRegisteredUserImpl(String projectName, String userName);
-    protected abstract boolean exportConfigImpl(String projectName);
+    protected abstract boolean snapshotTagsImpl(String projectName);
+    protected abstract boolean snapshotThemesImpl(String projectName);
+    protected abstract boolean snapshotImagesImpl(String projectName);
     protected abstract void setupLocalRepoImpl(String projectName, String userName) throws Exception;
     protected abstract String getRepoURLImpl(String projectName) throws Exception;
     protected abstract List<String> getLocalBranchesImpl(String projectName) throws Exception;

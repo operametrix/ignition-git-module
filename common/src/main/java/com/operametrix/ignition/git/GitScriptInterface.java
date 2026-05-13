@@ -12,7 +12,16 @@ public interface GitScriptInterface {
     boolean commit(String projectName, String userName, List<String> changes, String message, boolean amend);
     Dataset getUncommitedChanges(String projectName, String userName);
     boolean isRegisteredUser(String projectName, String userName);
-    boolean exportConfig(String projectName);
+
+    /** Snapshot the gateway's tag-provider state into the project directory as JSON files. */
+    boolean snapshotTags(String projectName);
+
+    /** Snapshot the gateway's Perspective theme files into the project directory. */
+    boolean snapshotThemes(String projectName);
+
+    /** Snapshot the gateway's image manager state into the project directory. */
+    boolean snapshotImages(String projectName);
+
     void setupLocalRepo(String projectName, String userName) throws Exception;
     String getRepoURL(String projectName) throws Exception;
 

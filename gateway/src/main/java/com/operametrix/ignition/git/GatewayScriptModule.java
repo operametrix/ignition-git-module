@@ -231,11 +231,20 @@ public class GatewayScriptModule extends AbstractScriptModule {
     }
 
     @Override
-    protected boolean exportConfigImpl(String projectName) {
-        Path projectFolderPath = getProjectFolderPath(projectName);
-        exportImages(projectFolderPath);
-        exportTheme(projectFolderPath);
-        exportTag(projectFolderPath);
+    protected boolean snapshotTagsImpl(String projectName) {
+        exportTag(getProjectFolderPath(projectName));
+        return true;
+    }
+
+    @Override
+    protected boolean snapshotThemesImpl(String projectName) {
+        exportTheme(getProjectFolderPath(projectName));
+        return true;
+    }
+
+    @Override
+    protected boolean snapshotImagesImpl(String projectName) {
+        exportImages(getProjectFolderPath(projectName));
         return true;
     }
 

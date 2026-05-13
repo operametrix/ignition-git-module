@@ -16,6 +16,7 @@ import com.operametrix.ignition.git.RemotesPopup;
 import com.operametrix.ignition.git.CommitPanel;
 import com.operametrix.ignition.git.HistoryPanel;
 import com.operametrix.ignition.git.MergeConflictPopup;
+import com.inductiveautomation.ignition.client.util.gui.ErrorUtil;
 import com.inductiveautomation.ignition.common.Dataset;
 import com.inductiveautomation.ignition.common.project.ChangeOperation;
 import com.inductiveautomation.ignition.common.project.resource.ProjectResourceId;
@@ -121,6 +122,46 @@ public class GitActionManager {
         }
     }
 
+
+    /**
+     * Run a gateway-state snapshot operation on a background thread with a modal
+     * progress dialog, then refresh the Commit panel so the resulting file changes
+     * become visible for review and per-file commit selection.
+     */
+    private static void runSnapshot(String label, SnapshotCall call) {
+        InitProgressDialog progress = new InitProgressDialog(context.getFrame(),
+                "Snapshotting " + label);
+        new SwingWorker<Void, Void>() {
+            @Override
+            protected Void doInBackground() throws Exception {
+                progress.setStatus("Writing " + label + " to project files...");
+                call.run();
+                return null;
+            }
+
+            @Override
+            protected void done() {
+                progress.complete();
+                try {
+                    get();
+                    if (DesignerHook.instance != null) {
+                        DesignerHook.instance.refreshCommitPanel();
+                    }
+                } catch (Exception e) {
+                    Throwable cause = e.getCause() != null ? e.getCause() : e;
+                    logger.error("Error snapshotting " + label, cause);
+                    ErrorUtil.showError("Failed to snapshot " + label + ": "
+                            + cause.getMessage(), cause);
+                }
+            }
+        }.execute();
+        progress.setVisible(true);
+    }
+
+    @FunctionalInterface
+    private interface SnapshotCall {
+        void run() throws Exception;
+    }
 
     public static void showPullPopup(String projectName, String userName) {
         List<String> remoteNames = getRemoteNames(projectName);
@@ -766,6 +807,13 @@ public class GitActionManager {
                 DesignerHook.instance.refreshCommitPanel();
             }
         });
+
+        panel.setOnSnapshotTagsRequested(() ->
+                runSnapshot("tags", () -> rpc.snapshotTags(projectName)));
+        panel.setOnSnapshotThemesRequested(() ->
+                runSnapshot("themes", () -> rpc.snapshotThemes(projectName)));
+        panel.setOnSnapshotImagesRequested(() ->
+                runSnapshot("images", () -> rpc.snapshotImages(projectName)));
 
         panel.setOnDiffRequested((resource, type) -> showDiffViewer(projectName, resource, type));
 
