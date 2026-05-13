@@ -12,7 +12,6 @@ import com.inductiveautomation.ignition.common.project.ChangeOperation;
 
 import com.inductiveautomation.ignition.designer.gui.StatusBar;
 import com.inductiveautomation.ignition.designer.model.DesignerContext;
-import com.inductiveautomation.ignition.common.script.ScriptManager;
 import com.inductiveautomation.ignition.designer.model.AbstractDesignerModuleHook;
 import com.inductiveautomation.ignition.designer.model.SaveContext;
 
@@ -52,16 +51,6 @@ public class DesignerHook extends AbstractDesignerModuleHook {
     DockableFrame historyFrame;
     boolean historyFrameInitialized;
     Timer panelVisibilityTimer;
-    @Override
-    public void initializeScriptManager(ScriptManager manager) {
-        super.initializeScriptManager(manager);
-
-        /*manager.addScriptModule(
-            "system.git",
-            new ClientScriptModule(),
-            new PropertiesFileDocProvider()
-        );*/
-    }
 
     @Override
     public void startup(DesignerContext context, LicenseState activationState) throws Exception {
