@@ -1,6 +1,5 @@
 package com.operametrix.ignition.git;
 
-import com.operametrix.ignition.git.commissioning.utils.GitCommissioningUtils;
 import com.operametrix.ignition.git.records.GitProjectsConfigRecord;
 import com.operametrix.ignition.git.records.GitRemoteCredentialsRecord;
 import com.operametrix.ignition.git.records.GitReposUsersRecord;
@@ -48,8 +47,6 @@ public class GatewayHook extends AbstractGatewayModuleHook {
 
     @Override
     public void startup(LicenseState licenseState) {
-        GitCommissioningUtils.loadConfiguration();
-
         logger.info("startup()");
     }
 
