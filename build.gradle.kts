@@ -18,7 +18,7 @@ ignitionModule {
     fileName.set("Git.modl")
     id.set("com.operametrix.ignition.git")
     moduleVersion.set("${project.version}")
-    moduleDescription.set("Adds a simple scripting function to the client and gateway")
+    moduleDescription.set("Embeds a Git client into the Ignition Designer for version-controlling project resources.")
     requiredIgnitionVersion.set(sdk_version)
 
     projectScopes.putAll(mapOf(
