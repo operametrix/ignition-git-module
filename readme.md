@@ -34,7 +34,15 @@ An Ignition module that embeds a Git client directly into the Ignition Designer,
 
 The Gradle wrapper is included in the project, so no separate Gradle installation is needed.
 
-**Note:** If you previously had the AXONE-IO version of this module installed (`com.axone_io.ignition.git`), you must uninstall it before installing this new version (`com.operametrix.ignition.git`), as Ignition treats them as separate modules.
+### Upgrading from the AXONE-IO version
+
+If you previously ran the AXONE-IO version of this module (`com.axone_io.ignition.git`), note the following **breaking changes**:
+
+- **Separate module ID.** This release is published as `com.operametrix.ignition.git`. Ignition treats it as a distinct module, so you must uninstall the AXONE-IO module before installing this one.
+- **Credentials are not migrated.** Git credentials were previously stored inline per project/repo. They are now user-level: SSH keys and per-host HTTPS credentials managed in the **User Credentials** dialog and referenced by remotes. The old inline credentials are **not** carried over by the schema upgrade — you must re-enter your SSH keys / HTTPS credentials after installing this version.
+- **Commit-author email is not migrated.** The per-project commit email is gone; the commit author now comes from the Ignition user profile. Set the email on the Ignition user account if it isn't already.
+
+Existing repository registrations (project ↔ repo, remotes) are preserved; only the credential and author-email configuration must be re-applied.
 
 ## Contributing
 
