@@ -80,11 +80,13 @@ public class GitThemeManager {
                     + "nothing to snapshot.");
         }
 
-        // Stage into a system temp dir (kept out of the managed project's
-        // working tree); only clear and swap the real themes/ directory once
-        // the staged copy has fully succeeded, so a mid-copy failure can never
-        // destroy already-committed theme files.
+        // Stage the new theme tree into a system temp dir first (a failed
+        // gateway read can't touch the project). Before overwriting themes/,
+        // rename the committed copy aside as an atomic same-filesystem move so
+        // that a mid-copy failure rolls back instead of leaving the
+        // already-committed theme files half-destroyed.
         Path themeFolderPath = projectFolderPath.resolve("themes");
+        Path backupPath = projectFolderPath.resolve("themes.git-snapshot-bak");
         Path stagingPath;
         try {
             stagingPath = Files.createTempDirectory("git-theme-snapshot");
@@ -92,6 +94,8 @@ public class GitThemeManager {
             throw new RuntimeException("Failed to create theme snapshot staging directory: "
                     + e.getMessage(), e);
         }
+        boolean backupCreated = false;
+        boolean swapSucceeded = false;
         try {
             if (Files.isDirectory(themeFolder)) {
                 FileUtils.copyDirectoryToDirectory(themeFolder.toFile(), stagingPath.toFile());
@@ -101,16 +105,50 @@ public class GitThemeManager {
                         StandardCopyOption.REPLACE_EXISTING);
             }
 
-            clearDirectory(themeFolderPath);
+            if (Files.exists(themeFolderPath)) {
+                if (Files.exists(backupPath)) {
+                    FileUtils.deleteDirectory(backupPath.toFile());
+                }
+                Files.move(themeFolderPath, backupPath, StandardCopyOption.ATOMIC_MOVE);
+                backupCreated = true;
+            }
             Files.createDirectories(themeFolderPath);
             FileUtils.copyDirectory(stagingPath.toFile(), themeFolderPath.toFile());
+            swapSucceeded = true;
         } catch (IOException e) {
+            if (backupCreated) {
+                try {
+                    if (Files.exists(themeFolderPath)) {
+                        FileUtils.deleteDirectory(themeFolderPath.toFile());
+                    }
+                    Files.move(backupPath, themeFolderPath, StandardCopyOption.ATOMIC_MOVE);
+                    backupCreated = false; // restored; backup consumed by the move
+                } catch (IOException restoreEx) {
+                    logger.error("Theme snapshot failed and the committed themes/ could not be "
+                            + "restored automatically; the previous contents are preserved at '"
+                            + backupPath.getFileName() + "' inside the project folder.", restoreEx);
+                    RuntimeException re = new RuntimeException("Failed to snapshot themes and could"
+                            + " not restore the previous themes automatically; recover them from '"
+                            + backupPath.getFileName() + "' in the project folder.", e);
+                    re.addSuppressed(restoreEx);
+                    throw re;
+                }
+            }
             throw new RuntimeException("Failed to snapshot themes: " + e.getMessage(), e);
         } finally {
             try {
                 FileUtils.deleteDirectory(stagingPath.toFile());
             } catch (IOException ignored) {
                 // best-effort cleanup of the staging dir
+            }
+            // Drop the backup only once the new themes/ is safely in place.
+            // If a restore failed it is the sole surviving copy — keep it.
+            if (swapSucceeded && backupCreated) {
+                try {
+                    FileUtils.deleteDirectory(backupPath.toFile());
+                } catch (IOException ignored) {
+                    // best-effort cleanup of the backup dir after a successful swap
+                }
             }
         }
     }

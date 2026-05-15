@@ -150,8 +150,9 @@ public class GitActionManager {
                 } catch (Exception e) {
                     Throwable cause = e.getCause() != null ? e.getCause() : e;
                     logger.error("Error snapshotting " + label, cause);
-                    ErrorUtil.showError("Failed to snapshot " + label + ": "
-                            + cause.getMessage(), cause);
+                    String detail = cause.getMessage() != null
+                            ? cause.getMessage() : cause.getClass().getSimpleName();
+                    ErrorUtil.showError("Failed to snapshot " + label + ": " + detail, cause);
                 }
             }
         }.execute();
