@@ -23,6 +23,8 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import static com.operametrix.ignition.git.GatewayHook.context;
 import static com.operametrix.ignition.git.managers.GitManager.clearDirectory;
@@ -69,7 +71,13 @@ public class GitTagManager {
 
                 CompletableFuture<List<TagConfigurationModel>> cfTagModels =
                         tagProvider.getTagConfigsAsync(tagPaths, true, true);
-                List<TagConfigurationModel> tModels = cfTagModels.get();
+                List<TagConfigurationModel> tModels;
+                try {
+                    tModels = cfTagModels.get(30, TimeUnit.SECONDS);
+                } catch (TimeoutException te) {
+                    throw new RuntimeException("Timed out reading tag configuration from provider '"
+                            + tagProvider.getName() + "' after 30s.", te);
+                }
 
                 JsonObject json = TagUtilities.toJsonObject(tModels.get(0));
                 JsonElement sortedJson = JsonUtilities.createDeterministicCopy(json);

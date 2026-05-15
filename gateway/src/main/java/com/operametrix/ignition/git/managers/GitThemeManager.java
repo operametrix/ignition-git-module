@@ -50,30 +50,68 @@ public class GitThemeManager {
     }
 
     public static void exportTheme(Path projectFolderPath) {
+        Path sessionPropsPath = projectFolderPath.resolve("com.inductiveautomation.perspective")
+                .resolve("session-props")
+                .resolve("props.json");
+        if (!Files.exists(sessionPropsPath)) {
+            throw new RuntimeException("No Perspective session properties found for this project — "
+                    + "nothing to snapshot for themes.");
+        }
+
+        String theme;
         try {
-            Path sessionPropsPath = projectFolderPath.resolve("com.inductiveautomation.perspective")
-                    .resolve("session-props")
-                    .resolve("props.json");
             String content = Files.readString(sessionPropsPath);
-            Gson g = new Gson();
-            JsonObject json = g.fromJson(content, JsonObject.class);
-            String theme = JsonUtilities.readString(json, "props.theme", "light");
+            JsonObject json = new Gson().fromJson(content, JsonObject.class);
+            theme = JsonUtilities.readString(json, "props.theme", "light");
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to read Perspective session properties: "
+                    + e.getMessage(), e);
+        }
 
-            Path themesDir = getDataFolderPath()
-                    .resolve("modules")
-                    .resolve("com.inductiveautomation.perspective")
-                    .resolve("themes");
+        Path themesDir = getDataFolderPath()
+                .resolve("modules")
+                .resolve("com.inductiveautomation.perspective")
+                .resolve("themes");
+        Path themeFolder = themesDir.resolve(theme);
+        Path themeFile = themesDir.resolve(theme + ".css");
 
-            Path themeFolder = themesDir.resolve(theme);
-            Path themeFile = themesDir.resolve(theme + ".css");
+        if (!Files.isDirectory(themeFolder) && !Files.exists(themeFile)) {
+            throw new RuntimeException("Theme '" + theme + "' was not found on the gateway — "
+                    + "nothing to snapshot.");
+        }
 
-            Path themeFolderPath = projectFolderPath.resolve("themes");
+        // Stage into a system temp dir (kept out of the managed project's
+        // working tree); only clear and swap the real themes/ directory once
+        // the staged copy has fully succeeded, so a mid-copy failure can never
+        // destroy already-committed theme files.
+        Path themeFolderPath = projectFolderPath.resolve("themes");
+        Path stagingPath;
+        try {
+            stagingPath = Files.createTempDirectory("git-theme-snapshot");
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to create theme snapshot staging directory: "
+                    + e.getMessage(), e);
+        }
+        try {
+            if (Files.isDirectory(themeFolder)) {
+                FileUtils.copyDirectoryToDirectory(themeFolder.toFile(), stagingPath.toFile());
+            }
+            if (Files.exists(themeFile)) {
+                Files.copy(themeFile, stagingPath.resolve(themeFile.getFileName()),
+                        StandardCopyOption.REPLACE_EXISTING);
+            }
+
             clearDirectory(themeFolderPath);
             Files.createDirectories(themeFolderPath);
-            FileUtils.copyDirectoryToDirectory(themeFolder.toFile(), themeFolderPath.toFile());
-            Files.copy(themeFile, themeFolderPath.resolve(themeFile.getFileName()));
+            FileUtils.copyDirectory(stagingPath.toFile(), themeFolderPath.toFile());
         } catch (IOException e) {
-            logger.error(e.toString(), e);
+            throw new RuntimeException("Failed to snapshot themes: " + e.getMessage(), e);
+        } finally {
+            try {
+                FileUtils.deleteDirectory(stagingPath.toFile());
+            } catch (IOException ignored) {
+                // best-effort cleanup of the staging dir
+            }
         }
     }
 }
