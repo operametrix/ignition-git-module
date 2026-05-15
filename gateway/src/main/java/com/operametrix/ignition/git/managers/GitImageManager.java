@@ -17,7 +17,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 
-import static com.operametrix.ignition.git.GatewayHook.context;
+import static com.operametrix.ignition.git.GatewayHook.getContext;
 import static com.operametrix.ignition.git.managers.GitManager.clearDirectory;
 import static com.operametrix.ignition.git.managers.GitManager.getProjectFolderPath;
 
@@ -29,7 +29,7 @@ public class GitImageManager {
         File directory = projectDir.resolve("images").toFile();
 
         // DELETION
-        PersistenceInterface persistenceInterface = context.getPersistenceInterface();
+        PersistenceInterface persistenceInterface = getContext().getPersistenceInterface();
         List<ImageRecord> images = persistenceInterface.query(new SQuery<>(ImageRecord.META));
         images.forEach(i -> {
             i.deleteRecord();
@@ -71,7 +71,7 @@ public class GitImageManager {
                 }
 
                 try {
-                    context.getImageManager().insertImage(f.getName(), "", ImageFormat.valueOf(ext), path, bytes, width, height, bytes.length);
+                    getContext().getImageManager().insertImage(f.getName(), "", ImageFormat.valueOf(ext), path, bytes, width, height, bytes.length);
                 } catch (Exception ex) {
                     logger.error(ex.getMessage(), ex);
                 }
@@ -87,7 +87,7 @@ public class GitImageManager {
 
     protected static void uploadFolder(File dir, String path) {
         try {
-            context.getImageManager().insertImageFolder(dir.getName(), path.equals("") ? null : path);
+            getContext().getImageManager().insertImageFolder(dir.getName(), path.equals("") ? null : path);
             File[] files = dir.listFiles();
             if (files != null) {
                 for (File file : files) {
@@ -115,7 +115,7 @@ public class GitImageManager {
     }
 
     public static void saveFolderImage(Path folderPath, String directory) {
-        ImageManager imageManager = context.getImageManager();
+        ImageManager imageManager = getContext().getImageManager();
         for (ImageRecord imageRecord : imageManager.getImages(directory)) {
             String path = imageRecord.getString(ImageRecord.Path);
             if (imageRecord.isDirectory()) {

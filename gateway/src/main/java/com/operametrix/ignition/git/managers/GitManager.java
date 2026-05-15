@@ -59,7 +59,7 @@ import java.util.Set;
 import java.util.Optional;
 
 
-import static com.operametrix.ignition.git.GatewayHook.context;
+import static com.operametrix.ignition.git.GatewayHook.getContext;
 
 public class GitManager {
     private final static LoggerEx logger = LoggerEx.newBuilder().build(GitManager.class);
@@ -79,7 +79,7 @@ public class GitManager {
     }
 
     public static Path getDataFolderPath() {
-        return context.getSystemManager().getDataDir().toPath();
+        return getContext().getSystemManager().getDataDir().toPath();
     }
 
 
@@ -125,7 +125,7 @@ public class GitManager {
     private static String resolveSshKey(GitRemoteCredentialsRecord creds, String userName) {
         // Tier 1: FK reference to user-level SSH key
         if (creds != null && creds.getSshKeyId() > 0) {
-            GitUserSshKeyRecord keyRecord = context.getPersistenceInterface().queryOne(
+            GitUserSshKeyRecord keyRecord = getContext().getPersistenceInterface().queryOne(
                     new SQuery<>(GitUserSshKeyRecord.META)
                             .eq(GitUserSshKeyRecord.Id, creds.getSshKeyId()));
             if (keyRecord != null) {
@@ -133,7 +133,7 @@ public class GitManager {
             }
         }
         // Tier 2: User-level SSH key — use it if exactly one exists
-        List<GitUserSshKeyRecord> userKeys = context.getPersistenceInterface().query(
+        List<GitUserSshKeyRecord> userKeys = getContext().getPersistenceInterface().query(
                 new SQuery<>(GitUserSshKeyRecord.META)
                         .eq(GitUserSshKeyRecord.IgnitionUser, userName));
         if (userKeys.size() == 1) {
@@ -147,7 +147,7 @@ public class GitManager {
                                                      String userName, String url) {
         // Tier 1: FK reference to user-level HTTPS credential
         if (creds != null && creds.getHttpsCredentialId() > 0) {
-            GitUserHttpsCredentialRecord httpRecord = context.getPersistenceInterface().queryOne(
+            GitUserHttpsCredentialRecord httpRecord = getContext().getPersistenceInterface().queryOne(
                     new SQuery<>(GitUserHttpsCredentialRecord.META)
                             .eq(GitUserHttpsCredentialRecord.Id, creds.getHttpsCredentialId()));
             if (httpRecord != null) {
@@ -157,7 +157,7 @@ public class GitManager {
         // Tier 2: User-level HTTPS credential matched by host
         String host = extractHost(url);
         if (host != null) {
-            GitUserHttpsCredentialRecord hostRecord = context.getPersistenceInterface().queryOne(
+            GitUserHttpsCredentialRecord hostRecord = getContext().getPersistenceInterface().queryOne(
                     new SQuery<>(GitUserHttpsCredentialRecord.META)
                             .eq(GitUserHttpsCredentialRecord.IgnitionUser, userName)
                             .eq(GitUserHttpsCredentialRecord.HostPattern, host));
@@ -204,12 +204,12 @@ public class GitManager {
     public static String resolveUserEmail(String userName) {
         try {
             List<com.inductiveautomation.ignition.gateway.user.UserSourceProfileRecord> profiles =
-                    context.getPersistenceInterface().query(
+                    getContext().getPersistenceInterface().query(
                             new SQuery<>(com.inductiveautomation.ignition.gateway.user.UserSourceProfileRecord.META));
             for (com.inductiveautomation.ignition.gateway.user.UserSourceProfileRecord profileRecord : profiles) {
                 try {
                     com.inductiveautomation.ignition.gateway.user.UserSourceProfile profile =
-                            context.getUserSourceManager().getProfile(profileRecord.getName());
+                            getContext().getUserSourceManager().getProfile(profileRecord.getName());
                     if (profile == null) continue;
                     com.inductiveautomation.ignition.common.user.User user =
                             profile.getUser(userName).orElse(null);
@@ -238,7 +238,7 @@ public class GitManager {
     public static GitProjectsConfigRecord getGitProjectConfigRecord(String projectName) throws Exception {
         SQuery<GitProjectsConfigRecord> projectQuery = new SQuery<>(GitProjectsConfigRecord.META)
                 .eq(GitProjectsConfigRecord.ProjectName, projectName);
-        GitProjectsConfigRecord gitProjectsConfigRecord = context.getPersistenceInterface().queryOne(projectQuery);
+        GitProjectsConfigRecord gitProjectsConfigRecord = getContext().getPersistenceInterface().queryOne(projectQuery);
 
         if (gitProjectsConfigRecord == null) {
             throw new Exception("Git Project not configured.");
@@ -252,7 +252,7 @@ public class GitManager {
         SQuery<GitReposUsersRecord> userQuery = new SQuery<>(GitReposUsersRecord.META)
                 .eq(GitReposUsersRecord.ProjectId, gitProjectsConfigRecord.getId())
                 .eq(GitReposUsersRecord.IgnitionUser, userName);
-        GitReposUsersRecord user = context.getPersistenceInterface().queryOne(userQuery);
+        GitReposUsersRecord user = getContext().getPersistenceInterface().queryOne(userQuery);
 
         if (user == null) {
             throw new Exception("Git User not configured.");
@@ -316,7 +316,7 @@ public class GitManager {
     }
 
     public static String getTimestamp(String projectName, String path) {
-        ProjectManager projectManager = context.getProjectManager();
+        ProjectManager projectManager = getContext().getProjectManager();
         Optional<RuntimeProject> projectOpt = projectManager.getProject(projectName);
 
         if (projectOpt.isPresent()) {
@@ -336,7 +336,7 @@ public class GitManager {
     }
 
     public static String getActor(String projectName, String path) {
-        ProjectManager projectManager = context.getProjectManager();
+        ProjectManager projectManager = getContext().getProjectManager();
         Optional<RuntimeProject> projectOpt = projectManager.getProject(projectName);
 
         if (projectOpt.isPresent()) {
@@ -1369,7 +1369,7 @@ public class GitManager {
                 .eq(GitRemoteCredentialsRecord.ProjectId, projectRecord.getId())
                 .eq(GitRemoteCredentialsRecord.IgnitionUser, userName)
                 .eq(GitRemoteCredentialsRecord.RemoteName, remoteName);
-        return context.getPersistenceInterface().queryOne(query);
+        return getContext().getPersistenceInterface().queryOne(query);
     }
 
 }

@@ -26,7 +26,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import static com.operametrix.ignition.git.GatewayHook.context;
+import static com.operametrix.ignition.git.GatewayHook.getContext;
 import static com.operametrix.ignition.git.managers.GitManager.clearDirectory;
 import static com.operametrix.ignition.git.managers.GitManager.getProjectFolderPath;
 import static com.inductiveautomation.ignition.common.tags.TagUtilities.TAG_GSON;
@@ -38,7 +38,7 @@ public class GitTagManager {
         Path projectDir = getProjectFolderPath(projectName);
         File tagsProjectDir = projectDir.resolve("tags").toFile();
 
-        GatewayTagManager gatewayTagManager = context.getTagManager();
+        GatewayTagManager gatewayTagManager = getContext().getTagManager();
         if (tagsProjectDir.exists()) {
             File[] files = tagsProjectDir.listFiles();
             if (files != null) {
@@ -64,7 +64,7 @@ public class GitTagManager {
         try {
             Files.createDirectories(tagFolderPath);
 
-            for (TagProvider tagProvider : context.getTagManager().getTagProviders()) {
+            for (TagProvider tagProvider : getContext().getTagManager().getTagProviders()) {
                 TagPath typesPath = TagPathParser.parse("");
                 List<TagPath> tagPaths = new ArrayList<>();
                 tagPaths.add(typesPath);

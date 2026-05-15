@@ -19,7 +19,12 @@ public class GatewayHook extends AbstractGatewayModuleHook {
     private final Logger logger = LoggerFactory.getLogger(getClass());
 
     private GatewayScriptModule scriptModule;
-    public static GatewayContext context;
+    private static GatewayContext context;
+
+    /** Gateway context, available after {@link #setup(GatewayContext)} has run. */
+    public static GatewayContext getContext() {
+        return context;
+    }
 
     @Override
     public void setup(GatewayContext gatewayContext) {

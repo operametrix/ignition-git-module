@@ -17,14 +17,14 @@ import java.nio.file.Path;
 import java.util.*;
 import java.util.stream.Collectors;
 
-import static com.operametrix.ignition.git.GatewayHook.context;
+import static com.operametrix.ignition.git.GatewayHook.getContext;
 import static com.operametrix.ignition.git.managers.GitManager.getProjectFolderPath;
 
 public class GitProjectManager {
     private final static LoggerEx logger = LoggerEx.newBuilder().build(GitProjectManager.class);
 
     public static void importProject(String projectName) {
-        ProjectManager projectManager = context.getProjectManager();
+        ProjectManager projectManager = getContext().getProjectManager();
         Path projectDir = getProjectFolderPath(projectName);
 
         try {
