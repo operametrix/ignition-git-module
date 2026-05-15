@@ -682,21 +682,6 @@ public class GitManager {
         return element;
     }
 
-    public static String repoUriToUrl(String uri) {
-        String url = uri;
-
-        if (!uri.toLowerCase().startsWith("http")) {
-            String[] splitUri = uri.split("[@:/]");
-
-            if (splitUri.length >= 4) {
-                String repoName = splitUri[3].split("\\.git")[0];
-                url = "https://" + splitUri[1] + "/" + splitUri[2] + "/" + repoName;
-            }
-        }
-
-        return url;
-    }
-
     public static List<String> listLocalBranches(Path projectFolderPath) throws Exception {
         try (Git git = getGit(projectFolderPath)) {
             List<Ref> refs = git.branchList().call();

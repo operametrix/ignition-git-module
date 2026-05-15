@@ -310,16 +310,6 @@ public class GatewayScriptModule extends AbstractScriptModule {
     }
 
     @Override
-    protected String getRepoURLImpl(String projectName) throws Exception {
-        GitProjectsConfigRecord gitProjectsConfigRecord = getGitProjectConfigRecord(projectName);
-        if (!gitProjectsConfigRecord.hasRemote()) {
-            return "";
-        }
-
-        return GitManager.repoUriToUrl(gitProjectsConfigRecord.getURI());
-    }
-
-    @Override
     protected List<String> getLocalBranchesImpl(String projectName) throws Exception {
         return GitManager.listLocalBranches(getProjectFolderPath(projectName));
     }
@@ -349,17 +339,6 @@ public class GatewayScriptModule extends AbstractScriptModule {
     @Override
     protected boolean deleteBranchImpl(String projectName, String branchName) throws Exception {
         return GitManager.deleteBranch(getProjectFolderPath(projectName), branchName);
-    }
-
-    @Override
-    protected boolean isSSHAuthenticationImpl(String projectName) {
-        try {
-            GitProjectsConfigRecord gitProjectsConfigRecord = getGitProjectConfigRecord(projectName);
-            return gitProjectsConfigRecord.isSSHAuthentication();
-        } catch (Exception e) {
-            logger.error("Error checking SSH authentication", e);
-            return false;
-        }
     }
 
     @Override

@@ -52,10 +52,6 @@ public abstract class AbstractScriptModule implements GitScriptInterface {
         setupLocalRepoImpl(projectName, userName);
     }
 
-    @Override
-    public String getRepoURL(String projectName) throws Exception {
-        return getRepoURLImpl(projectName);
-    }
 
     @Override
     public List<String> getLocalBranches(String projectName) throws Exception {
@@ -87,10 +83,6 @@ public abstract class AbstractScriptModule implements GitScriptInterface {
         return deleteBranchImpl(projectName, branchName);
     }
 
-    @Override
-    public boolean isSSHAuthentication(String projectName) {
-        return isSSHAuthenticationImpl(projectName);
-    }
 
     @Override
     public boolean isProjectRegistered(String projectName) {
@@ -247,14 +239,12 @@ public abstract class AbstractScriptModule implements GitScriptInterface {
     protected abstract boolean snapshotThemesImpl(String projectName);
     protected abstract boolean snapshotImagesImpl(String projectName);
     protected abstract void setupLocalRepoImpl(String projectName, String userName) throws Exception;
-    protected abstract String getRepoURLImpl(String projectName) throws Exception;
     protected abstract List<String> getLocalBranchesImpl(String projectName) throws Exception;
     protected abstract List<String> getRemoteBranchesImpl(String projectName) throws Exception;
     protected abstract String getCurrentBranchImpl(String projectName) throws Exception;
     protected abstract boolean createBranchImpl(String projectName, String branchName) throws Exception;
     protected abstract boolean checkoutBranchImpl(String projectName, String branchName) throws Exception;
     protected abstract boolean deleteBranchImpl(String projectName, String branchName) throws Exception;
-    protected abstract boolean isSSHAuthenticationImpl(String projectName);
     protected abstract boolean isProjectRegisteredImpl(String projectName);
     protected abstract boolean initializeProjectImpl(String projectName, String repoUri, String ignitionUser,
                                                      long sshKeyId, long httpsCredentialId) throws Exception;

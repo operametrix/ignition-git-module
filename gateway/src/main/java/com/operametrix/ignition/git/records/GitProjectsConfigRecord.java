@@ -47,13 +47,6 @@ public class GitProjectsConfigRecord extends PersistentRecord {
         return uri != null && !uri.isEmpty();
     }
 
-    public boolean isSSHAuthentication() {
-        if (!hasRemote()) {
-            return false;
-        }
-        return !this.getString(URI).toLowerCase().startsWith("http");
-    }
-
     static {
         URI.setWide();
     }

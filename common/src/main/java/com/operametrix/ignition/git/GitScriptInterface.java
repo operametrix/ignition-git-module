@@ -23,7 +23,6 @@ public interface GitScriptInterface {
     boolean snapshotImages(String projectName);
 
     void setupLocalRepo(String projectName, String userName) throws Exception;
-    String getRepoURL(String projectName) throws Exception;
 
     List<String> getLocalBranches(String projectName) throws Exception;
     List<String> getRemoteBranches(String projectName) throws Exception;
@@ -31,12 +30,6 @@ public interface GitScriptInterface {
     boolean createBranch(String projectName, String branchName) throws Exception;
     boolean checkoutBranch(String projectName, String branchName) throws Exception;
     boolean deleteBranch(String projectName, String branchName) throws Exception;
-
-    /**
-     * Check whether the given project's repository uses SSH authentication (as opposed to HTTPS).
-     * This is determined from the raw URI configured in the gateway, not the browsable URL.
-     */
-    boolean isSSHAuthentication(String projectName);
 
     /** Check whether the given project is registered in the gateway's git configuration. */
     boolean isProjectRegistered(String projectName);
