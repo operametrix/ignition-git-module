@@ -30,9 +30,14 @@ public class CommitPanel extends JPanel {
     private Runnable onSnapshotImagesRequested;
     private BiConsumer<String, String> onDiffRequested;
     private Consumer<List<String>> onDiscardRequested;
-    private BiConsumer<List<String>, String> onCommitRequested;
+    private CommitRequestHandler onCommitRequested;
     private Consumer<Boolean> onAmendToggled;
     private boolean amendSelected;
+
+    @FunctionalInterface
+    public interface CommitRequestHandler {
+        void accept(List<String> changes, String message, boolean amend);
+    }
 
     public CommitPanel() {
         setLayout(new BorderLayout(0, 4));
@@ -79,7 +84,8 @@ public class CommitPanel extends JPanel {
                             "Please select at least one file to commit.", "Commit", JOptionPane.WARNING_MESSAGE);
                     return;
                 }
-                onCommitRequested.accept(selected, message);
+                boolean amend = amendSelected;
+                onCommitRequested.accept(selected, message, amend);
                 commitMessageArea.setText("");
                 amendCheckBox.setSelected(false);
                 amendSelected = false;
@@ -340,7 +346,7 @@ public class CommitPanel extends JPanel {
         this.onDiscardRequested = onDiscardRequested;
     }
 
-    public void setOnCommitRequested(BiConsumer<List<String>, String> onCommitRequested) {
+    public void setOnCommitRequested(CommitRequestHandler onCommitRequested) {
         this.onCommitRequested = onCommitRequested;
     }
 

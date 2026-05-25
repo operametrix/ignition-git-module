@@ -834,9 +834,9 @@ public class GitActionManager {
             }
         }).start());
 
-        panel.setOnCommitRequested((changes, message) -> new Thread(() -> {
+        panel.setOnCommitRequested((changes, message, amend) -> new Thread(() -> {
             try {
-                handleCommitAction(changes, message, panel.isAmendSelected());
+                handleCommitAction(changes, message, amend);
                 if (DesignerHook.instance != null) {
                     DesignerHook.instance.refreshCommitPanel();
                 }
