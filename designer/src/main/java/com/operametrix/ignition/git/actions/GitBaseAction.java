@@ -291,7 +291,9 @@ public class GitBaseAction {
             rpc.createBranch(projectName, branchName);
         } catch (Exception ex) {
             ErrorUtil.showError(ex);
+            return;
         }
+        handleCheckoutAction(branchName);
     }
 
     public static void handleDeleteBranchAction(String branchName) {
