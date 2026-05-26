@@ -94,9 +94,10 @@ public class GitManager {
     }
 
     /**
-     * Set authentication on a transport command using a two-tier credential lookup:
-     * 1. FK reference from GitRemoteCredentialsRecord to a user-level credential record
-     * 2. User-level fallback (SSH: lone default key; HTTPS: match by host)
+     * Set authentication on a transport command. Every remote must have an
+     * explicit credential FK (SshKeyId / HttpsCredentialId) set via
+     * setRemoteCredentialRef on a GitRemoteCredentialsRecord; auth fails
+     * with a clear error if no FK is set or the referenced credential is gone.
      *
      * Auth type (SSH vs HTTPS) is determined from the remote's URL in .git/config.
      */
@@ -107,81 +108,44 @@ public class GitManager {
         boolean isSsh = url != null && !url.toLowerCase().startsWith("http");
 
         if (isSsh) {
-            String sshKey = resolveSshKey(creds, userName);
+            String sshKey = resolveSshKey(creds);
             if (sshKey == null || sshKey.isEmpty()) {
-                throw new Exception("No SSH credentials configured for remote '" + remoteName + "'.");
+                throw new Exception("No SSH credential assigned to remote '" + remoteName
+                        + "'. Open the Remotes popup and pick an SSH key for this remote.");
             }
             command.setTransportConfigCallback(new SshTransportConfigCallback(sshKey));
         } else {
-            String[] httpsCreds = resolveHttpsCredentials(creds, userName, url);
+            String[] httpsCreds = resolveHttpsCredentials(creds);
             if (httpsCreds == null) {
-                throw new Exception("No HTTPS credentials configured for remote '" + remoteName + "'.");
+                throw new Exception("No HTTPS credential assigned to remote '" + remoteName
+                        + "'. Open the Remotes popup and pick an HTTPS credential for this remote.");
             }
             command.setCredentialsProvider(
                     new UsernamePasswordCredentialsProvider(httpsCreds[0], httpsCreds[1]));
         }
     }
 
-    private static String resolveSshKey(GitRemoteCredentialsRecord creds, String userName) {
-        // Tier 1: FK reference to user-level SSH key
-        if (creds != null && creds.getSshKeyId() > 0) {
-            GitUserSshKeyRecord keyRecord = getContext().getPersistenceInterface().queryOne(
-                    new SQuery<>(GitUserSshKeyRecord.META)
-                            .eq(GitUserSshKeyRecord.Id, creds.getSshKeyId()));
-            if (keyRecord != null) {
-                return keyRecord.getSSHKey();
-            }
+    private static String resolveSshKey(GitRemoteCredentialsRecord creds) {
+        if (creds == null || creds.getSshKeyId() <= 0) {
+            return null;
         }
-        // Tier 2: User-level SSH key — use it if exactly one exists
-        List<GitUserSshKeyRecord> userKeys = getContext().getPersistenceInterface().query(
+        GitUserSshKeyRecord keyRecord = getContext().getPersistenceInterface().queryOne(
                 new SQuery<>(GitUserSshKeyRecord.META)
-                        .eq(GitUserSshKeyRecord.IgnitionUser, userName));
-        if (userKeys.size() == 1) {
-            return userKeys.get(0).getSSHKey();
-        }
-        return null;
+                        .eq(GitUserSshKeyRecord.Id, creds.getSshKeyId()));
+        return keyRecord == null ? null : keyRecord.getSSHKey();
     }
 
     /** @return [username, password] or null if no credentials found */
-    private static String[] resolveHttpsCredentials(GitRemoteCredentialsRecord creds,
-                                                     String userName, String url) {
-        // Tier 1: FK reference to user-level HTTPS credential
-        if (creds != null && creds.getHttpsCredentialId() > 0) {
-            GitUserHttpsCredentialRecord httpRecord = getContext().getPersistenceInterface().queryOne(
-                    new SQuery<>(GitUserHttpsCredentialRecord.META)
-                            .eq(GitUserHttpsCredentialRecord.Id, creds.getHttpsCredentialId()));
-            if (httpRecord != null) {
-                return new String[]{httpRecord.getUserName(), httpRecord.getPassword()};
-            }
-        }
-        // Tier 2: User-level HTTPS credential matched by host
-        String host = extractHost(url);
-        if (host != null) {
-            GitUserHttpsCredentialRecord hostRecord = getContext().getPersistenceInterface().queryOne(
-                    new SQuery<>(GitUserHttpsCredentialRecord.META)
-                            .eq(GitUserHttpsCredentialRecord.IgnitionUser, userName)
-                            .eq(GitUserHttpsCredentialRecord.HostPattern, host));
-            if (hostRecord != null) {
-                return new String[]{hostRecord.getUserName(), hostRecord.getPassword()};
-            }
-        }
-        return null;
-    }
-
-    /**
-     * Extract the hostname from a git remote URL.
-     * Handles both HTTPS (https://github.com/...) and SSH (git@github.com:...) formats.
-     */
-    static String extractHost(String url) {
-        if (url == null || url.isEmpty()) {
+    private static String[] resolveHttpsCredentials(GitRemoteCredentialsRecord creds) {
+        if (creds == null || creds.getHttpsCredentialId() <= 0) {
             return null;
         }
-        try {
-            return new URIish(url).getHost();
-        } catch (Exception e) {
-            logger.error("Failed to extract host from URL: " + url, e);
-            return null;
-        }
+        GitUserHttpsCredentialRecord httpRecord = getContext().getPersistenceInterface().queryOne(
+                new SQuery<>(GitUserHttpsCredentialRecord.META)
+                        .eq(GitUserHttpsCredentialRecord.Id, creds.getHttpsCredentialId()));
+        return httpRecord == null
+                ? null
+                : new String[]{httpRecord.getUserName(), httpRecord.getPassword()};
     }
 
 
