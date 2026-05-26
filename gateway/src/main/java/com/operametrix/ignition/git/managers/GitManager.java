@@ -1130,13 +1130,25 @@ public class GitManager {
                 checkout.call();
             }
 
-            // Remove untracked files
-            if (!untrackedPaths.isEmpty()) {
-                git.clean()
-                        .setPaths(untrackedPaths)
-                        .setCleanDirectories(true)
-                        .setForce(true)
-                        .call();
+            // Remove untracked files directly. JGit's CleanCommand.setPaths()
+            // + setCleanDirectories(true) silently no-ops on file paths that
+            // aren't in getUntrackedFolders(); deleting via Files is reliable.
+            for (String path : untrackedPaths) {
+                Path target = projectFolderPath.resolve(path);
+                if (java.nio.file.Files.isDirectory(target)) {
+                    try (java.util.stream.Stream<Path> walk = java.nio.file.Files.walk(target)) {
+                        walk.sorted(java.util.Comparator.reverseOrder())
+                                .forEach(p -> {
+                                    try {
+                                        java.nio.file.Files.deleteIfExists(p);
+                                    } catch (IOException ex) {
+                                        logger.warn("Failed to delete " + p + " during discard", ex);
+                                    }
+                                });
+                    }
+                } else {
+                    java.nio.file.Files.deleteIfExists(target);
+                }
             }
 
             return true;
