@@ -1165,10 +1165,38 @@ public class GitManager {
      */
     public static boolean revertCommit(Path projectFolderPath, String commitHash) {
         try (Git git = getGit(projectFolderPath)) {
-            ObjectId commitId = git.getRepository().resolve(commitHash);
+            Repository repo = git.getRepository();
+            ObjectId commitId = repo.resolve(commitHash);
             if (commitId == null) {
                 throw new RuntimeException("Commit not found: " + commitHash);
             }
+
+            // Guard against reverting commits that aren't reachable from the
+            // current HEAD. The History panel shows both the current branch
+            // and its upstream tracking branch, so users can pick a remote-only
+            // commit by mistake; JGit's revert silently does nothing for those.
+            ObjectId headId = repo.resolve(Constants.HEAD);
+            if (headId == null) {
+                throw new RuntimeException("Cannot revert: HEAD is not resolvable.");
+            }
+            try (RevWalk walk = new RevWalk(repo)) {
+                RevCommit headCommit = walk.parseCommit(headId);
+                RevCommit targetCommit = walk.parseCommit(commitId);
+                walk.markStart(headCommit);
+                boolean reachable = false;
+                for (RevCommit c : walk) {
+                    if (c.getId().equals(targetCommit.getId())) {
+                        reachable = true;
+                        break;
+                    }
+                }
+                if (!reachable) {
+                    throw new RuntimeException("Cannot revert: commit "
+                            + commitId.abbreviate(7).name()
+                            + " is not on the current branch. Check out the branch that contains it first.");
+                }
+            }
+
             RevCommit result = git.revert().include(commitId).call();
             if (result == null) {
                 // Revert produced conflicts — abort to avoid leaving repo in conflicted state
