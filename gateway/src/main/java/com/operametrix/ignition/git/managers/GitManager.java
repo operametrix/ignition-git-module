@@ -1206,6 +1206,15 @@ public class GitManager {
     public static void removeRemote(Path projectFolderPath, String name) throws Exception {
         try (Git git = getGit(projectFolderPath)) {
             git.remoteRemove().setRemoteName(name).call();
+            // remoteRemove() only clears the remote.<name> config section; it leaves the
+            // remote-tracking refs behind, so prune refs/remotes/<name>/* as well —
+            // otherwise the removed remote's branches keep showing in the branch list.
+            Repository repo = git.getRepository();
+            for (Ref ref : repo.getRefDatabase().getRefsByPrefix(Constants.R_REMOTES + name + "/")) {
+                RefUpdate update = repo.updateRef(ref.getName());
+                update.setForceUpdate(true);
+                update.delete();
+            }
         }
     }
 
