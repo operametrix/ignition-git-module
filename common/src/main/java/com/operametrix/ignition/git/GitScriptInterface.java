@@ -1,10 +1,32 @@
 package com.operametrix.ignition.git;
 
+import com.inductiveautomation.ignition.common.BasicDataset;
 import com.inductiveautomation.ignition.common.Dataset;
+import com.inductiveautomation.ignition.common.rpc.RpcInterface;
+import com.inductiveautomation.ignition.common.rpc.RpcSerializer;
+import com.inductiveautomation.ignition.common.rpc.proto.ObjectSerializers;
+import com.inductiveautomation.ignition.common.rpc.proto.ProtoRpcSerializer;
 
 import java.util.List;
 
+@RpcInterface(packageId = "com.operametrix.ignition.git")
 public interface GitScriptInterface {
+
+    /**
+     * Shared RPC serializer for the 8.3 RPC mechanism. The same instance is referenced by the
+     * gateway ({@code GatewayRpcImplementation.of}) and the Designer
+     * ({@code GatewayConnection.getRpcInterface}) so both sides agree on the wire format.
+     *
+     * <p>{@code ProtoRpcSerializer} has no built-in support for Ignition {@link Dataset}, so the
+     * several {@code Dataset}-returning methods below would silently round-trip as empty without
+     * an explicit adapter. {@code BasicDataset}/{@code Dataset} are {@link java.io.Serializable}
+     * (this is how the pre-8.3 RPC moved them), so a Java-serialization binary adapter is
+     * registered for both the concrete and interface types.
+     */
+    RpcSerializer SERIALIZER = ProtoRpcSerializer.newBuilder()
+            .addBinaryAdapter(BasicDataset.class, ObjectSerializers.forUnsafeObject(BasicDataset.class))
+            .addBinaryAdapter(Dataset.class, ObjectSerializers.forUnsafeObject(Dataset.class))
+            .build();
 
     boolean pull(String projectName, String userName, String remoteName, boolean importTags, boolean importTheme,
                  boolean importImages) throws Exception;

@@ -1,11 +1,9 @@
 package com.operametrix.ignition.git.managers;
 
+import com.inductiveautomation.ignition.common.images.ImageFormat;
 import com.inductiveautomation.ignition.common.util.LoggerEx;
-import com.inductiveautomation.ignition.gateway.images.ImageFormat;
 import com.inductiveautomation.ignition.gateway.images.ImageManager;
-import com.inductiveautomation.ignition.gateway.images.ImageRecord;
-import com.inductiveautomation.ignition.gateway.localdb.persistence.PersistenceInterface;
-import simpleorm.dataset.SQuery;
+import com.inductiveautomation.ignition.gateway.images.ImageResource;
 
 import javax.swing.*;
 import java.awt.*;
@@ -15,7 +13,6 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.List;
 
 import static com.operametrix.ignition.git.GatewayHook.getContext;
 import static com.operametrix.ignition.git.managers.GitManager.clearDirectory;
@@ -28,13 +25,16 @@ public class GitImageManager {
         Path projectDir = getProjectFolderPath(projectName);
         File directory = projectDir.resolve("images").toFile();
 
-        // DELETION
-        PersistenceInterface persistenceInterface = getContext().getPersistenceInterface();
-        List<ImageRecord> images = persistenceInterface.query(new SQuery<>(ImageRecord.META));
-        images.forEach(i -> {
-            i.deleteRecord();
-            persistenceInterface.save(i);
-        });
+        // DELETION — clear the gateway image store before re-importing the snapshot.
+        ImageManager imageManager = getContext().getImageManager();
+        for (ImageResource image : imageManager.getImages("")) {
+            String imagePath = image.path().getPath().toString();
+            try {
+                imageManager.deleteImage(imagePath);
+            } catch (Exception ex) {
+                logger.error("Unable to delete image '" + imagePath + "'", ex);
+            }
+        }
 
         // INSERTION
         File[] files = directory.listFiles();
@@ -60,7 +60,12 @@ public class GitImageManager {
                 .endsWith(".jpeg") || lName
                 .endsWith(".svg"))
             try {
-                String ext = lName.substring(lName.lastIndexOf(".") + 1).toUpperCase();
+                String ext = lName.substring(lName.lastIndexOf(".") + 1);
+                ImageFormat format = ImageFormat.forExtension(ext).orElse(null);
+                if (format == null) {
+                    logger.warn("Unsupported image extension '" + ext + "' for file: '" + f.getName() + "'");
+                    return;
+                }
                 byte[] bytes = Files.readAllBytes(f.toPath());
                 int width = 0;
                 int height = 0;
@@ -71,7 +76,7 @@ public class GitImageManager {
                 }
 
                 try {
-                    getContext().getImageManager().insertImage(f.getName(), "", ImageFormat.valueOf(ext), path, bytes, width, height, bytes.length);
+                    getContext().getImageManager().insertImage(f.getName(), "", format, path, bytes, width, height, bytes.length);
                 } catch (Exception ex) {
                     logger.error(ex.getMessage(), ex);
                 }
@@ -111,29 +116,18 @@ public class GitImageManager {
         } catch (IOException e) {
             logger.error(e.toString(), e);
         }
-        saveFolderImage(imageFolderPath, "");
-    }
 
-    public static void saveFolderImage(Path folderPath, String directory) {
         ImageManager imageManager = getContext().getImageManager();
-        for (ImageRecord imageRecord : imageManager.getImages(directory)) {
-            String path = imageRecord.getString(ImageRecord.Path);
-            if (imageRecord.isDirectory()) {
-                try {
-                    Files.createDirectories(folderPath.resolve(path));
-                } catch (IOException e) {
-                    logger.error(e.toString(), e);
+        for (ImageResource image : imageManager.getImages("")) {
+            String relPath = image.path().getPath().toString();
+            Path target = imageFolderPath.resolve(relPath);
+            try {
+                if (target.getParent() != null) {
+                    Files.createDirectories(target.getParent());
                 }
-
-                saveFolderImage(folderPath, path);
-            } else {
-                byte[] data = imageManager.getImage(path).getBytes(ImageRecord.Data);
-
-                try {
-                    Files.write(folderPath.resolve(path), data);
-                } catch (IOException e) {
-                    logger.error(e.toString(), e);
-                }
+                Files.write(target, image.data().getBytes());
+            } catch (IOException e) {
+                logger.error("Unable to export image '" + relPath + "'", e);
             }
         }
     }

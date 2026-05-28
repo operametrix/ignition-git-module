@@ -18,10 +18,21 @@ import static com.operametrix.ignition.git.managers.GitManager.*;
 public class GitThemeManager {
     private final static LoggerEx logger = LoggerEx.newBuilder().build(GitThemeManager.class);
 
+    private static Path gatewayThemesDir() {
+        // Ignition 8.3 moved Perspective themes from data/modules/... to the
+        // config/resources tree, where each theme is a directory containing
+        // resource.json, config.json, index.css and variables.css.
+        return getDataFolderPath()
+                .resolve("config")
+                .resolve("resources")
+                .resolve("core")
+                .resolve("com.inductiveautomation.perspective")
+                .resolve("themes");
+    }
+
     public static void importTheme(String projectName) {
-        Path dataDir = getDataFolderPath();
         Path projectDir = getProjectFolderPath(projectName);
-        Path themesDir = dataDir.resolve("modules").resolve("com.inductiveautomation.perspective").resolve("themes");
+        Path themesDir = gatewayThemesDir();
         Path themesProjectDir = projectDir.resolve("themes");
         File themesProjectDirFile = themesProjectDir.toFile();
 
@@ -62,16 +73,14 @@ public class GitThemeManager {
         try {
             String content = Files.readString(sessionPropsPath);
             JsonObject json = new Gson().fromJson(content, JsonObject.class);
-            theme = JsonUtilities.readString(json, "props.theme", "light");
+            // 8.3 ships light-cool/light-warm/dark-cool/dark-warm; "light" is gone.
+            theme = JsonUtilities.readString(json, "props.theme", "light-cool");
         } catch (IOException e) {
             throw new RuntimeException("Failed to read Perspective session properties: "
                     + e.getMessage(), e);
         }
 
-        Path themesDir = getDataFolderPath()
-                .resolve("modules")
-                .resolve("com.inductiveautomation.perspective")
-                .resolve("themes");
+        Path themesDir = gatewayThemesDir();
         Path themeFolder = themesDir.resolve(theme);
         Path themeFile = themesDir.resolve(theme + ".css");
 

@@ -2,12 +2,13 @@ package com.operametrix.ignition.git.actions;
 
 import com.operametrix.ignition.git.InitProgressDialog;
 import com.inductiveautomation.ignition.client.util.gui.ErrorUtil;
-import com.inductiveautomation.ignition.common.BundleUtil;
+import com.inductiveautomation.ignition.common.resourcecollection.ChangeOperation;
+import com.inductiveautomation.ignition.common.resourcecollection.ResourceId;
+import com.inductiveautomation.ignition.common.resourcecollection.ResourcePath;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.swing.*;
-import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -20,12 +21,8 @@ public class GitBaseAction {
     private static final Logger logger = LoggerFactory.getLogger(GitBaseAction.class);
 
     public static void handleCommitAction(List<String> changes, String commitMessage, boolean amend) {
-        String message = BundleUtil.get().getStringLenient("DesignerHook.Actions.Commit.ConfirmMessage");
-        int messageType = JOptionPane.INFORMATION_MESSAGE;
-
         try {
             rpc.commit(projectName, userName, changes, commitMessage, amend);
-            SwingUtilities.invokeLater(new Thread(() -> showConfirmPopup(message, messageType)));
             if (instance != null) {
                 instance.refreshCommitPanel();
                 instance.refreshHistoryPanel();
@@ -42,9 +39,6 @@ public class GitBaseAction {
                     "Push", JOptionPane.WARNING_MESSAGE);
             return;
         }
-
-        String message = BundleUtil.get().getStringLenient("DesignerHook.Actions.Push.ConfirmMessage");
-        int messageType = JOptionPane.INFORMATION_MESSAGE;
 
         InitProgressDialog progress = new InitProgressDialog(context.getFrame(), "Pushing");
         new SwingWorker<Void, Void>() {
@@ -82,11 +76,9 @@ public class GitBaseAction {
                                 JOptionPane.WARNING_MESSAGE
                         );
                         if (choice == JOptionPane.YES_OPTION) {
-                            handleForcePush(remoteName, message, messageType);
+                            handleForcePush(remoteName);
                             return;
                         }
-                    } else {
-                        showConfirmPopup(message, messageType);
                     }
                 } catch (Exception e) {
                     Throwable cause = e.getCause() != null ? e.getCause() : e;
@@ -102,7 +94,7 @@ public class GitBaseAction {
         progress.setVisible(true);
     }
 
-    private static void handleForcePush(String remoteName, String message, int messageType) {
+    private static void handleForcePush(String remoteName) {
         InitProgressDialog progress = new InitProgressDialog(context.getFrame(), "Force Pushing");
         new SwingWorker<Void, Void>() {
             @Override
@@ -117,7 +109,6 @@ public class GitBaseAction {
                 progress.complete();
                 try {
                     get();
-                    showConfirmPopup(message, messageType);
                 } catch (Exception e) {
                     Throwable cause = e.getCause() != null ? e.getCause() : e;
                     ErrorUtil.showError(cause.getMessage(), cause);
@@ -140,9 +131,6 @@ public class GitBaseAction {
             return;
         }
 
-        String message = BundleUtil.get().getStringLenient("DesignerHook.Actions.Pull.ConfirmMessage");
-        int messageType = JOptionPane.INFORMATION_MESSAGE;
-
         InitProgressDialog progress = new InitProgressDialog(context.getFrame(), "Pulling");
         new SwingWorker<Void, Void>() {
             @Override
@@ -159,7 +147,6 @@ public class GitBaseAction {
                     progress.setStatus("Syncing project to Designer...");
                     pullProjectFromGateway();
                     progress.complete();
-                    showConfirmPopup(message, messageType);
                 } catch (Exception e) {
                     progress.complete();
                     Throwable cause = e.getCause() != null ? e.getCause() : e;
@@ -189,14 +176,10 @@ public class GitBaseAction {
     }
 
     public static void handleCheckoutAction(String branchName) {
-        String message = BundleUtil.get().getStringLenient("DesignerHook.Actions.Branch.CheckoutConfirmMessage");
-        int messageType = JOptionPane.INFORMATION_MESSAGE;
-
         try {
             closeAllEditorTabs();
             rpc.checkoutBranch(projectName, branchName);
             pullProjectFromGateway();
-            SwingUtilities.invokeLater(new Thread(() -> showConfirmPopup(message, messageType)));
         } catch (Exception ex) {
             ErrorUtil.showError(ex);
         } finally {
@@ -232,8 +215,12 @@ public class GitBaseAction {
                     Collection<?> editors = (Collection<?>) getEditors.invoke(ws);
                     List<?> editorsCopy = new ArrayList<>(editors);
 
+                    // 8.3: TabbedResourceWorkspace.close now takes the resourcecollection
+                    // ResourcePath (the resource model moved packages); looking it up with
+                    // the old common.project.resource.ResourcePath threw NoSuchMethodException,
+                    // leaving editors open so their stale content conflicted on pull.
                     Method closeMethod = tabbedClass.getMethod("close",
-                            com.inductiveautomation.ignition.common.project.resource.ResourcePath.class,
+                            com.inductiveautomation.ignition.common.resourcecollection.ResourcePath.class,
                             boolean.class);
 
                     for (Object editor : editorsCopy) {
@@ -250,39 +237,37 @@ public class GitBaseAction {
 
     public static void pullProjectFromGateway() {
         try {
-            java.awt.Frame frame = context.getFrame();
-            Class<?> frameClass = frame.getClass();
-
-            // Clear all local "dirty" flags so pullAndResolve() won't detect conflicts.
-            // After a branch checkout the gateway has the correct state; any local
-            // modifications are stale and must not trigger conflict resolution.
-            Object project = context.getProject();
-            Method getChanges = project.getClass().getMethod("getChanges");
-            List<?> changes = (List<?>) getChanges.invoke(project);
-            if (changes != null && !changes.isEmpty()) {
-                Method notifyPushComplete = project.getClass().getMethod("notifyPushComplete", List.class);
-                notifyPushComplete.invoke(project, changes);
+            // 8.3 replacement for the removed DesignableProject.notifyPushComplete(List):
+            // before pulling the gateway/branch state, discard any local Designer edits so
+            // the pull adopts the gateway state wholesale instead of opening the Resolve
+            // Conflicts dialog. On a deliberate branch checkout/pull the gateway is
+            // authoritative; uncommitted work is preserved per-branch by the gateway-side
+            // git stash/restore, so stale local Designer edits must not be treated as
+            // conflicts.
+            var project = context.getProject();
+            List<ResourcePath> stalePaths = new ArrayList<>();
+            for (ChangeOperation op : project.getChanges()) {
+                ResourceId rid = ChangeOperation.getResourceIdFromChange(op);
+                if (rid != null) {
+                    stalePaths.add(rid.getResourcePath());
+                }
+            }
+            for (ResourcePath p : stalePaths) {
+                project.discardChanges(p);
             }
 
-            // Call pullAndResolve() directly, skipping commitAll() which would
-            // push stale open-editor content back to the gateway and cause conflicts
-            Method pullAndResolve = frameClass.getDeclaredMethod("pullAndResolve");
-            pullAndResolve.setAccessible(true);
-            pullAndResolve.invoke(frame);
-
-            // Notify module hooks that the update cycle is complete
-            Method notifyModules = frameClass.getDeclaredMethod("notifyModulesProjectSaveDone");
-            notifyModules.setAccessible(true);
-            notifyModules.invoke(frame);
-
-            // Clear the pending-update state so the "Merge" button disappears
-            Field remField = frameClass.getDeclaredField("resourceEditManager");
-            remField.setAccessible(true);
-            Object rem = remField.get(frame);
-            Method onComplete = rem.getClass().getMethod("onDesignerUpdateComplete");
-            onComplete.invoke(rem);
+            // IgnitionDesigner.updateProject() (public) performs the full gateway pull +
+            // Designer refresh — the 8.3 successor to the private no-arg pullAndResolve()
+            // the pre-8.3 module reflected into (its signature changed in 8.3). Invoked
+            // reflectively to avoid a compile-time dependency on the concrete frame class.
+            java.awt.Frame frame = context.getFrame();
+            Method updateProject = frame.getClass().getMethod("updateProject");
+            updateProject.invoke(frame);
         } catch (Exception e) {
             logger.error("Failed to pull project from gateway", e);
+            ErrorUtil.showError("Git updated the project on the gateway, but the Designer could not "
+                    + "refresh automatically. The project view may be out of sync — update or reopen "
+                    + "the project to load the latest state.", e);
         }
     }
 
@@ -318,8 +303,6 @@ public class GitBaseAction {
             closeAllEditorTabs();
             rpc.checkoutCommit(projectName, commitHash);
             pullProjectFromGateway();
-            SwingUtilities.invokeLater(new Thread(() ->
-                    showConfirmPopup("Checked out commit " + shortHash + ".", JOptionPane.INFORMATION_MESSAGE)));
         } catch (Exception ex) {
             ErrorUtil.showError(ex);
         } finally {
@@ -353,8 +336,6 @@ public class GitBaseAction {
                 progress.complete();
                 try {
                     get();
-                    String message = BundleUtil.get().getStringLenient("DesignerHook.Actions.Fetch.ConfirmMessage");
-                    showConfirmPopup(message, JOptionPane.INFORMATION_MESSAGE);
                 } catch (Exception e) {
                     Throwable cause = e.getCause() != null ? e.getCause() : e;
                     ErrorUtil.showError(cause.getMessage(), cause);
@@ -379,8 +360,6 @@ public class GitBaseAction {
         try {
             rpc.revertCommit(projectName, commitHash);
             pullProjectFromGateway();
-            SwingUtilities.invokeLater(new Thread(() ->
-                    showConfirmPopup("Commit reverted successfully.", JOptionPane.INFORMATION_MESSAGE)));
         } catch (Exception ex) {
             ErrorUtil.showError(ex);
         } finally {

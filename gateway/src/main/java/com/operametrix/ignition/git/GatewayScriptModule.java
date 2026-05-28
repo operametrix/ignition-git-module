@@ -19,8 +19,6 @@ import org.eclipse.jgit.transport.PushResult;
 import org.eclipse.jgit.transport.RefSpec;
 import org.eclipse.jgit.transport.URIish;
 
-import simpleorm.dataset.SQuery;
-
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -33,7 +31,10 @@ import static com.operametrix.ignition.git.managers.GitManager.*;
 import static com.operametrix.ignition.git.managers.GitTagManager.exportTag;
 import static com.operametrix.ignition.git.managers.GitThemeManager.exportTheme;
 
-public class GatewayScriptModule extends AbstractScriptModule {
+// Declares GitScriptInterface directly (not just via AbstractScriptModule): the 8.3
+// RpcDelegate discovers @RpcInterface only on impl.getClass().getInterfaces() and does
+// not walk superclasses, so the interface must be on the concrete class itself.
+public class GatewayScriptModule extends AbstractScriptModule implements GitScriptInterface {
     private final LoggerEx logger = LoggerEx.newBuilder().build(getClass());
     private final GatewayContext context;
 
@@ -414,22 +415,19 @@ public class GatewayScriptModule extends AbstractScriptModule {
         }
 
         // Create project config record
-        GitProjectsConfigRecord projectRecord = context.getPersistenceInterface().createNew(GitProjectsConfigRecord.META);
+        GitProjectsConfigRecord projectRecord = new GitProjectsConfigRecord();
         projectRecord.setProjectName(projectName);
         projectRecord.setURI(repoUri);
-        context.getPersistenceInterface().save(projectRecord);
-
-        // Re-query to get the generated ID
-        projectRecord = getGitProjectConfigRecord(projectName);
+        projectRecord.save();
 
         // Create user registration record
-        GitReposUsersRecord userRecord = context.getPersistenceInterface().createNew(GitReposUsersRecord.META);
+        GitReposUsersRecord userRecord = new GitReposUsersRecord();
         userRecord.setProjectId(projectRecord.getId());
         userRecord.setIgnitionUser(ignitionUser);
-        context.getPersistenceInterface().save(userRecord);
+        userRecord.save();
 
         // Create per-remote credential record for "origin" with FK refs to user-level credentials
-        GitRemoteCredentialsRecord remoteCreds = context.getPersistenceInterface().createNew(GitRemoteCredentialsRecord.META);
+        GitRemoteCredentialsRecord remoteCreds = new GitRemoteCredentialsRecord();
         remoteCreds.setProjectId(projectRecord.getId());
         remoteCreds.setIgnitionUser(ignitionUser);
         remoteCreds.setRemoteName("origin");
@@ -439,7 +437,7 @@ public class GatewayScriptModule extends AbstractScriptModule {
         if (httpsCredentialId > 0) {
             remoteCreds.setHttpsCredentialId(httpsCredentialId);
         }
-        context.getPersistenceInterface().save(remoteCreds);
+        remoteCreds.save();
 
         // Attempt to initialize the local repo
         try {
@@ -447,18 +445,15 @@ public class GatewayScriptModule extends AbstractScriptModule {
         } catch (Exception e) {
             // Rollback: delete all records on failure
             try {
-                remoteCreds.deleteRecord();
-                context.getPersistenceInterface().save(remoteCreds);
+                remoteCreds.delete();
             } catch (Exception ignored) {
             }
             try {
-                userRecord.deleteRecord();
-                context.getPersistenceInterface().save(userRecord);
+                userRecord.delete();
             } catch (Exception ignored) {
             }
             try {
-                projectRecord.deleteRecord();
-                context.getPersistenceInterface().save(projectRecord);
+                projectRecord.delete();
             } catch (Exception ignored) {
             }
             throw e;
@@ -474,19 +469,16 @@ public class GatewayScriptModule extends AbstractScriptModule {
         }
 
         // Create project config record with empty URI (no remote)
-        GitProjectsConfigRecord projectRecord = context.getPersistenceInterface().createNew(GitProjectsConfigRecord.META);
+        GitProjectsConfigRecord projectRecord = new GitProjectsConfigRecord();
         projectRecord.setProjectName(projectName);
         projectRecord.setURI("");
-        context.getPersistenceInterface().save(projectRecord);
-
-        // Re-query to get the generated ID
-        projectRecord = getGitProjectConfigRecord(projectName);
+        projectRecord.save();
 
         // Create user registration record
-        GitReposUsersRecord userRecord = context.getPersistenceInterface().createNew(GitReposUsersRecord.META);
+        GitReposUsersRecord userRecord = new GitReposUsersRecord();
         userRecord.setProjectId(projectRecord.getId());
         userRecord.setIgnitionUser(ignitionUser);
-        context.getPersistenceInterface().save(userRecord);
+        userRecord.save();
 
         // Initialize local repo: git init + add . + initial commit
         try {
@@ -502,13 +494,11 @@ public class GatewayScriptModule extends AbstractScriptModule {
         } catch (Exception e) {
             // Rollback: delete both records on failure
             try {
-                userRecord.deleteRecord();
-                context.getPersistenceInterface().save(userRecord);
+                userRecord.delete();
             } catch (Exception ignored) {
             }
             try {
-                projectRecord.deleteRecord();
-                context.getPersistenceInterface().save(projectRecord);
+                projectRecord.delete();
             } catch (Exception ignored) {
             }
             throw e;
@@ -548,16 +538,16 @@ public class GatewayScriptModule extends AbstractScriptModule {
 
         // Create empty credential record — FK refs are attached separately via setRemoteCredentialRef
         GitProjectsConfigRecord projectRecord = getGitProjectConfigRecord(projectName);
-        GitRemoteCredentialsRecord creds = context.getPersistenceInterface().createNew(GitRemoteCredentialsRecord.META);
+        GitRemoteCredentialsRecord creds = new GitRemoteCredentialsRecord();
         creds.setProjectId(projectRecord.getId());
         creds.setIgnitionUser(ignitionUser);
         creds.setRemoteName(remoteName);
-        context.getPersistenceInterface().save(creds);
+        creds.save();
 
         // DB sync: if "origin", update GitProjectsConfigRecord.URI
         if ("origin".equals(remoteName)) {
             projectRecord.setURI(remoteUrl);
-            context.getPersistenceInterface().save(projectRecord);
+            projectRecord.save();
         }
 
         return true;
@@ -571,20 +561,16 @@ public class GatewayScriptModule extends AbstractScriptModule {
 
         // Delete credential record
         GitProjectsConfigRecord projectRecord = getGitProjectConfigRecord(projectName);
-        SQuery<GitRemoteCredentialsRecord> query = new SQuery<>(GitRemoteCredentialsRecord.META)
-                .eq(GitRemoteCredentialsRecord.ProjectId, projectRecord.getId())
-                .eq(GitRemoteCredentialsRecord.IgnitionUser, ignitionUser)
-                .eq(GitRemoteCredentialsRecord.RemoteName, remoteName);
-        GitRemoteCredentialsRecord creds = context.getPersistenceInterface().queryOne(query);
+        GitRemoteCredentialsRecord creds = GitRemoteCredentialsRecord.findByProjectUserRemote(
+                projectRecord.getId(), ignitionUser, remoteName);
         if (creds != null) {
-            creds.deleteRecord();
-            context.getPersistenceInterface().save(creds);
+            creds.delete();
         }
 
         // DB sync: if "origin", clear GitProjectsConfigRecord.URI
         if ("origin".equals(remoteName)) {
             projectRecord.setURI("");
-            context.getPersistenceInterface().save(projectRecord);
+            projectRecord.save();
         }
 
         return true;
@@ -598,23 +584,20 @@ public class GatewayScriptModule extends AbstractScriptModule {
 
         // Ensure a credential record exists for this remote (FK refs are set via setRemoteCredentialRef)
         GitProjectsConfigRecord projectRecord = getGitProjectConfigRecord(projectName);
-        SQuery<GitRemoteCredentialsRecord> query = new SQuery<>(GitRemoteCredentialsRecord.META)
-                .eq(GitRemoteCredentialsRecord.ProjectId, projectRecord.getId())
-                .eq(GitRemoteCredentialsRecord.IgnitionUser, ignitionUser)
-                .eq(GitRemoteCredentialsRecord.RemoteName, remoteName);
-        GitRemoteCredentialsRecord creds = context.getPersistenceInterface().queryOne(query);
+        GitRemoteCredentialsRecord creds = GitRemoteCredentialsRecord.findByProjectUserRemote(
+                projectRecord.getId(), ignitionUser, remoteName);
         if (creds == null) {
-            creds = context.getPersistenceInterface().createNew(GitRemoteCredentialsRecord.META);
+            creds = new GitRemoteCredentialsRecord();
             creds.setProjectId(projectRecord.getId());
             creds.setIgnitionUser(ignitionUser);
             creds.setRemoteName(remoteName);
-            context.getPersistenceInterface().save(creds);
+            creds.save();
         }
 
         // DB sync: if "origin", update GitProjectsConfigRecord.URI
         if ("origin".equals(remoteName)) {
             projectRecord.setURI(newUrl);
-            context.getPersistenceInterface().save(projectRecord);
+            projectRecord.save();
         }
 
         return true;
@@ -754,12 +737,11 @@ public class GatewayScriptModule extends AbstractScriptModule {
     @Override
     protected boolean saveUserSshKeyImpl(String ignitionUser, String keyName, String sshKey) {
         try {
-            GitUserSshKeyRecord record = context.getPersistenceInterface()
-                    .createNew(GitUserSshKeyRecord.META);
+            GitUserSshKeyRecord record = new GitUserSshKeyRecord();
             record.setIgnitionUser(ignitionUser);
             record.setKeyName(keyName);
             record.setSSHKey(sshKey);
-            context.getPersistenceInterface().save(record);
+            record.save();
             return true;
         } catch (Exception e) {
             logger.error("Error saving user SSH key", e);
@@ -770,23 +752,17 @@ public class GatewayScriptModule extends AbstractScriptModule {
     @Override
     protected boolean deleteUserSshKeyImpl(String ignitionUser, long keyId) {
         try {
-            GitUserSshKeyRecord record = context.getPersistenceInterface().queryOne(
-                    new SQuery<>(GitUserSshKeyRecord.META)
-                            .eq(GitUserSshKeyRecord.Id, keyId)
-                            .eq(GitUserSshKeyRecord.IgnitionUser, ignitionUser));
+            GitUserSshKeyRecord record = GitUserSshKeyRecord.findByIdAndUser(keyId, ignitionUser);
             if (record == null) return false;
 
             // Clear FK references in remote credential records pointing to this key
-            List<GitRemoteCredentialsRecord> refs = context.getPersistenceInterface().query(
-                    new SQuery<>(GitRemoteCredentialsRecord.META)
-                            .eq(GitRemoteCredentialsRecord.SshKeyId, keyId));
+            List<GitRemoteCredentialsRecord> refs = GitRemoteCredentialsRecord.listBySshKeyId(keyId);
             for (GitRemoteCredentialsRecord ref : refs) {
                 ref.setSshKeyId(0);
-                context.getPersistenceInterface().save(ref);
+                ref.save();
             }
 
-            record.deleteRecord();
-            context.getPersistenceInterface().save(record);
+            record.delete();
             return true;
         } catch (Exception e) {
             logger.error("Error deleting user SSH key", e);
@@ -797,9 +773,7 @@ public class GatewayScriptModule extends AbstractScriptModule {
     @Override
     protected Dataset listUserSshKeysImpl(String ignitionUser) {
         try {
-            List<GitUserSshKeyRecord> keys = context.getPersistenceInterface().query(
-                    new SQuery<>(GitUserSshKeyRecord.META)
-                            .eq(GitUserSshKeyRecord.IgnitionUser, ignitionUser));
+            List<GitUserSshKeyRecord> keys = GitUserSshKeyRecord.listByUser(ignitionUser);
             DatasetBuilder builder = new DatasetBuilder();
             builder.colNames("id", "keyName");
             builder.colTypes(Long.class, String.class);
@@ -820,24 +794,21 @@ public class GatewayScriptModule extends AbstractScriptModule {
                                                    String userName, String password) {
         try {
             // Check if a credential already exists for this user+host
-            GitUserHttpsCredentialRecord existing = context.getPersistenceInterface().queryOne(
-                    new SQuery<>(GitUserHttpsCredentialRecord.META)
-                            .eq(GitUserHttpsCredentialRecord.IgnitionUser, ignitionUser)
-                            .eq(GitUserHttpsCredentialRecord.HostPattern, hostPattern));
+            GitUserHttpsCredentialRecord existing =
+                    GitUserHttpsCredentialRecord.findByUserAndHostPattern(ignitionUser, hostPattern);
             if (existing != null) {
                 existing.setUserName(userName);
                 if (password != null && !password.isEmpty()) {
                     existing.setPassword(password);
                 }
-                context.getPersistenceInterface().save(existing);
+                existing.save();
             } else {
-                GitUserHttpsCredentialRecord record = context.getPersistenceInterface()
-                        .createNew(GitUserHttpsCredentialRecord.META);
+                GitUserHttpsCredentialRecord record = new GitUserHttpsCredentialRecord();
                 record.setIgnitionUser(ignitionUser);
                 record.setHostPattern(hostPattern);
                 record.setUserName(userName);
                 record.setPassword(password);
-                context.getPersistenceInterface().save(record);
+                record.save();
             }
             return true;
         } catch (Exception e) {
@@ -849,23 +820,19 @@ public class GatewayScriptModule extends AbstractScriptModule {
     @Override
     protected boolean deleteUserHttpsCredentialImpl(String ignitionUser, long credentialId) {
         try {
-            GitUserHttpsCredentialRecord record = context.getPersistenceInterface().queryOne(
-                    new SQuery<>(GitUserHttpsCredentialRecord.META)
-                            .eq(GitUserHttpsCredentialRecord.Id, credentialId)
-                            .eq(GitUserHttpsCredentialRecord.IgnitionUser, ignitionUser));
+            GitUserHttpsCredentialRecord record =
+                    GitUserHttpsCredentialRecord.findByIdAndUser(credentialId, ignitionUser);
             if (record == null) return false;
 
             // Clear FK references in remote credential records pointing to this credential
-            List<GitRemoteCredentialsRecord> refs = context.getPersistenceInterface().query(
-                    new SQuery<>(GitRemoteCredentialsRecord.META)
-                            .eq(GitRemoteCredentialsRecord.HttpsCredentialId, credentialId));
+            List<GitRemoteCredentialsRecord> refs =
+                    GitRemoteCredentialsRecord.listByHttpsCredentialId(credentialId);
             for (GitRemoteCredentialsRecord ref : refs) {
                 ref.setHttpsCredentialId(0);
-                context.getPersistenceInterface().save(ref);
+                ref.save();
             }
 
-            record.deleteRecord();
-            context.getPersistenceInterface().save(record);
+            record.delete();
             return true;
         } catch (Exception e) {
             logger.error("Error deleting user HTTPS credential", e);
@@ -876,9 +843,8 @@ public class GatewayScriptModule extends AbstractScriptModule {
     @Override
     protected Dataset listUserHttpsCredentialsImpl(String ignitionUser) {
         try {
-            List<GitUserHttpsCredentialRecord> creds = context.getPersistenceInterface().query(
-                    new SQuery<>(GitUserHttpsCredentialRecord.META)
-                            .eq(GitUserHttpsCredentialRecord.IgnitionUser, ignitionUser));
+            List<GitUserHttpsCredentialRecord> creds =
+                    GitUserHttpsCredentialRecord.listByUser(ignitionUser);
             DatasetBuilder builder = new DatasetBuilder();
             builder.colNames("id", "hostPattern", "userName");
             builder.colTypes(Long.class, String.class, String.class);
@@ -904,15 +870,14 @@ public class GatewayScriptModule extends AbstractScriptModule {
             if (creds == null) {
                 // Create a minimal record to hold the FK reference
                 GitProjectsConfigRecord projectRecord = getGitProjectConfigRecord(projectName);
-                creds = context.getPersistenceInterface()
-                        .createNew(GitRemoteCredentialsRecord.META);
+                creds = new GitRemoteCredentialsRecord();
                 creds.setProjectId(projectRecord.getId());
                 creds.setIgnitionUser(ignitionUser);
                 creds.setRemoteName(remoteName);
             }
             creds.setSshKeyId(sshKeyId);
             creds.setHttpsCredentialId(httpsCredentialId);
-            context.getPersistenceInterface().save(creds);
+            creds.save();
             return true;
         } catch (Exception e) {
             logger.error("Error setting remote credential reference", e);

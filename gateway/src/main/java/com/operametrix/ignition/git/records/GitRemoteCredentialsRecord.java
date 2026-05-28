@@ -1,76 +1,160 @@
 package com.operametrix.ignition.git.records;
 
-import com.inductiveautomation.ignition.gateway.localdb.persistence.*;
-import simpleorm.dataset.SFieldFlags;
+import com.inductiveautomation.ignition.common.resourcecollection.ResourceType;
+import com.inductiveautomation.ignition.gateway.config.DecodedResource;
+import com.inductiveautomation.ignition.gateway.config.NamedResourceHandler;
+import com.inductiveautomation.ignition.gateway.config.ResourceTypeMeta;
+import com.inductiveautomation.ignition.gateway.model.GatewayContext;
 
-public class GitRemoteCredentialsRecord extends PersistentRecord {
+import java.util.ArrayList;
+import java.util.List;
 
-    public static final RecordMeta<GitRemoteCredentialsRecord> META = new RecordMeta<>(
-            GitRemoteCredentialsRecord.class, "GitRemoteCredentialsRecord");
+/**
+ * Per (project, user, remote) credential reference (FK ids into the user-level SSH key / HTTPS
+ * credential resources). 8.3 resource-backed DTO façade (see {@link GitProjectsConfigRecord}).
+ */
+public class GitRemoteCredentialsRecord {
 
-    @Override
-    public RecordMeta<?> getMeta() {
-        return META;
+    public record Config(long id, long projectId, String ignitionUser, String remoteName,
+                         long sshKeyId, long httpsCredentialId) {}
+
+    public static final ResourceType TYPE =
+            new ResourceType(GitProjectsConfigRecord.MODULE_ID, "git-remote-credential");
+
+    public static final ResourceTypeMeta<Config> META =
+            ResourceTypeMeta.newBuilder(Config.class)
+                    .resourceType(TYPE)
+                    .categoryName("Git Remote Credentials")
+                    .build();
+
+    public static final class Handler extends NamedResourceHandler<Config> {
+        public Handler(GatewayContext context) {
+            super(context, META);
+        }
     }
 
-    public static final IdentityField Id = new IdentityField(META);
-    public static final LongField ProjectId = new LongField(META, "ProjectId");
-    public static final ReferenceField<GitProjectsConfigRecord> ProjectName = new ReferenceField<>(
-            META, GitProjectsConfigRecord.META, "ProjectName", ProjectId);
+    private static volatile Handler handler;
 
-    public static final StringField IgnitionUser = new StringField(META, "IgnitionUser",
-            SFieldFlags.SMANDATORY, SFieldFlags.SDESCRIPTIVE);
-    public static final StringField RemoteName = new StringField(META, "RemoteName",
-            SFieldFlags.SMANDATORY, SFieldFlags.SDESCRIPTIVE);
-
-    public static final LongField SshKeyId = new LongField(META, "SshKeyId");
-    public static final LongField HttpsCredentialId = new LongField(META, "HttpsCredentialId");
-
-    static final Category RemoteCredentials = new Category(
-            "GitRemoteCredentialsRecord.Category.RemoteCredentials", 1000)
-            .include(ProjectName, IgnitionUser, RemoteName, SshKeyId, HttpsCredentialId);
-
-    public int getId() {
-        return this.getInt(Id);
+    public static void setHandler(Handler h) {
+        handler = h;
     }
 
-    public long getProjectId() {
-        return this.getLong(ProjectId);
+    public static Handler handler() {
+        return handler;
     }
 
-    public String getIgnitionUser() {
-        return this.getString(IgnitionUser);
+    private long id;
+    private long projectId;
+    private String ignitionUser;
+    private String remoteName;
+    private long sshKeyId;
+    private long httpsCredentialId;
+
+    public GitRemoteCredentialsRecord() {
     }
 
-    public String getRemoteName() {
-        return this.getString(RemoteName);
+    private GitRemoteCredentialsRecord(Config c) {
+        this.id = c.id();
+        this.projectId = c.projectId();
+        this.ignitionUser = c.ignitionUser();
+        this.remoteName = c.remoteName();
+        this.sshKeyId = c.sshKeyId();
+        this.httpsCredentialId = c.httpsCredentialId();
+    }
+
+    public long getId() {
+        return id;
     }
 
     public void setProjectId(long projectId) {
-        this.setLong(ProjectId, projectId);
+        this.projectId = projectId;
     }
 
     public void setIgnitionUser(String ignitionUser) {
-        setString(IgnitionUser, ignitionUser);
+        this.ignitionUser = ignitionUser;
     }
 
     public void setRemoteName(String remoteName) {
-        setString(RemoteName, remoteName);
+        this.remoteName = remoteName;
     }
 
     public long getSshKeyId() {
-        return getLong(SshKeyId);
+        return sshKeyId;
     }
 
     public void setSshKeyId(long sshKeyId) {
-        setLong(SshKeyId, sshKeyId);
+        this.sshKeyId = sshKeyId;
     }
 
     public long getHttpsCredentialId() {
-        return getLong(HttpsCredentialId);
+        return httpsCredentialId;
     }
 
     public void setHttpsCredentialId(long httpsCredentialId) {
-        setLong(HttpsCredentialId, httpsCredentialId);
+        this.httpsCredentialId = httpsCredentialId;
+    }
+
+    private static final Object SAVE_LOCK = new Object();
+
+    public void save() {
+        try {
+            synchronized (SAVE_LOCK) {
+                if (id == 0L) {
+                    id = handler.getResources().stream()
+                            .map(DecodedResource::config)
+                            .mapToLong(Config::id)
+                            .max()
+                            .orElse(0L) + 1L;
+                }
+                Config c = new Config(id, projectId, ignitionUser, remoteName, sshKeyId, httpsCredentialId);
+                String name = String.valueOf(id);
+                if (handler.findResource(name).isPresent()) {
+                    handler.modify(name, c).join();
+                } else {
+                    handler.create(name, c).join();
+                }
+            }
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public void delete() {
+        try {
+            handler.delete(String.valueOf(id)).join();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public static GitRemoteCredentialsRecord findByProjectUserRemote(long projectId, String ignitionUser, String remoteName) {
+        return handler.getResources().stream()
+                .map(DecodedResource::config)
+                .filter(c -> c.projectId() == projectId
+                        && ignitionUser != null && ignitionUser.equals(c.ignitionUser())
+                        && remoteName != null && remoteName.equals(c.remoteName()))
+                .findFirst()
+                .map(GitRemoteCredentialsRecord::new)
+                .orElse(null);
+    }
+
+    public static List<GitRemoteCredentialsRecord> listBySshKeyId(long sshKeyId) {
+        List<GitRemoteCredentialsRecord> out = new ArrayList<>();
+        for (DecodedResource<Config> d : handler.getResources()) {
+            if (d.config().sshKeyId() == sshKeyId) {
+                out.add(new GitRemoteCredentialsRecord(d.config()));
+            }
+        }
+        return out;
+    }
+
+    public static List<GitRemoteCredentialsRecord> listByHttpsCredentialId(long httpsCredentialId) {
+        List<GitRemoteCredentialsRecord> out = new ArrayList<>();
+        for (DecodedResource<Config> d : handler.getResources()) {
+            if (d.config().httpsCredentialId() == httpsCredentialId) {
+                out.add(new GitRemoteCredentialsRecord(d.config()));
+            }
+        }
+        return out;
     }
 }

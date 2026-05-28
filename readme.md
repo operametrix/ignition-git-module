@@ -23,8 +23,8 @@ An Ignition module that embeds a Git client directly into the Ignition Designer,
 
 ### Prerequisites
 
-- Java (JDK >= 11)
-- An Ignition gateway (8.1.0+)
+- Java (JDK >= 17)
+- An Ignition gateway (8.3.0+)
 
 ### Building from source
 
@@ -33,6 +33,14 @@ An Ignition module that embeds a Git client directly into the Ignition Designer,
 3. Install the resulting `build/Git.modl` on your Ignition gateway.
 
 The Gradle wrapper is included in the project, so no separate Gradle installation is needed.
+
+### Upgrading to 2.0.0 (Ignition 8.3)
+
+Version 2.0.0 is a major release rebuilt for the Ignition 8.3 platform:
+
+- **Ignition 8.3+ only.** The module no longer installs on 8.1/8.2 gateways; stay on the 1.x line there.
+- **Java 17**, matching the 8.3 platform runtime.
+- **Existing configuration is migrated automatically.** On first startup the module imports your 1.x configuration — repository registrations, remotes, SSH keys, and HTTPS credentials — into Ignition 8.3's resource/config store. The one-time import is idempotent and clears the old records once migrated, so no manual re-entry is needed (unlike the AXONE-IO transition below).
 
 ### Upgrading from the AXONE-IO version
 

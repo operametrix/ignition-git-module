@@ -11,14 +11,12 @@ import com.inductiveautomation.ignition.common.gson.GsonBuilder;
 import com.inductiveautomation.ignition.common.gson.JsonArray;
 import com.inductiveautomation.ignition.common.gson.JsonElement;
 import com.inductiveautomation.ignition.common.gson.JsonObject;
-import com.inductiveautomation.ignition.common.project.RuntimeProject;
-import com.inductiveautomation.ignition.common.project.resource.LastModification;
-import com.inductiveautomation.ignition.common.project.resource.ProjectResource;
-import com.inductiveautomation.ignition.common.project.resource.ResourcePath;
-import com.inductiveautomation.ignition.common.project.resource.ResourceType;
+import com.inductiveautomation.ignition.common.resourcecollection.LastModification;
+import com.inductiveautomation.ignition.common.resourcecollection.Resource;
+import com.inductiveautomation.ignition.common.resourcecollection.ResourcePath;
+import com.inductiveautomation.ignition.common.resourcecollection.ResourceType;
 import com.inductiveautomation.ignition.common.util.DatasetBuilder;
 import com.inductiveautomation.ignition.common.util.LoggerEx;
-import com.inductiveautomation.ignition.gateway.project.ProjectManager;
 import org.apache.commons.io.FileUtils;
 import org.eclipse.jgit.api.*;
 import org.eclipse.jgit.lib.*;
@@ -44,7 +42,6 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -129,9 +126,7 @@ public class GitManager {
         if (creds == null || creds.getSshKeyId() <= 0) {
             return null;
         }
-        GitUserSshKeyRecord keyRecord = getContext().getPersistenceInterface().queryOne(
-                new SQuery<>(GitUserSshKeyRecord.META)
-                        .eq(GitUserSshKeyRecord.Id, creds.getSshKeyId()));
+        GitUserSshKeyRecord keyRecord = GitUserSshKeyRecord.findById(creds.getSshKeyId());
         return keyRecord == null ? null : keyRecord.getSSHKey();
     }
 
@@ -140,9 +135,8 @@ public class GitManager {
         if (creds == null || creds.getHttpsCredentialId() <= 0) {
             return null;
         }
-        GitUserHttpsCredentialRecord httpRecord = getContext().getPersistenceInterface().queryOne(
-                new SQuery<>(GitUserHttpsCredentialRecord.META)
-                        .eq(GitUserHttpsCredentialRecord.Id, creds.getHttpsCredentialId()));
+        GitUserHttpsCredentialRecord httpRecord =
+                GitUserHttpsCredentialRecord.findById(creds.getHttpsCredentialId());
         return httpRecord == null
                 ? null
                 : new String[]{httpRecord.getUserName(), httpRecord.getPassword()};
@@ -173,7 +167,8 @@ public class GitManager {
             for (com.inductiveautomation.ignition.gateway.user.UserSourceProfileRecord profileRecord : profiles) {
                 try {
                     com.inductiveautomation.ignition.gateway.user.UserSourceProfile profile =
-                            getContext().getUserSourceManager().getProfile(profileRecord.getName());
+                            getContext().getUserSourceManager().getProfile(
+                                    profileRecord.getString(com.inductiveautomation.ignition.gateway.user.UserSourceProfileRecord.Name));
                     if (profile == null) continue;
                     com.inductiveautomation.ignition.common.user.User user =
                             profile.getUser(userName).orElse(null);
@@ -200,9 +195,7 @@ public class GitManager {
     }
 
     public static GitProjectsConfigRecord getGitProjectConfigRecord(String projectName) throws Exception {
-        SQuery<GitProjectsConfigRecord> projectQuery = new SQuery<>(GitProjectsConfigRecord.META)
-                .eq(GitProjectsConfigRecord.ProjectName, projectName);
-        GitProjectsConfigRecord gitProjectsConfigRecord = getContext().getPersistenceInterface().queryOne(projectQuery);
+        GitProjectsConfigRecord gitProjectsConfigRecord = GitProjectsConfigRecord.findByProjectName(projectName);
 
         if (gitProjectsConfigRecord == null) {
             throw new Exception("Git Project not configured.");
@@ -213,10 +206,8 @@ public class GitManager {
 
     public static GitReposUsersRecord getGitReposUserRecord(GitProjectsConfigRecord gitProjectsConfigRecord,
                                                             String userName) throws Exception {
-        SQuery<GitReposUsersRecord> userQuery = new SQuery<>(GitReposUsersRecord.META)
-                .eq(GitReposUsersRecord.ProjectId, gitProjectsConfigRecord.getId())
-                .eq(GitReposUsersRecord.IgnitionUser, userName);
-        GitReposUsersRecord user = getContext().getPersistenceInterface().queryOne(userQuery);
+        GitReposUsersRecord user = GitReposUsersRecord.findByProjectAndUser(
+                gitProjectsConfigRecord.getId(), userName);
 
         if (user == null) {
             throw new Exception("Git User not configured.");
@@ -280,37 +271,23 @@ public class GitManager {
     }
 
     public static String getTimestamp(String projectName, String path) {
-        ProjectManager projectManager = getContext().getProjectManager();
-        Optional<RuntimeProject> projectOpt = projectManager.getProject(projectName);
+        Optional<Resource> resourceOpt = getContext().getProjectManager().getResource(projectName, getResourcePath(path));
 
-        if (projectOpt.isPresent()) {
-            RuntimeProject project = projectOpt.get();
-            Optional<ProjectResource> resourceOpt = project.getResource(getResourcePath(path));
-
-            if (resourceOpt.isPresent()) {
-                ProjectResource projectResource = resourceOpt.get();
-                return LastModification.of(projectResource)
-                        .map(LastModification::getTimestamp)
-                        .map(date -> new SimpleDateFormat("yyyy-MM-dd HH:mm").format(date))
-                        .orElse("");
-            }
+        if (resourceOpt.isPresent()) {
+            return LastModification.of(resourceOpt.get())
+                    .map(LastModification::timestamp)
+                    .map(date -> new SimpleDateFormat("yyyy-MM-dd HH:mm").format(date))
+                    .orElse("");
         }
 
         return "";
     }
 
     public static String getActor(String projectName, String path) {
-        ProjectManager projectManager = getContext().getProjectManager();
-        Optional<RuntimeProject> projectOpt = projectManager.getProject(projectName);
+        Optional<Resource> resourceOpt = getContext().getProjectManager().getResource(projectName, getResourcePath(path));
 
-        if (projectOpt.isPresent()) {
-            RuntimeProject project = projectOpt.get();
-            Optional<ProjectResource> resourceOpt = project.getResource(getResourcePath(path));
-
-            if (resourceOpt.isPresent()) {
-                ProjectResource projectResource = resourceOpt.get();
-                return LastModification.of(projectResource).map(LastModification::getActor).orElse("unknown");
-            }
+        if (resourceOpt.isPresent()) {
+            return LastModification.of(resourceOpt.get()).map(LastModification::actor).orElse("unknown");
         }
 
         return "unknown";
@@ -1310,11 +1287,8 @@ public class GitManager {
     public static GitRemoteCredentialsRecord getRemoteCredentialsRecord(
             String projectName, String userName, String remoteName) throws Exception {
         GitProjectsConfigRecord projectRecord = getGitProjectConfigRecord(projectName);
-        SQuery<GitRemoteCredentialsRecord> query = new SQuery<>(GitRemoteCredentialsRecord.META)
-                .eq(GitRemoteCredentialsRecord.ProjectId, projectRecord.getId())
-                .eq(GitRemoteCredentialsRecord.IgnitionUser, userName)
-                .eq(GitRemoteCredentialsRecord.RemoteName, remoteName);
-        return getContext().getPersistenceInterface().queryOne(query);
+        return GitRemoteCredentialsRecord.findByProjectUserRemote(
+                projectRecord.getId(), userName, remoteName);
     }
 
 }

@@ -3,12 +3,12 @@ package com.operametrix.ignition.git;
 import com.operametrix.ignition.git.actions.GitBaseAction;
 import com.operametrix.ignition.git.managers.GitActionManager;
 import com.operametrix.ignition.git.utils.IconUtils;
-import com.inductiveautomation.ignition.client.gateway_interface.ModuleRPCFactory;
+import com.inductiveautomation.ignition.client.gateway_interface.GatewayConnection;
 import com.inductiveautomation.ignition.common.BundleUtil;
 import com.inductiveautomation.ignition.common.Dataset;
-import com.inductiveautomation.ignition.common.SessionInfo;
+import com.inductiveautomation.ignition.common.ConcurrencySessionInfo;
 import com.inductiveautomation.ignition.common.licensing.LicenseState;
-import com.inductiveautomation.ignition.common.project.ChangeOperation;
+import com.inductiveautomation.ignition.common.resourcecollection.ChangeOperation;
 
 import com.inductiveautomation.ignition.designer.gui.StatusBar;
 import com.inductiveautomation.ignition.designer.model.DesignerContext;
@@ -31,7 +31,8 @@ public class DesignerHook extends AbstractDesignerModuleHook {
     private static final String PROJECT_BROWSER_KEY = "Project Browser";
 
     public static DesignerHook instance;
-    public static GitScriptInterface rpc = ModuleRPCFactory.create(
+    public static GitScriptInterface rpc = GatewayConnection.getRpcInterface(
+            GitScriptInterface.SERIALIZER,
             "com.operametrix.ignition.git",
             GitScriptInterface.class
     );
@@ -61,8 +62,8 @@ public class DesignerHook extends AbstractDesignerModuleHook {
 
         projectName = context.getProjectName();
 
-        Optional<SessionInfo> sessionInfo = context.getResourceEditManager().getCurrentSessionInfo();
-        userName = sessionInfo.isPresent() ? sessionInfo.get().getUsername() : "";
+        Optional<ConcurrencySessionInfo> sessionInfo = context.getResourceEditManager().getCurrentSessionInfo();
+        userName = sessionInfo.map(ConcurrencySessionInfo::username).orElse("");
 
         boolean registered = rpc.isProjectRegistered(projectName);
         if (registered) {
@@ -405,7 +406,7 @@ public class DesignerHook extends AbstractDesignerModuleHook {
     }
 
     @Override
-    public void notifyProjectSaveStart(SaveContext save) {
+    public void notifyProjectSaveStart(SaveContext save) throws Exception {
         changes = context.getProject().getChanges();
         super.notifyProjectSaveStart(save);
     }

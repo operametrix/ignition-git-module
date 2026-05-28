@@ -18,8 +18,8 @@ import com.operametrix.ignition.git.HistoryPanel;
 import com.operametrix.ignition.git.MergeConflictPopup;
 import com.inductiveautomation.ignition.client.util.gui.ErrorUtil;
 import com.inductiveautomation.ignition.common.Dataset;
-import com.inductiveautomation.ignition.common.project.ChangeOperation;
-import com.inductiveautomation.ignition.common.project.resource.ProjectResourceId;
+import com.inductiveautomation.ignition.common.resourcecollection.ChangeOperation;
+import com.inductiveautomation.ignition.common.resourcecollection.ResourceId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -58,7 +58,7 @@ public class GitActionManager {
 
         List<String> resourcesChangedId = new ArrayList<>();
         for (ChangeOperation c : changes) {
-            ProjectResourceId pri = ChangeOperation.getResourceIdFromChange(c);
+            ResourceId pri = ChangeOperation.getResourceIdFromChange(c);
             resourcesChangedId.add(pri.getResourcePath().toString());
 
             // Log each change operation's details
@@ -462,11 +462,10 @@ public class GitActionManager {
                     public void onAddRemote(String name, String url) {
                         try {
                             rpc.addRemote(projectName, name, url, userName);
-                            showConfirmPopup("Remote '" + name + "' added successfully.", JOptionPane.INFORMATION_MESSAGE);
                             onRefresh();
                         } catch (Exception e) {
                             logger.error("Error adding remote", e);
-                            showConfirmPopup("Failed to add remote: " + e.getMessage(), JOptionPane.ERROR_MESSAGE);
+                            ErrorUtil.showError("Failed to add remote: " + e.getMessage(), e);
                         }
                     }
 
@@ -474,11 +473,10 @@ public class GitActionManager {
                     public void onEditRemote(String name, String newUrl) {
                         try {
                             rpc.setRemoteUrl(projectName, name, newUrl, userName);
-                            showConfirmPopup("Remote '" + name + "' updated successfully.", JOptionPane.INFORMATION_MESSAGE);
                             onRefresh();
                         } catch (Exception e) {
                             logger.error("Error updating remote", e);
-                            showConfirmPopup("Failed to update remote: " + e.getMessage(), JOptionPane.ERROR_MESSAGE);
+                            ErrorUtil.showError("Failed to update remote: " + e.getMessage(), e);
                         }
                     }
 
@@ -486,11 +484,10 @@ public class GitActionManager {
                     public void onRemoveRemote(String name) {
                         try {
                             rpc.removeRemote(projectName, name, userName);
-                            showConfirmPopup("Remote '" + name + "' removed.", JOptionPane.INFORMATION_MESSAGE);
                             onRefresh();
                         } catch (Exception e) {
                             logger.error("Error removing remote", e);
-                            showConfirmPopup("Failed to remove remote: " + e.getMessage(), JOptionPane.ERROR_MESSAGE);
+                            ErrorUtil.showError("Failed to remove remote: " + e.getMessage(), e);
                         }
                     }
 
@@ -513,7 +510,7 @@ public class GitActionManager {
                             rpc.setRemoteCredentialRef(projectName, remoteName, userName, sshKeyId, httpsCredentialId);
                         } catch (Exception e) {
                             logger.error("Error setting credential reference", e);
-                            showConfirmPopup("Failed to associate credential: " + e.getMessage(), JOptionPane.ERROR_MESSAGE);
+                            ErrorUtil.showError("Failed to associate credential: " + e.getMessage(), e);
                         }
                     }
 
@@ -567,7 +564,6 @@ public class GitActionManager {
                                 pullProjectFromGateway();
                                 progress.setStatus("Complete");
                                 progress.complete();
-                                showConfirmPopup("Repository initialized successfully.", JOptionPane.INFORMATION_MESSAGE);
                                 dispose();
                                 initRepoPopup = null;
                                 DesignerHook.instance.reinitializeAfterSetup();
@@ -575,7 +571,7 @@ public class GitActionManager {
                                 progress.complete();
                                 Throwable cause = e.getCause() != null ? e.getCause() : e;
                                 logger.error("Error initializing repository", cause);
-                                showConfirmPopup("Failed to initialize repository: " + cause.getMessage(), JOptionPane.ERROR_MESSAGE);
+                                ErrorUtil.showError("Failed to initialize repository: " + cause.getMessage(), cause);
                                 setEnabled(true);
                             }
                         }
@@ -601,7 +597,6 @@ public class GitActionManager {
                                 get();
                                 progress.setStatus("Complete");
                                 progress.complete();
-                                showConfirmPopup("Local repository initialized successfully.", JOptionPane.INFORMATION_MESSAGE);
                                 dispose();
                                 initRepoPopup = null;
                                 DesignerHook.instance.reinitializeAfterSetup();
@@ -609,7 +604,7 @@ public class GitActionManager {
                                 progress.complete();
                                 Throwable cause = e.getCause() != null ? e.getCause() : e;
                                 logger.error("Error initializing local repository", cause);
-                                showConfirmPopup("Failed to initialize local repository: " + cause.getMessage(), JOptionPane.ERROR_MESSAGE);
+                                ErrorUtil.showError("Failed to initialize local repository: " + cause.getMessage(), cause);
                                 setEnabled(true);
                             }
                         }
@@ -739,10 +734,7 @@ public class GitActionManager {
                     try {
                         rpc.abortMerge(projectName);
                         pullProjectFromGateway();
-                        SwingUtilities.invokeLater(() -> {
-                            dispose();
-                            showConfirmPopup("Merge aborted.", JOptionPane.INFORMATION_MESSAGE);
-                        });
+                        SwingUtilities.invokeLater(this::dispose);
                     } catch (Exception e) {
                         logger.error("Error aborting merge", e);
                         SwingUtilities.invokeLater(() ->
@@ -764,11 +756,7 @@ public class GitActionManager {
                     try {
                         rpc.completeMergeCommit(projectName, userName);
                         pullProjectFromGateway();
-                        SwingUtilities.invokeLater(() -> {
-                            dispose();
-                            showConfirmPopup("Merge completed successfully.",
-                                    JOptionPane.INFORMATION_MESSAGE);
-                        });
+                        SwingUtilities.invokeLater(this::dispose);
                     } catch (Exception e) {
                         logger.error("Error completing merge", e);
                         SwingUtilities.invokeLater(() ->
@@ -895,11 +883,6 @@ public class GitActionManager {
                 logger.error("Error loading more commits for history", e);
             }
         }).start());
-    }
-
-    public static void showConfirmPopup(String message, int messageType) {
-        JOptionPane.showConfirmDialog(context.getFrame(),
-                message, "Info", JOptionPane.DEFAULT_OPTION, messageType);
     }
 
 }
