@@ -843,7 +843,10 @@ public class GitManager {
                         if (headId != null) {
                             logCmd.add(headId);
                         }
-                        logCmd.add(trackingRef.getObjectId());
+                        ObjectId trackingId = trackingRef.getObjectId();
+                        if (trackingId != null) {
+                            logCmd.add(trackingId);
+                        }
                     }
                 }
             }
