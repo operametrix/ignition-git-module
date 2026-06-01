@@ -10,7 +10,7 @@ val sdk_version by extra("8.1.0")
 val timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHH"))
 
 allprojects {
-    version = "1.1.0.$timestamp"
+    version = "1.2.0.$timestamp"
 }
 
 ignitionModule {
