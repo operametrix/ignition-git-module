@@ -128,6 +128,16 @@ public class GitUserSshKeyRecord {
                 .orElse(null);
     }
 
+    public static GitUserSshKeyRecord findByUserAndKeyName(String ignitionUser, String keyName) {
+        return handler.getResources().stream()
+                .map(DecodedResource::config)
+                .filter(c -> ignitionUser != null && ignitionUser.equals(c.ignitionUser())
+                        && keyName != null && keyName.equals(c.keyName()))
+                .findFirst()
+                .map(GitUserSshKeyRecord::new)
+                .orElse(null);
+    }
+
     public static List<GitUserSshKeyRecord> listByUser(String ignitionUser) {
         List<GitUserSshKeyRecord> out = new ArrayList<>();
         for (DecodedResource<Config> d : handler.getResources()) {

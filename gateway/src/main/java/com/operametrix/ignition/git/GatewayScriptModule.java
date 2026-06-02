@@ -737,9 +737,13 @@ public class GatewayScriptModule extends AbstractScriptModule implements GitScri
     @Override
     protected boolean saveUserSshKeyImpl(String ignitionUser, String keyName, String sshKey) {
         try {
-            GitUserSshKeyRecord record = new GitUserSshKeyRecord();
-            record.setIgnitionUser(ignitionUser);
-            record.setKeyName(keyName);
+            // Update an existing key with the same name in place, otherwise create a new one.
+            GitUserSshKeyRecord record = GitUserSshKeyRecord.findByUserAndKeyName(ignitionUser, keyName);
+            if (record == null) {
+                record = new GitUserSshKeyRecord();
+                record.setIgnitionUser(ignitionUser);
+                record.setKeyName(keyName);
+            }
             record.setSSHKey(sshKey);
             record.save();
             return true;
