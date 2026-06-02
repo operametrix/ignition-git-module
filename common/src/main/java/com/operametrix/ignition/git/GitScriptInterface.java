@@ -157,4 +157,8 @@ public interface GitScriptInterface {
     boolean setRemoteCredentialRef(String projectName, String remoteName, String ignitionUser,
                                     long sshKeyId, long httpsCredentialId);
 
+    /** Get the credential FK currently associated with a remote for a user.
+     *  Returns a one-row Dataset with columns: sshKeyId, httpsCredentialId (both 0 if none). */
+    Dataset getRemoteCredentialRef(String projectName, String remoteName, String ignitionUser);
+
 }

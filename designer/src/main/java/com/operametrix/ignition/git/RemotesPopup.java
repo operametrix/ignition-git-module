@@ -361,7 +361,18 @@ public class RemotesPopup extends JDialog {
         nameField.setEnabled(false);
         urlField.setText(url);
         updateFormAuthType();
+        preselectSavedCredential(name, url.toLowerCase().startsWith("http"));
         showCard(CARD_FORM);
+    }
+
+    /** Select the dropdown entry matching the credential currently saved for this remote. */
+    private void preselectSavedCredential(String remoteName, boolean isHttps) {
+        long savedId = getSavedCredentialId(remoteName, isHttps);
+        if (savedId <= 0) return;
+        int idx = credentialIds.indexOf(savedId);
+        if (idx >= 0) {
+            credentialDropdown.setSelectedIndex(idx);
+        }
     }
 
     // ── Actions ────────────────────────────────────────────────────────
@@ -466,6 +477,11 @@ public class RemotesPopup extends JDialog {
 
     /** Called when the user selects a saved credential for a remote. */
     public void onSavedCredentialSelected(String remoteName, long sshKeyId, long httpsCredentialId) {
+    }
+
+    /** Returns the credential id (SSH key or HTTPS credential) currently saved for the remote, or 0. */
+    public long getSavedCredentialId(String remoteName, boolean isHttps) {
+        return 0;
     }
 
     /** Called when the user clicks "Configure..." to open the User Credentials popup. */

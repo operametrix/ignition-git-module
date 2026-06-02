@@ -229,6 +229,11 @@ public abstract class AbstractScriptModule implements GitScriptInterface {
         return setRemoteCredentialRefImpl(projectName, remoteName, ignitionUser, sshKeyId, httpsCredentialId);
     }
 
+    @Override
+    public Dataset getRemoteCredentialRef(String projectName, String remoteName, String ignitionUser) {
+        return getRemoteCredentialRefImpl(projectName, remoteName, ignitionUser);
+    }
+
     protected abstract boolean pullImpl(String projectName, String userName, String remoteName, boolean importTags, boolean importTheme,
                                         boolean importImages) throws Exception;
     protected abstract boolean pushImpl(String projectName, String userName, String remoteName, boolean pushAllBranches, boolean pushTags, boolean forcePush) throws Exception;
@@ -280,4 +285,6 @@ public abstract class AbstractScriptModule implements GitScriptInterface {
     protected abstract boolean setRemoteCredentialRefImpl(String projectName, String remoteName,
                                                           String ignitionUser, long sshKeyId,
                                                           long httpsCredentialId);
+    protected abstract Dataset getRemoteCredentialRefImpl(String projectName, String remoteName,
+                                                          String ignitionUser);
 }
