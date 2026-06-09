@@ -754,10 +754,18 @@ public class GatewayScriptModule extends AbstractScriptModule {
     @Override
     protected boolean saveUserSshKeyImpl(String ignitionUser, String keyName, String sshKey) {
         try {
-            GitUserSshKeyRecord record = context.getPersistenceInterface()
-                    .createNew(GitUserSshKeyRecord.META);
-            record.setIgnitionUser(ignitionUser);
-            record.setKeyName(keyName);
+            // Update an existing key with the same name in place, otherwise create a new one —
+            // without the lookup, re-saving a key created a duplicate and left the original (and any
+            // remote FK pointing at it) using the stale key.
+            GitUserSshKeyRecord record = context.getPersistenceInterface().queryOne(
+                    new SQuery<>(GitUserSshKeyRecord.META)
+                            .eq(GitUserSshKeyRecord.IgnitionUser, ignitionUser)
+                            .eq(GitUserSshKeyRecord.KeyName, keyName));
+            if (record == null) {
+                record = context.getPersistenceInterface().createNew(GitUserSshKeyRecord.META);
+                record.setIgnitionUser(ignitionUser);
+                record.setKeyName(keyName);
+            }
             record.setSSHKey(sshKey);
             context.getPersistenceInterface().save(record);
             return true;
