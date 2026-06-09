@@ -603,31 +603,52 @@ public class GitManager {
             // Stash uncommitted changes on the current branch
             stashChanges(git, currentBranch);
 
-            List<Ref> localRefs = git.branchList().call();
-            boolean localExists = false;
-            for (Ref ref : localRefs) {
-                if (Repository.shortenRefName(ref.getName()).equals(branchName)) {
-                    localExists = true;
+            // If a local branch with this name already exists, just switch to it.
+            if (localBranchExists(git, branchName)) {
+                git.checkout().setName(branchName).call();
+                applyStash(git, branchName);
+                return true;
+            }
+
+            // Otherwise treat branchName as a remote-tracking branch "<remote>/<branch>". The remote
+            // is not necessarily "origin", so resolve it from the configured remotes to derive the
+            // local branch name and the start-point ref (e.g. "test/master" -> local "master"
+            // tracking "test/master"). Note: git allows one local branch per name, so a branch shared
+            // across remotes collapses to a single local branch — once it exists we just switch to it.
+            String localName = branchName;
+            for (String remote : git.getRepository().getRemoteNames()) {
+                if (branchName.startsWith(remote + "/")) {
+                    localName = branchName.substring(remote.length() + 1);
                     break;
                 }
             }
 
-            if (localExists) {
-                git.checkout().setName(branchName).call();
+            if (localBranchExists(git, localName)) {
+                // A local branch for this name already exists (e.g. created at clone time) — switch to it.
+                git.checkout().setName(localName).call();
             } else {
                 git.checkout()
                         .setCreateBranch(true)
-                        .setName(branchName)
+                        .setName(localName)
                         .setUpstreamMode(CreateBranchCommand.SetupUpstreamMode.TRACK)
-                        .setStartPoint("origin/" + branchName)
+                        .setStartPoint(branchName)
                         .call();
             }
 
             // Apply stashed changes for the target branch if any exist
-            applyStash(git, branchName);
+            applyStash(git, localName);
 
             return true;
         }
+    }
+
+    private static boolean localBranchExists(Git git, String branchName) throws Exception {
+        for (Ref ref : git.branchList().call()) {
+            if (Repository.shortenRefName(ref.getName()).equals(branchName)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public static boolean checkoutCommit(Path projectFolderPath, String commitHash) throws Exception {

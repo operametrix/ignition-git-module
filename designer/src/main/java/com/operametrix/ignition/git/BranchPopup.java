@@ -155,7 +155,9 @@ public class BranchPopup extends JDialog {
             @Override
             public void mouseClicked(MouseEvent e) {
                 if (e.getClickCount() == 2 && SwingUtilities.isLeftMouseButton(e)) {
-                    String branch = stripRemotePrefix(remoteBranchList.getSelectedValue());
+                    // Pass the full remote-tracking name "<remote>/<branch>"; the gateway resolves the
+                    // remote and creates/switches the matching local branch.
+                    String branch = remoteBranchList.getSelectedValue();
                     if (branch != null && !branch.equals(currentBranch)) {
                         onCheckoutBranch(branch);
                     }
@@ -177,7 +179,7 @@ public class BranchPopup extends JDialog {
                 int index = remoteBranchList.locationToIndex(e.getPoint());
                 if (index < 0) return;
                 remoteBranchList.setSelectedIndex(index);
-                String branch = stripRemotePrefix(remoteModel.getElementAt(index));
+                String branch = remoteModel.getElementAt(index);
                 if (branch == null) return;
 
                 JPopupMenu menu = new JPopupMenu();
@@ -189,12 +191,6 @@ public class BranchPopup extends JDialog {
                 menu.show(remoteBranchList, e.getX(), e.getY());
             }
         });
-    }
-
-    private String stripRemotePrefix(String remote) {
-        if (remote == null) return null;
-        if (remote.startsWith("origin/")) return remote.substring("origin/".length());
-        return remote;
     }
 
     private JPanel buildListHeader(String title, JButton... trailingButtons) {
