@@ -927,4 +927,24 @@ public class GatewayScriptModule extends AbstractScriptModule {
             return false;
         }
     }
+
+    @Override
+    protected Dataset getRemoteCredentialRefImpl(String projectName, String remoteName,
+                                                 String ignitionUser) {
+        DatasetBuilder builder = new DatasetBuilder();
+        builder.colNames("sshKeyId", "httpsCredentialId");
+        builder.colTypes(Long.class, Long.class);
+        try {
+            GitRemoteCredentialsRecord creds = getRemoteCredentialsRecord(
+                    projectName, ignitionUser, remoteName);
+            long sshKeyId = creds != null ? creds.getSshKeyId() : 0L;
+            long httpsCredentialId = creds != null ? creds.getHttpsCredentialId() : 0L;
+            builder.addRow(sshKeyId, httpsCredentialId);
+        } catch (Exception e) {
+            logger.error("Error getting remote credential reference", e);
+            builder.addRow(0L, 0L);
+        }
+        Dataset ds = builder.build();
+        return ds != null ? ds : new BasicDataset();
+    }
 }

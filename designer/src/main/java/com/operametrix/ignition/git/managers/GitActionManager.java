@@ -518,6 +518,20 @@ public class GitActionManager {
                     }
 
                     @Override
+                    public long getSavedCredentialId(String remoteName, boolean isHttps) {
+                        try {
+                            Dataset ref = rpc.getRemoteCredentialRef(projectName, remoteName, userName);
+                            if (ref == null || ref.getRowCount() == 0) return 0;
+                            String col = isHttps ? "httpsCredentialId" : "sshKeyId";
+                            Object val = ref.getValueAt(0, col);
+                            return val instanceof Number ? ((Number) val).longValue() : 0;
+                        } catch (Exception e) {
+                            logger.error("Error getting remote credential reference", e);
+                            return 0;
+                        }
+                    }
+
+                    @Override
                     public void onConfigureCredentials() {
                         showCredentialsPopup(projectName, userName);
                         addCredentialsCloseListener(userName, () -> {
