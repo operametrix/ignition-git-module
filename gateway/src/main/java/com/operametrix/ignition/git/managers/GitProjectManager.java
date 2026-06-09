@@ -66,12 +66,23 @@ public class GitProjectManager {
             if (files != null) {
                 for (File file : files) {
                     if (file.isDirectory()) {
-                        stack.push(file);
+                        // Don't descend into the git metadata directory — its contents are not
+                        // project resources (and the pack files can be large).
+                        if (!file.getName().equals(".git")) {
+                            stack.push(file);
+                        }
                     } else {
                         try {
                             String path = file.getAbsolutePath().replace(projectPath.toFile().getAbsolutePath(), "");
                             path = path.substring(1);
                             path = path.replace("\\", "/");
+                            // Skip non-resource files: git metadata, gateway-resource snapshots
+                            // (tags/images/themes) and the project manifest (read separately by
+                            // loadProjectManifest). Importing these as project resources produces an
+                            // invalid resource collection that breaks the Designer project tree.
+                            if (!isAnIgnitionResource(path)) {
+                                continue;
+                            }
                             resources.add(new AbstractMap.SimpleEntry<>(path, Files.readAllBytes(file.toPath())));
                         } catch (IOException e) {
                             throw new RuntimeException(e);
@@ -96,15 +107,39 @@ public class GitProjectManager {
         Set<StringPath> createdFolders = new HashSet<>();
 
         Set<Map.Entry<String, byte[]>> files = listFiles(projectPath);
-        files.stream().collect(Collectors.groupingBy(e -> StringUtils.substringBeforeLast(e.getKey(), "/")))
-                .forEach((resourcePath, listOfFileNodes) -> {
+        Map<String, List<Map.Entry<String, byte[]>>> filesByDir = files.stream()
+                .collect(Collectors.groupingBy(e -> StringUtils.substringBeforeLast(e.getKey(), "/")));
+
+        // A directory must be imported as a folder — not a leaf resource — when either:
+        //   (a) it is a module folder (a depth-1 path that is just a module id, e.g.
+        //       "com.inductiveautomation.perspective"): a real resource always carries a type, so a
+        //       depth-1 path is never a leaf; or
+        //   (b) it is an ancestor of another resource directory (it has children).
+        // 8.3 writes folder-level resource.json manifests (module/type/organizational folders), so the
+        // mere presence of a resource.json no longer implies a leaf. Importing such a path as a leaf
+        // yields a non-folder where Ignition expects a folder — e.g. the save-time
+        // "non-folder in the way at 'com.inductiveautomation.perspective'" error. Note (a) is needed in
+        // addition to (b) because a fresh module folder can exist on disk with no children yet (the
+        // child, such as Perspective session-props, is created on the first save).
+        Set<StringPath> folderPaths = new HashSet<>();
+        for (String resourcePath : filesByDir.keySet()) {
+            StringPath ancestor = StringPath.parse(resourcePath).getParentPath();
+            while (ancestor != null && ancestor.getPathLength() > 0) {
+                folderPaths.add(ancestor);
+                ancestor = ancestor.getParentPath();
+            }
+        }
+
+        filesByDir.forEach((resourcePath, listOfFileNodes) -> {
                     StringPath stringPath = StringPath.parse(resourcePath);
                     resources.addAll(createParentFolderResources(projectName, stringPath, createdFolders));
                     String manifestPath = String.format("%s/%s", resourcePath, "resource.json");
 
                     ResourceManifest resourceManifest = removeResourceManifest(manifestPath, listOfFileNodes);
 
-                    if (resourceManifest != null) {
+                    boolean isFolder = stringPath.getPathLength() <= 1 || folderPaths.contains(stringPath);
+
+                    if (resourceManifest != null && !isFolder) {
 
                         Map<String, byte[]> dataMap = createDataMap(resourceManifest, listOfFileNodes);
 
