@@ -184,6 +184,15 @@ public class GitUserHttpsCredentialRecord {
                 .orElse(null);
     }
 
+    /** All HTTPS credentials regardless of owner — for the gateway-level config-remote credential picker. */
+    public static List<GitUserHttpsCredentialRecord> listAll() {
+        List<GitUserHttpsCredentialRecord> out = new ArrayList<>();
+        for (DecodedResource<Config> d : handler.getResources()) {
+            out.add(new GitUserHttpsCredentialRecord(d.config()));
+        }
+        return out;
+    }
+
     public static List<GitUserHttpsCredentialRecord> listByUser(String ignitionUser) {
         List<GitUserHttpsCredentialRecord> out = new ArrayList<>();
         for (DecodedResource<Config> d : handler.getResources()) {

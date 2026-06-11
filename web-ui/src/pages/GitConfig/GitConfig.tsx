@@ -1,6 +1,7 @@
 import React from "react";
 import { Button, Loading, PageHeader } from "../../webui";
 import { useGetStatusQuery, useInitMutation } from "./GitConfig.service";
+import RemoteCard from "./RemoteCard";
 import HistoryList from "./HistoryList";
 import "./_styles.scss";
 
@@ -36,7 +37,12 @@ const GitConfig = () => {
       );
     }
 
-    return <HistoryList />;
+    return (
+      <>
+        <RemoteCard />
+        <HistoryList />
+      </>
+    );
   };
 
   return (

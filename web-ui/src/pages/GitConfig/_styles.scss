@@ -46,6 +46,60 @@
   color: #888;
 }
 
+.gitcfg-remote-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  align-items: flex-start;
+}
+
+.gitcfg-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-width: 560px;
+}
+
+.gitcfg-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+
+  > span {
+    font-weight: 600;
+  }
+}
+
+// Inline add-credential sub-form, visually nested under the credential picker.
+.gitcfg-addcred {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  background: #fafafa;
+
+  button {
+    align-self: flex-start;
+  }
+}
+
+.gitcfg-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.gitcfg-ok {
+  color: #2e7d32;
+  margin: 0;
+}
+
+.gitcfg-err {
+  color: #c62828;
+  margin: 0;
+}
+
 .gitcfg-mono {
   font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
 }

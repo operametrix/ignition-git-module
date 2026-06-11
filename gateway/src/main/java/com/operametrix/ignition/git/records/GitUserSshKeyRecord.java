@@ -138,6 +138,15 @@ public class GitUserSshKeyRecord {
                 .orElse(null);
     }
 
+    /** All SSH keys regardless of owner — for the gateway-level config-remote credential picker. */
+    public static List<GitUserSshKeyRecord> listAll() {
+        List<GitUserSshKeyRecord> out = new ArrayList<>();
+        for (DecodedResource<Config> d : handler.getResources()) {
+            out.add(new GitUserSshKeyRecord(d.config()));
+        }
+        return out;
+    }
+
     public static List<GitUserSshKeyRecord> listByUser(String ignitionUser) {
         List<GitUserSshKeyRecord> out = new ArrayList<>();
         for (DecodedResource<Config> d : handler.getResources()) {

@@ -122,6 +122,30 @@ public class GitManager {
         }
     }
 
+    /**
+     * Auth from explicit credential ids — the data-dir config remote, which has no
+     * project/user context (auth type follows the URL scheme, like {@link #setAuthentication}).
+     */
+    public static void setAuthenticationFromIds(TransportCommand<?, ?> command, String url,
+                                                long sshKeyId, long httpsCredentialId) throws Exception {
+        boolean isSsh = url != null && !url.toLowerCase().startsWith("http");
+        if (isSsh) {
+            GitUserSshKeyRecord keyRecord = sshKeyId > 0 ? GitUserSshKeyRecord.findById(sshKeyId) : null;
+            if (keyRecord == null || keyRecord.getSSHKey() == null || keyRecord.getSSHKey().isEmpty()) {
+                throw new Exception("No SSH credential assigned to the config remote. Pick one in the Remote card.");
+            }
+            command.setTransportConfigCallback(new SshTransportConfigCallback(keyRecord.getSSHKey()));
+        } else {
+            GitUserHttpsCredentialRecord httpRecord =
+                    httpsCredentialId > 0 ? GitUserHttpsCredentialRecord.findById(httpsCredentialId) : null;
+            if (httpRecord == null) {
+                throw new Exception("No HTTPS credential assigned to the config remote. Pick one in the Remote card.");
+            }
+            command.setCredentialsProvider(
+                    new UsernamePasswordCredentialsProvider(httpRecord.getUserName(), httpRecord.getPassword()));
+        }
+    }
+
     private static String resolveSshKey(GitRemoteCredentialsRecord creds) {
         if (creds == null || creds.getSshKeyId() <= 0) {
             return null;

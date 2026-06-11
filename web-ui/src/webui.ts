@@ -14,4 +14,6 @@ export const DataGrid = ui.DataGrid;
 export const Loading = ui.Loading;
 export const Modal = ui.Modal;
 export const PageHeader = ui.PageHeader;
+export const SelectInput = ui.SelectInput;
 export const TextArea = ui.TextArea;
+export const TextInput = ui.TextInput;

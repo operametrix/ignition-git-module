@@ -1,5 +1,6 @@
 package com.operametrix.ignition.git;
 
+import com.operametrix.ignition.git.records.GitConfigRemoteRecord;
 import com.operametrix.ignition.git.records.GitProjectsConfigRecord;
 import com.operametrix.ignition.git.records.GitRemoteCredentialsRecord;
 import com.operametrix.ignition.git.records.GitReposUsersRecord;
@@ -46,6 +47,7 @@ public class GatewayHook extends AbstractGatewayModuleHook {
     private GitUserSshKeyRecord.Handler sshKeyHandler;
     private GitUserHttpsCredentialRecord.Handler httpsCredHandler;
     private GitRemoteCredentialsRecord.Handler remoteCredHandler;
+    private GitConfigRemoteRecord.Handler configRemoteHandler;
     private ConfigAutoCommitter autoCommitter;
 
     /** Gateway context, available after {@link #setup(GatewayContext)} has run. */
@@ -64,6 +66,7 @@ public class GatewayHook extends AbstractGatewayModuleHook {
         registry.register(GitUserSshKeyRecord.META);
         registry.register(GitUserHttpsCredentialRecord.META);
         registry.register(GitRemoteCredentialsRecord.META);
+        registry.register(GitConfigRemoteRecord.META);
 
         // Create the resource handlers (DAOs) and publish them to the record façades.
         projectHandler = new GitProjectsConfigRecord.Handler(context);
@@ -71,12 +74,14 @@ public class GatewayHook extends AbstractGatewayModuleHook {
         sshKeyHandler = new GitUserSshKeyRecord.Handler(context);
         httpsCredHandler = new GitUserHttpsCredentialRecord.Handler(context);
         remoteCredHandler = new GitRemoteCredentialsRecord.Handler(context);
+        configRemoteHandler = new GitConfigRemoteRecord.Handler(context);
 
         GitProjectsConfigRecord.setHandler(projectHandler);
         GitReposUsersRecord.setHandler(repoUserHandler);
         GitUserSshKeyRecord.setHandler(sshKeyHandler);
         GitUserHttpsCredentialRecord.setHandler(httpsCredHandler);
         GitRemoteCredentialsRecord.setHandler(remoteCredHandler);
+        GitConfigRemoteRecord.setHandler(configRemoteHandler);
 
         scriptModule = new GatewayScriptModule(context);
 
@@ -105,6 +110,7 @@ public class GatewayHook extends AbstractGatewayModuleHook {
         sshKeyHandler.startup();
         httpsCredHandler.startup();
         remoteCredHandler.startup();
+        configRemoteHandler.startup();
 
         // One-time migration of any legacy SimpleORM rows from a pre-8.3 install.
         try {
@@ -129,6 +135,7 @@ public class GatewayHook extends AbstractGatewayModuleHook {
             context.getConfigurationManager().removeListener(autoCommitter);
             autoCommitter.shutdown();
         }
+        if (configRemoteHandler != null) configRemoteHandler.shutdown();
         if (remoteCredHandler != null) remoteCredHandler.shutdown();
         if (httpsCredHandler != null) httpsCredHandler.shutdown();
         if (sshKeyHandler != null) sshKeyHandler.shutdown();
@@ -192,6 +199,34 @@ public class GatewayHook extends AbstractGatewayModuleHook {
         routes.newRoute("/file-diff").method(HttpMethod.GET).type(RouteGroup.TYPE_JSON)
                 .requirePermission(PermissionType.READ)
                 .handler(this::handleFileDiff).mount();
+
+        routes.newRoute("/remote").method(HttpMethod.GET).type(RouteGroup.TYPE_JSON)
+                .requirePermission(PermissionType.READ).nocache()
+                .handler(this::handleGetRemote).mount();
+
+        routes.newRoute("/credentials").method(HttpMethod.GET).type(RouteGroup.TYPE_JSON)
+                .requirePermission(PermissionType.READ).nocache()
+                .handler(this::handleGetCredentials).mount();
+
+        routes.newRoute("/remote").method(HttpMethod.POST).type(RouteGroup.TYPE_JSON)
+                .requirePermission(PermissionType.WRITE)
+                .handler(this::handleSaveRemote).mount();
+
+        routes.newRoute("/remote-remove").method(HttpMethod.POST).type(RouteGroup.TYPE_JSON)
+                .requirePermission(PermissionType.WRITE)
+                .handler(this::handleRemoveRemote).mount();
+
+        routes.newRoute("/remote-test").method(HttpMethod.POST).type(RouteGroup.TYPE_JSON)
+                .requirePermission(PermissionType.WRITE)
+                .handler(this::handleTestRemote).mount();
+
+        routes.newRoute("/push").method(HttpMethod.POST).type(RouteGroup.TYPE_JSON)
+                .requirePermission(PermissionType.WRITE)
+                .handler(this::handlePush).mount();
+
+        routes.newRoute("/credentials").method(HttpMethod.POST).type(RouteGroup.TYPE_JSON)
+                .requirePermission(PermissionType.WRITE)
+                .handler(this::handleAddCredential).mount();
 
         routes.newRoute("/restore").method(HttpMethod.POST).type(RouteGroup.TYPE_JSON)
                 .requirePermission(PermissionType.WRITE)
@@ -293,6 +328,177 @@ public class GatewayHook extends AbstractGatewayModuleHook {
         } catch (Exception e) {
             return error(resp, e);
         }
+    }
+
+    private Object handleGetRemote(RequestContext req, HttpServletResponse resp) {
+        try {
+            JsonObject o = new JsonObject();
+            GitConfigRemoteRecord remote = GitConfigRemoteRecord.get();
+            o.addProperty("configured", remote != null);
+            o.addProperty("defaultBranch", context.getSystemPropertiesManager().getSystemName());
+            if (remote != null) {
+                o.addProperty("uri", remote.getUri());
+                o.addProperty("branch", remote.getBranch());
+                o.addProperty("sshKeyId", remote.getSshKeyId());
+                o.addProperty("httpsCredentialId", remote.getHttpsCredentialId());
+                o.addProperty("credentialLabel",
+                        credentialLabel(remote.getSshKeyId(), remote.getHttpsCredentialId()));
+                long time = DataDirGitManager.getLastPushTime();
+                if (time > 0) {
+                    JsonObject lastPush = new JsonObject();
+                    lastPush.addProperty("time", time);
+                    String err = DataDirGitManager.getLastPushError();
+                    lastPush.addProperty("ok", err == null);
+                    if (err != null) {
+                        lastPush.addProperty("error", err);
+                    }
+                    o.add("lastPush", lastPush);
+                }
+            }
+            return o.toString();
+        } catch (Exception e) {
+            return error(resp, e);
+        }
+    }
+
+    private static String credentialLabel(long sshKeyId, long httpsCredentialId) {
+        if (sshKeyId > 0) {
+            GitUserSshKeyRecord key = GitUserSshKeyRecord.findById(sshKeyId);
+            return key == null ? "missing SSH key" : key.getKeyName() + " (SSH)";
+        }
+        if (httpsCredentialId > 0) {
+            GitUserHttpsCredentialRecord cred = GitUserHttpsCredentialRecord.findById(httpsCredentialId);
+            return cred == null ? "missing HTTPS credential"
+                    : cred.getHostPattern() + " — " + cred.getUserName() + " (HTTPS)";
+        }
+        return "none";
+    }
+
+    private Object handleGetCredentials(RequestContext req, HttpServletResponse resp) {
+        try {
+            JsonArray arr = new JsonArray();
+            for (GitUserSshKeyRecord key : GitUserSshKeyRecord.listAll()) {
+                JsonObject c = new JsonObject();
+                c.addProperty("id", key.getId());
+                c.addProperty("type", "SSH");
+                c.addProperty("label", key.getKeyName());
+                arr.add(c);
+            }
+            for (GitUserHttpsCredentialRecord cred : GitUserHttpsCredentialRecord.listAll()) {
+                JsonObject c = new JsonObject();
+                c.addProperty("id", cred.getId());
+                c.addProperty("type", "HTTPS");
+                c.addProperty("label", cred.getHostPattern() + " — " + cred.getUserName());
+                arr.add(c);
+            }
+            JsonObject o = new JsonObject();
+            o.add("credentials", arr);
+            return o.toString();
+        } catch (Exception e) {
+            return error(resp, e);
+        }
+    }
+
+    private Object handleSaveRemote(RequestContext req, HttpServletResponse resp) {
+        try {
+            JsonObject body = new Gson().fromJson(req.readBody(), JsonObject.class);
+            String branch = optString(body, "branch");
+            if (branch == null || branch.isBlank()) {
+                branch = context.getSystemPropertiesManager().getSystemName();
+            }
+            DataDirGitManager.saveRemote(optString(body, "uri"), branch,
+                    optLong(body, "sshKeyId"), optLong(body, "httpsCredentialId"));
+            return ok();
+        } catch (Exception e) {
+            return error(resp, e);
+        }
+    }
+
+    private Object handleRemoveRemote(RequestContext req, HttpServletResponse resp) {
+        try {
+            DataDirGitManager.removeRemote();
+            return ok();
+        } catch (Exception e) {
+            return error(resp, e);
+        }
+    }
+
+    private Object handleTestRemote(RequestContext req, HttpServletResponse resp) {
+        try {
+            JsonObject body = new Gson().fromJson(req.readBody(), JsonObject.class);
+            DataDirGitManager.testRemote(optString(body, "uri"),
+                    optLong(body, "sshKeyId"), optLong(body, "httpsCredentialId"));
+            return ok();
+        } catch (Exception e) {
+            return error(resp, e);
+        }
+    }
+
+    private Object handlePush(RequestContext req, HttpServletResponse resp) {
+        try {
+            DataDirGitManager.push();
+            return ok();
+        } catch (Exception e) {
+            return error(resp, e);
+        }
+    }
+
+    private Object handleAddCredential(RequestContext req, HttpServletResponse resp) {
+        try {
+            JsonObject body = new Gson().fromJson(req.readBody(), JsonObject.class);
+            String type = optString(body, "type");
+            JsonObject o = new JsonObject();
+            if ("SSH".equalsIgnoreCase(type)) {
+                String name = optString(body, "name");
+                String key = optString(body, "key");
+                if (name == null || name.isBlank() || key == null || key.isBlank()) {
+                    throw new RuntimeException("Key name and private key are required.");
+                }
+                GitUserSshKeyRecord record = new GitUserSshKeyRecord();
+                record.setIgnitionUser(req.getActor());
+                record.setKeyName(name.trim());
+                record.setSSHKey(key);
+                record.save();
+                o.addProperty("id", record.getId());
+            } else if ("HTTPS".equalsIgnoreCase(type)) {
+                String host = optString(body, "host");
+                String username = optString(body, "username");
+                String password = optString(body, "password");
+                if (host == null || host.isBlank() || password == null || password.isBlank()) {
+                    throw new RuntimeException("Host label and password/token are required.");
+                }
+                GitUserHttpsCredentialRecord record = new GitUserHttpsCredentialRecord();
+                record.setIgnitionUser(req.getActor());
+                record.setHostPattern(host.trim());
+                record.setUserName(username == null ? "" : username.trim());
+                record.setPassword(password);
+                record.save();
+                o.addProperty("id", record.getId());
+            } else {
+                throw new RuntimeException("Unknown credential type: " + type);
+            }
+            o.addProperty("ok", true);
+            o.addProperty("type", type.toUpperCase());
+            return o.toString();
+        } catch (Exception e) {
+            return error(resp, e);
+        }
+    }
+
+    private static String optString(JsonObject body, String key) {
+        return body != null && body.has(key) && !body.get(key).isJsonNull()
+                ? body.get(key).getAsString() : null;
+    }
+
+    private static long optLong(JsonObject body, String key) {
+        return body != null && body.has(key) && !body.get(key).isJsonNull()
+                ? body.get(key).getAsLong() : 0L;
+    }
+
+    private static String ok() {
+        JsonObject o = new JsonObject();
+        o.addProperty("ok", true);
+        return o.toString();
     }
 
     private Object handleRestore(RequestContext req, HttpServletResponse resp) {

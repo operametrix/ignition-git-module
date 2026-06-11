@@ -1,11 +1,19 @@
 package com.operametrix.ignition.git.managers;
 
 import com.inductiveautomation.ignition.common.util.LoggerEx;
+import com.operametrix.ignition.git.records.GitConfigRemoteRecord;
 import org.eclipse.jgit.api.CommitCommand;
 import org.eclipse.jgit.api.Git;
+import org.eclipse.jgit.api.LsRemoteCommand;
+import org.eclipse.jgit.api.PushCommand;
+import org.eclipse.jgit.api.RemoteSetUrlCommand;
 import org.eclipse.jgit.api.Status;
 import org.eclipse.jgit.lib.ObjectId;
 import org.eclipse.jgit.lib.Repository;
+import org.eclipse.jgit.transport.PushResult;
+import org.eclipse.jgit.transport.RefSpec;
+import org.eclipse.jgit.transport.RemoteRefUpdate;
+import org.eclipse.jgit.transport.URIish;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -204,6 +212,116 @@ public class DataDirGitManager {
             return GitManager.getWorkingTreeDiffContent(dataDir(), filePath);
         }
         return GitManager.getCommitFileDiffContent(dataDir(), commitHash, filePath);
+    }
+
+    // ----- Remote (manual push only — never pushed automatically) -----
+
+    private static final String ORIGIN = "origin";
+
+    /** Last manual push outcome for the page's status line (in-memory; resets on restart). */
+    private static volatile long lastPushTime;
+    private static volatile String lastPushError;
+
+    public static long getLastPushTime() {
+        return lastPushTime;
+    }
+
+    public static String getLastPushError() {
+        return lastPushError;
+    }
+
+    /** Save (create or update) the config remote: persist the record and sync origin in .git/config. */
+    public static void saveRemote(String uri, String branch, long sshKeyId, long httpsCredentialId) {
+        if (uri == null || uri.isBlank()) {
+            throw new RuntimeException("Remote URI cannot be empty.");
+        }
+        if (branch == null || branch.isBlank()) {
+            throw new RuntimeException("Branch cannot be empty.");
+        }
+        synchronized (DATA_DIR_LOCK) {
+            try (Git git = GitManager.getGit(dataDir())) {
+                URIish urIish = new URIish(uri.trim());
+                if (git.remoteList().call().stream().anyMatch(r -> ORIGIN.equals(r.getName()))) {
+                    RemoteSetUrlCommand setUrl = git.remoteSetUrl();
+                    setUrl.setRemoteName(ORIGIN);
+                    setUrl.setRemoteUri(urIish);
+                    setUrl.call();
+                } else {
+                    git.remoteAdd().setName(ORIGIN).setUri(urIish).call();
+                }
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+            GitConfigRemoteRecord record = GitConfigRemoteRecord.get();
+            if (record == null) {
+                record = new GitConfigRemoteRecord();
+            }
+            record.setUri(uri.trim());
+            record.setBranch(branch.trim());
+            record.setSshKeyId(sshKeyId);
+            record.setHttpsCredentialId(httpsCredentialId);
+            record.save();
+        }
+    }
+
+    public static void removeRemote() {
+        synchronized (DATA_DIR_LOCK) {
+            try (Git git = GitManager.getGit(dataDir())) {
+                git.remoteRemove().setRemoteName(ORIGIN).call();
+            } catch (Exception e) {
+                logger.warn("Could not remove origin from the config repo", e);
+            }
+            GitConfigRemoteRecord record = GitConfigRemoteRecord.get();
+            if (record != null) {
+                record.delete();
+            }
+            lastPushTime = 0;
+            lastPushError = null;
+        }
+    }
+
+    /** Manual push of the local history to the configured remote branch. */
+    public static void push() {
+        GitConfigRemoteRecord remote = GitConfigRemoteRecord.get();
+        if (remote == null) {
+            throw new RuntimeException("No remote configured.");
+        }
+        synchronized (DATA_DIR_LOCK) {
+            try (Git git = GitManager.getGit(dataDir())) {
+                PushCommand push = git.push()
+                        .setRemote(ORIGIN)
+                        .setRefSpecs(new RefSpec("HEAD:refs/heads/" + remote.getBranch()));
+                GitManager.setAuthenticationFromIds(push, remote.getUri(),
+                        remote.getSshKeyId(), remote.getHttpsCredentialId());
+                for (PushResult result : push.call()) {
+                    for (RemoteRefUpdate update : result.getRemoteUpdates()) {
+                        if (update.getStatus() != RemoteRefUpdate.Status.OK
+                                && update.getStatus() != RemoteRefUpdate.Status.UP_TO_DATE) {
+                            throw new RuntimeException("Push rejected: " + update.getStatus()
+                                    + (update.getMessage() != null ? " — " + update.getMessage() : ""));
+                        }
+                    }
+                }
+                lastPushTime = System.currentTimeMillis();
+                lastPushError = null;
+            } catch (Exception e) {
+                lastPushTime = System.currentTimeMillis();
+                lastPushError = e.getMessage() == null ? e.toString() : e.getMessage();
+                logger.error("Push of the config repo failed", e);
+                throw new RuntimeException(e);
+            }
+        }
+    }
+
+    /** Validate URI + credential with an ls-remote — touches no local or remote state. */
+    public static void testRemote(String uri, long sshKeyId, long httpsCredentialId) {
+        try {
+            LsRemoteCommand lsRemote = Git.lsRemoteRepository().setRemote(uri).setHeads(true);
+            GitManager.setAuthenticationFromIds(lsRemote, uri, sshKeyId, httpsCredentialId);
+            lsRemote.call();
+        } catch (Exception e) {
+            throw new RuntimeException(e.getMessage() == null ? e.toString() : e.getMessage(), e);
+        }
     }
 
     /**
