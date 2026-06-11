@@ -15,6 +15,21 @@ dependencyResolutionManagement {
             url "https://nexus.inductiveautomation.com/repository/public"
         }
         mavenCentral()
+
+        // Node.js download repository for the web-ui subproject's node-gradle plugin.
+        ivy {
+            name = "Node.js"
+            setUrl("https://nodejs.org/dist/")
+            patternLayout {
+                artifact("v[revision]/[artifact](-v[revision]-[classifier]).[ext]")
+            }
+            metadataSources {
+                artifact()
+            }
+            content {
+                includeModule("org.nodejs", "node")
+            }
+        }
     }
 }
 
@@ -22,5 +37,6 @@ include(
     ":",
     ":common",
     ":designer",
-    ":gateway"
+    ":gateway",
+    ":web-ui"
 )

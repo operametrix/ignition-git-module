@@ -39,6 +39,10 @@ local.properties
 .gradle/
 build/
 
+# web-ui (node) build artifacts
+node_modules/
+yarn-error.log
+
 # Module Signer
 module-signer/
 

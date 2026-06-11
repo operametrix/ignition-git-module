@@ -1,0 +1,106 @@
+.gitcfg {
+  font-size: 13px;
+}
+
+.gitcfg-content {
+  padding: 1rem 1.25rem;
+}
+
+// Stacked, full-width sections (Changes above History), mirroring the standard
+// gateway page layout (page header + sectionHeader + content).
+.gitcfg-section {
+  margin-bottom: 2rem;
+}
+
+.gitcfg-section-header {
+  margin-bottom: 0.75rem;
+
+  h3 {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 600;
+  }
+}
+
+.gitcfg-intro {
+  color: #555;
+  line-height: 1.5;
+  max-width: 680px;
+  margin: 0 0 1rem;
+}
+
+.gitcfg-commit {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  width: 100%;
+
+  // Keep the Commit button to its content width, left-aligned, below the full-width message.
+  button {
+    align-self: flex-start;
+  }
+}
+
+.gitcfg-muted {
+  color: #888;
+}
+
+.gitcfg-mono {
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+}
+
+.gitcfg-files {
+  padding: 0.5rem 0.25rem;
+
+  ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  li {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 2px 0;
+  }
+}
+
+.gitcfg-diff {
+  margin-top: 0.5rem;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+}
+
+.gitcfg-diff-title {
+  padding: 4px 8px;
+  background: #f5f5f5;
+  font-weight: 600;
+  border-bottom: 1px solid #e0e0e0;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  word-break: break-all;
+}
+
+.gitcfg-diff-cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+
+  pre {
+    margin: 0;
+    padding: 8px;
+    overflow: auto;
+    max-height: 360px;
+    font-size: 12px;
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+
+  .gitcfg-diff-old {
+    background: #fff5f5;
+    border-right: 1px solid #e0e0e0;
+  }
+  .gitcfg-diff-new {
+    background: #f3fbf3;
+  }
+}

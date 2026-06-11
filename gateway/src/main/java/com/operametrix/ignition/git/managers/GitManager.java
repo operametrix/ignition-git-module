@@ -705,8 +705,6 @@ public class GitManager {
 
     public static List<String> getResourceDiffContent(String projectName, String resourcePath) {
         Path projectPath = getProjectFolderPath(projectName);
-        String oldContent = "";
-        String newContent = "";
 
         // For Ignition resources, the directory contains resource.json (metadata) plus
         // one or more data files (view.json, data.bin, code.py, etc.).
@@ -716,8 +714,16 @@ public class GitManager {
             filePath = findDataFile(projectPath, resourcePath);
         }
 
+        return getWorkingTreeDiffContent(projectPath, filePath);
+    }
+
+    /** {@code [oldContent, newContent]} of one file, HEAD vs working tree (JSON-normalized). */
+    public static List<String> getWorkingTreeDiffContent(Path workDir, String filePath) {
+        String oldContent = "";
+        String newContent = "";
+
         // Read old content from HEAD
-        try (Repository repository = getGit(projectPath).getRepository()) {
+        try (Repository repository = getGit(workDir).getRepository()) {
             ObjectId headId = repository.resolve("HEAD");
             if (headId != null) {
                 try (RevWalk revWalk = new RevWalk(repository)) {
@@ -745,7 +751,7 @@ public class GitManager {
         }
 
         // Read new content from working tree
-        Path workingTreeFile = projectPath.resolve(filePath.replace("/", File.separator));
+        Path workingTreeFile = workDir.resolve(filePath.replace("/", File.separator));
         if (Files.exists(workingTreeFile)) {
             try {
                 newContent = new String(Files.readAllBytes(workingTreeFile));
@@ -1102,6 +1108,65 @@ public class GitManager {
             throw e;
         } catch (Exception e) {
             logger.error("Error reverting commit " + commitHash, e);
+            throw new RuntimeException(e);
+        }
+    }
+
+    /**
+     * Restore the working tree and index to exactly match the tree of {@code targetHash},
+     * WITHOUT moving the current branch ref (HEAD stays on the branch). This is the primitive
+     * behind "restore config to version X": after this call the index is staged so the caller
+     * commits a forward "Restore to …" commit, keeping history linear and the repo on a branch
+     * (unlike {@link #checkoutCommit} which detaches HEAD).
+     *
+     * Robust to a dirty working tree: tracked files are overwritten to the target content,
+     * tracked files that exist at HEAD but not in the target are removed, and untracked
+     * (non-ignored) files are deleted via {@code git clean} — so the working tree ends up
+     * exactly matching the target version. {@code .gitignore} is honored, so ignored paths
+     * (db/logs/keystore/projects) are always preserved.
+     */
+    public static void restoreTree(Path workDir, String targetHash) {
+        try (Git git = getGit(workDir)) {
+            Repository repo = git.getRepository();
+            ObjectId targetId = repo.resolve(targetHash);
+            if (targetId == null) {
+                throw new RuntimeException("Commit not found: " + targetHash);
+            }
+            ObjectId headId = repo.resolve(Constants.HEAD);
+            if (headId == null) {
+                throw new RuntimeException("Cannot restore: HEAD is not resolvable.");
+            }
+
+            try (RevWalk walk = new RevWalk(repo)) {
+                RevCommit targetCommit = walk.parseCommit(targetId);
+                RevCommit headCommit = walk.parseCommit(headId);
+
+                // 1. Remove tracked files that exist at HEAD but not in the target. Diff with
+                //    old=target, new=head: ChangeType.ADD == present in head, absent in target.
+                AbstractTreeIterator targetTree = prepareTreeParser(repo, targetCommit);
+                AbstractTreeIterator headTree = prepareTreeParser(repo, headCommit);
+                try (DiffFormatter df = new DiffFormatter(DisabledOutputStream.INSTANCE)) {
+                    df.setRepository(repo);
+                    for (DiffEntry e : df.scan(targetTree, headTree)) {
+                        if (e.getChangeType() == DiffEntry.ChangeType.ADD) {
+                            git.rm().addFilepattern(e.getNewPath()).call();
+                        }
+                    }
+                }
+
+                // 2. Restore every path in the target tree to the target content (overwriting any
+                //    dirty tracked files), staged for the forward commit.
+                git.checkout().setStartPoint(targetCommit).setAllPaths(true).call();
+
+                // 3. Delete untracked (non-ignored) files and directories so the working tree
+                //    exactly matches the target. CleanCommand honors .gitignore by default, so
+                //    db/logs/keystore/projects are preserved.
+                git.clean().setCleanDirectories(true).call();
+            }
+        } catch (RuntimeException e) {
+            throw e;
+        } catch (Exception e) {
+            logger.error("Error restoring tree to " + targetHash, e);
             throw new RuntimeException(e);
         }
     }

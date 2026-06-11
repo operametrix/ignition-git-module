@@ -15,4 +15,7 @@ dependencies {
     compileOnly("com.inductiveautomation.ignitionsdk:gateway-api:${rootProject.extra["sdk_version"]}")
 
     modlImplementation("org.eclipse.jgit:org.eclipse.jgit.ssh.apache:6.10.1.202505221210-r")
+
+    // Bundles the Config Versioning React page (built by :web-ui) into the gateway jar under mounted/.
+    modlImplementation(project(":web-ui"))
 }
