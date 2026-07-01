@@ -14,6 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   space-separated `parents` column, and the Designer computes the lane layout via
   incremental lane-tracking, recomputed over all loaded commits on each refresh /
   "Load More".
+- History now walks **all** local and remote-tracking branches (`git log --all`
+  style) instead of only the current branch plus its upstream, so divergent
+  branches appear as distinct lanes in the graph rather than being omitted.
 
 ### Fixed
 - Designer status bar no longer renders at roughly double its normal height. The
