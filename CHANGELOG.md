@@ -27,11 +27,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   popup which was previously the only dialog to set one.
 - Icons no longer render jagged/blurry on HiDPI or scaled displays. `IconUtils`
   rasterized the bundled SVGs to a fixed 16×16 bitmap via `ImageIO`, which the
-  display then upscaled. Icons are now loaded as resolution-independent
-  `FlatSVGIcon` vectors that render sharply at any display scale, matching the
-  toolbar icons already loaded via `VectorIcons`. This covers the status-bar
-  glyphs, the Commit and History dockable-panel tab icons, and every popup
-  title-bar icon.
+  display then upscaled. Icons are now loaded as resolution-independent vectors
+  via Ignition's platform `SvgIconUtil`, which render sharply at any display
+  scale. This covers the status-bar glyphs, the Commit and History
+  dockable-panel tab icons, and every popup title-bar icon.
 
 ### Changed
 - Extracted the duplicated window-icon loading logic into a shared
@@ -39,5 +38,3 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   previously rasterized their own title-bar icon through it (Branch Management,
   Create Branch, Manage Remotes, User Credentials, Commit, Commit Detail, Diff
   Viewer, Merge Conflict).
-- Added `com.formdev:flatlaf` / `flatlaf-extras` as `compileOnly` dependencies
-  (provided at runtime by the Ignition Designer) for vector SVG icon rendering.
