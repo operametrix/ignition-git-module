@@ -19,6 +19,9 @@ import com.jidesoft.docking.DockContext;
 import com.jidesoft.docking.DockableFrame;
 import com.jidesoft.docking.DockingManager;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import javax.swing.*;
 import javax.swing.Timer;
 import java.awt.*;
@@ -28,6 +31,7 @@ import java.util.*;
 import java.util.List;
 
 public class DesignerHook extends AbstractDesignerModuleHook {
+    private static final Logger logger = LoggerFactory.getLogger(DesignerHook.class);
     private static final String PROJECT_BROWSER_KEY = "Project Browser";
 
     public static DesignerHook instance;
@@ -113,9 +117,15 @@ public class DesignerHook extends AbstractDesignerModuleHook {
         statusBar.addDisplay(gitStatusBar);
 
         gitUserTimer = new Timer(10000, e -> {
-            boolean valid = rpc.isRegisteredUser(projectName, userName);
-            String userIconPath1 = valid ? "ic_verified_user" : "ic_unregister_user";
-            userButton.setIcon(IconUtils.getIcon(userIconPath1));
+            // Guard against transient RPC failures (e.g. HTTP 503 while the gateway or
+            // module is still starting/restarting) so the timer doesn't throw on the EDT.
+            try {
+                boolean valid = rpc.isRegisteredUser(projectName, userName);
+                String userIconPath1 = valid ? "ic_verified_user" : "ic_unregister_user";
+                userButton.setIcon(IconUtils.getIcon(userIconPath1));
+            } catch (Exception ex) {
+                logger.debug("Skipping user-status refresh; gateway RPC unavailable", ex);
+            }
 
             try {
                 branchButton.setText(rpc.getCurrentBranch(projectName));

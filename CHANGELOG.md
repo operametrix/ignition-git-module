@@ -31,6 +31,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   via Ignition's platform `SvgIconUtil`, which render sharply at any display
   scale. This covers the status-bar glyphs, the Commit and History
   dockable-panel tab icons, and every popup title-bar icon.
+- The status-bar refresh timer no longer throws on the EDT when a gateway RPC
+  call fails transiently (e.g. HTTP 503 while the gateway/module is still
+  starting or restarting). The `isRegisteredUser` poll is now wrapped so a
+  transient failure is logged and skipped instead of surfacing as an
+  `UndeclaredThrowableException`.
 
 ### Changed
 - Extracted the duplicated window-icon loading logic into a shared
