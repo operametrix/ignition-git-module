@@ -40,7 +40,7 @@ public class UserCredentialsPopup extends JDialog {
 
     public UserCredentialsPopup(Component parent) {
         super(SwingUtilities.getWindowAncestor(parent));
-        IconUtils.setWindowIcon(this, "/com/operametrix/ignition/git/icons/ic_verified_user.svg");
+        IconUtils.setWindowIcon(this, "ic_verified_user");
         setTitle("User Credentials");
         setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
         setContentPane(buildUI());

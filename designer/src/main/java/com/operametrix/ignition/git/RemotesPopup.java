@@ -49,7 +49,7 @@ public class RemotesPopup extends JDialog {
 
     public RemotesPopup(Component parent) {
         super(SwingUtilities.getWindowAncestor(parent));
-        IconUtils.setWindowIcon(this, "/com/operametrix/ignition/git/icons/ic_cloud_filled.svg");
+        IconUtils.setWindowIcon(this, "ic_cloud_filled");
         setTitle("Manage Remotes");
         setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
         setContentPane(buildUI());

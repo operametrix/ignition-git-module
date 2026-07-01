@@ -27,7 +27,7 @@ public class DiffViewerPopup extends JDialog {
     public DiffViewerPopup(String resourcePath, String oldContent, String newContent, Component parent,
                            String leftHeaderText, String rightHeaderText) {
         super(SwingUtilities.getWindowAncestor(parent));
-        IconUtils.setWindowIcon(this, "/com/operametrix/ignition/git/icons/ic_commit.svg");
+        IconUtils.setWindowIcon(this, "ic_commit");
 
         setTitle("Diff: " + resourcePath);
         setSize(900, 600);

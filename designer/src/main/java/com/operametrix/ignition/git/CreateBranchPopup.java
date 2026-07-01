@@ -16,7 +16,7 @@ public class CreateBranchPopup extends JDialog {
 
     public CreateBranchPopup(Component parent) {
         super(SwingUtilities.getWindowAncestor(parent));
-        IconUtils.setWindowIcon(this, "/com/operametrix/ignition/git/icons/ic_branch.svg");
+        IconUtils.setWindowIcon(this, "ic_branch");
 
         setTitle("Create New Branch");
         setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);

@@ -32,7 +32,7 @@ public class CommitPopup extends JDialog {
 
     public CommitPopup(Object[][] data, Component parent) {
         super(SwingUtilities.getWindowAncestor(parent));
-        IconUtils.setWindowIcon(this, "/com/operametrix/ignition/git/icons/ic_commit.svg");
+        IconUtils.setWindowIcon(this, "ic_commit");
         setContentPane(panel);
         setTitle("Commit");
         setSize(500, 500);

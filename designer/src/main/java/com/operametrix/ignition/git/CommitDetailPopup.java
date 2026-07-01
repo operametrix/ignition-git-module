@@ -37,7 +37,7 @@ public class CommitDetailPopup extends JDialog {
         this.shortHash = shortHash;
         this.message = message;
 
-        IconUtils.setWindowIcon(this, "/com/operametrix/ignition/git/icons/ic_history.svg");
+        IconUtils.setWindowIcon(this, "ic_history");
 
         setTitle("Commit: " + shortHash);
         setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);

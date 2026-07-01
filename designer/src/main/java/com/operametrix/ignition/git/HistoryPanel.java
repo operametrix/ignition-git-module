@@ -68,13 +68,13 @@ public class HistoryPanel extends JPanel {
         toolbar.add(createToolbarButton(VectorIcons.get("refresh"), "Refresh", () -> {
             if (onRefreshRequested != null) onRefreshRequested.run();
         }));
-        toolbar.add(createToolbarButton(IconUtils.getIcon("/com/operametrix/ignition/git/icons/ic_push.svg"), "Push", () -> {
+        toolbar.add(createToolbarButton(IconUtils.getIcon("ic_push"), "Push", () -> {
             if (onPushRequested != null) onPushRequested.run();
         }));
-        toolbar.add(createToolbarButton(IconUtils.getIcon("/com/operametrix/ignition/git/icons/ic_fetch.svg"), "Fetch", () -> {
+        toolbar.add(createToolbarButton(IconUtils.getIcon("ic_fetch"), "Fetch", () -> {
             if (onFetchRequested != null) onFetchRequested.run();
         }));
-        toolbar.add(createToolbarButton(IconUtils.getIcon("/com/operametrix/ignition/git/icons/ic_pull.svg"), "Pull", () -> {
+        toolbar.add(createToolbarButton(IconUtils.getIcon("ic_pull"), "Pull", () -> {
             if (onPullRequested != null) onPullRequested.run();
         }));
         add(toolbar, BorderLayout.NORTH);

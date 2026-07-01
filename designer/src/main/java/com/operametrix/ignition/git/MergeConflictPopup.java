@@ -37,7 +37,7 @@ public class MergeConflictPopup extends JDialog {
 
     public MergeConflictPopup(List<String> conflictingFiles, Component parent) {
         super(SwingUtilities.getWindowAncestor(parent));
-        IconUtils.setWindowIcon(this, "/com/operametrix/ignition/git/icons/ic_pull.svg");
+        IconUtils.setWindowIcon(this, "ic_pull");
 
         for (String file : conflictingFiles) {
             resolutionState.put(file, STATUS_UNRESOLVED);
