@@ -79,7 +79,7 @@ public class DesignerHook extends AbstractDesignerModuleHook {
 
     private void initStatusBar(){
         StatusBar statusBar = context.getStatusBar();
-        gitStatusBar = new JPanel();
+        gitStatusBar = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
 
         // Branch button: git icon + branch name
         branchButton = new JButton();
@@ -129,7 +129,7 @@ public class DesignerHook extends AbstractDesignerModuleHook {
 
     private void initStatusBarUnregistered() {
         StatusBar statusBar = context.getStatusBar();
-        gitStatusBar = new JPanel();
+        gitStatusBar = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
 
         // Git icon + "Configure" — opens init wizard
         JButton notConfiguredButton = new JButton("Configure",

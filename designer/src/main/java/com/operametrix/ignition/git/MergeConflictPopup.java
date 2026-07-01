@@ -1,10 +1,8 @@
 package com.operametrix.ignition.git;
 
 import com.inductiveautomation.ignition.designer.gui.CommonUI;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.operametrix.ignition.git.utils.IconUtils;
 
-import javax.imageio.ImageIO;
 import javax.swing.*;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
@@ -13,8 +11,6 @@ import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
-import java.io.IOException;
-import java.io.InputStream;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -29,7 +25,6 @@ import java.util.Map;
  * Not cached — created fresh for each conflict occurrence.
  */
 public class MergeConflictPopup extends JDialog {
-    private final Logger logger = LoggerFactory.getLogger(getClass());
 
     private static final String STATUS_UNRESOLVED = "Unresolved";
     private static final String STATUS_OURS = "Accepted Ours";
@@ -42,15 +37,7 @@ public class MergeConflictPopup extends JDialog {
 
     public MergeConflictPopup(List<String> conflictingFiles, Component parent) {
         super(SwingUtilities.getWindowAncestor(parent));
-        try {
-            InputStream iconStream = getClass().getResourceAsStream("/com/operametrix/ignition/git/icons/ic_pull.svg");
-            if (iconStream != null) {
-                ImageIcon icon = new ImageIcon(ImageIO.read(iconStream));
-                setIconImage(icon.getImage());
-            }
-        } catch (IOException e) {
-            logger.trace(e.toString(), e);
-        }
+        IconUtils.setWindowIcon(this, "/com/operametrix/ignition/git/icons/ic_pull.svg");
 
         for (String file : conflictingFiles) {
             resolutionState.put(file, STATUS_UNRESOLVED);

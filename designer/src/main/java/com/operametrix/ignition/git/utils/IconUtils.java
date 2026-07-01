@@ -1,27 +1,52 @@
 package com.operametrix.ignition.git.utils;
 
-import com.operametrix.ignition.git.DesignerHook;
+import com.formdev.flatlaf.extras.FlatSVGIcon;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.imageio.ImageIO;
 import javax.swing.*;
-import java.awt.image.BufferedImage;
-import java.io.IOException;
-import java.io.InputStream;
+import java.awt.Image;
+import java.awt.Window;
 
 public class IconUtils {
 
     private static final Logger logger = LoggerFactory.getLogger(IconUtils.class);
 
-    public static Icon getIcon(String bundleKey){
-        InputStream iconStream = DesignerHook.class.getResourceAsStream(bundleKey);
-        BufferedImage buffer = null;
+    /**
+     * Loads a bundled SVG as a resolution-independent {@link FlatSVGIcon}. Unlike a
+     * rasterized {@code ImageIO.read} bitmap, this renders the vector at the display's
+     * scale, so it stays sharp on HiDPI / scaled displays.
+     */
+    public static Icon getIcon(String bundleKey) {
+        return svgIcon(bundleKey);
+    }
+
+    /**
+     * Sets the given window's title-bar icon from a bundled SVG resource. The vector is
+     * rendered to a bitmap (title-bar icons are inherently rasterized by the OS) at a
+     * size large enough to look crisp. Silently does nothing if the resource is missing.
+     */
+    public static void setWindowIcon(Window window, String bundleKey) {
         try {
-            buffer = ImageIO.read(iconStream);
-        } catch (IOException e) {
-            logger.warn(e.toString(), e);
+            FlatSVGIcon icon = svgIcon(bundleKey);
+            if (icon != null) {
+                Image image = icon.derive(32, 32).getImage();
+                if (image != null) {
+                    window.setIconImage(image);
+                }
+            }
+        } catch (Exception e) {
+            logger.trace(e.toString(), e);
         }
-        return buffer != null ? new ImageIcon(buffer) : null;
+    }
+
+    private static FlatSVGIcon svgIcon(String bundleKey) {
+        String name = bundleKey.startsWith("/") ? bundleKey.substring(1) : bundleKey;
+        try {
+            return new FlatSVGIcon(name, IconUtils.class.getClassLoader());
+        } catch (Exception e) {
+            logger.warn(e.toString(), e);
+            return null;
+        }
     }
 }

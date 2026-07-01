@@ -805,7 +805,9 @@ public class GitManager {
      * @param projectFolderPath path to the git working directory
      * @param skip              number of commits to skip (for pagination)
      * @param limit             maximum number of commits to return
-     * @return list of String arrays: [fullHash, shortHash, author, date, message, refs]
+     * @return list of String arrays: [fullHash, shortHash, author, date, message, refs, parents]
+     *         where {@code parents} is a space-separated list of parent full hashes
+     *         (empty for a root commit) used by the Designer to draw the commit graph.
      */
     public static List<String[]> getCommitLog(Path projectFolderPath, int skip, int limit) {
         List<String[]> commits = new ArrayList<>();
@@ -861,7 +863,12 @@ public class GitManager {
                 String message = commit.getShortMessage();
                 List<String> refs = refMap.getOrDefault(fullHash, java.util.Collections.emptyList());
                 String refsStr = String.join(",", refs);
-                commits.add(new String[]{fullHash, shortHash, author, date, message, refsStr});
+                StringBuilder parents = new StringBuilder();
+                for (int p = 0; p < commit.getParentCount(); p++) {
+                    if (p > 0) parents.append(" ");
+                    parents.append(commit.getParent(p).getName());
+                }
+                commits.add(new String[]{fullHash, shortHash, author, date, message, refsStr, parents.toString()});
             }
         } catch (Exception e) {
             logger.error("Error getting commit log", e);
