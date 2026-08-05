@@ -249,62 +249,79 @@ public class GatewayScriptModule extends AbstractScriptModule implements GitScri
 
     @Override
     public void setupLocalRepoImpl(String projectName, String userName) throws Exception {
+        // .git/config is the source of truth for the repo and its remotes. The working
+        // directory is materialized at registration time (initializeProject /
+        // initializeLocalProject), so this idempotent startup guard is a no-op once the
+        // repo exists. If it is missing there is no persisted URL to re-clone from — the
+        // project must be re-registered through the setup wizard.
+        Path path = getProjectFolderPath(projectName).resolve(".git");
+        if (!Files.exists(path)) {
+            logger.warn("Git working directory missing for registered project '" + projectName
+                    + "'. Re-run repository setup to reconstruct it.");
+        }
+    }
+
+    /**
+     * Create the local working directory at registration time. Called by the init RPCs,
+     * which supply the clone URL directly — nothing is persisted; {@code .git/config}
+     * subsequently owns the remote configuration.
+     *
+     * @param repoUri the clone URL, or {@code null}/empty for a local-only repository
+     */
+    private void materializeRepo(String projectName, String userName, String repoUri) throws Exception {
         Path projectFolderPath = getProjectFolderPath(projectName);
-        GitProjectsConfigRecord gitProjectsConfigRecord = getGitProjectConfigRecord(projectName);
-
         Path path = projectFolderPath.resolve(".git");
+        if (Files.exists(path)) {
+            return;
+        }
 
-        if (!gitProjectsConfigRecord.hasRemote()) {
-            // Local-only repo: just ensure .git exists
-            if (!Files.exists(path)) {
-                try (Git git = Git.init().setDirectory(projectFolderPath.toFile()).call()) {
-                    disableSsl(git);
-                }
+        if (repoUri == null || repoUri.isEmpty()) {
+            // Local-only repo: just create .git
+            try (Git git = Git.init().setDirectory(projectFolderPath.toFile()).call()) {
+                disableSsl(git);
             }
             return;
         }
 
-        if (!Files.exists(path)) {
-            try (Git git = Git.init().setDirectory(projectFolderPath.toFile()).call()) {
-                disableSsl(git);
+        try (Git git = Git.init().setDirectory(projectFolderPath.toFile()).call()) {
+            disableSsl(git);
 
-                final URIish urIish = new URIish(gitProjectsConfigRecord.getURI());
+            final URIish urIish = new URIish(repoUri);
 
-                git.remoteAdd().setName("origin").setUri(urIish).call();
+            git.remoteAdd().setName("origin").setUri(urIish).call();
 
-                // Lightweight ls-remote to detect the default branch without downloading objects
-                LsRemoteCommand lsRemote = git.lsRemote().setRemote("origin").setHeads(true);
-                setAuthentication(lsRemote, projectName, userName, "origin");
-                java.util.Collection<Ref> remoteRefs = lsRemote.call();
+            // Lightweight ls-remote to detect the default branch without downloading objects
+            LsRemoteCommand lsRemote = git.lsRemote().setRemote("origin").setHeads(true);
+            setAuthentication(lsRemote, projectName, userName, "origin");
+            java.util.Collection<Ref> remoteRefs = lsRemote.call();
 
-                if (remoteRefs.isEmpty()) {
-                    // Empty remote — push current project as initial content
-                    setupGitFromCurrentFolder(projectName, userName, git);
-                } else {
-                    // Detect default branch, then shallow-fetch only that branch
-                    String defaultBranch = detectDefaultBranchFromRefs(remoteRefs);
+            if (remoteRefs.isEmpty()) {
+                // Empty remote — push current project as initial content
+                setupGitFromCurrentFolder(projectName, userName, git);
+            } else {
+                // Detect default branch, then shallow-fetch only that branch
+                String defaultBranch = detectDefaultBranchFromRefs(remoteRefs);
 
-                    FetchCommand fetch = git.fetch()
-                            .setRemote("origin")
-                            .setRefSpecs(new RefSpec(
-                                    "+refs/heads/" + defaultBranch + ":refs/remotes/origin/" + defaultBranch))
-                            .setDepth(1);
-                    setAuthentication(fetch, projectName, userName, "origin");
-                    fetch.call();
+                FetchCommand fetch = git.fetch()
+                        .setRemote("origin")
+                        .setRefSpecs(new RefSpec(
+                                "+refs/heads/" + defaultBranch + ":refs/remotes/origin/" + defaultBranch))
+                        .setDepth(1);
+                setAuthentication(fetch, projectName, userName, "origin");
+                fetch.call();
 
-                    setupGitFromRemoteRepo(projectName, defaultBranch, git);
+                setupGitFromRemoteRepo(projectName, defaultBranch, git);
 
-                    // Unshallow to pull full commit history for the History panel
-                    FetchCommand unshallow = git.fetch()
-                            .setRemote("origin")
-                            .setUnshallow(true);
-                    setAuthentication(unshallow, projectName, userName, "origin");
-                    unshallow.call();
-                }
-            } catch (Exception e) {
-                logger.error("An error occurred while setting up local repo for '" + projectName + "' project.", e);
-                throw e;
+                // Unshallow to pull full commit history for the History panel
+                FetchCommand unshallow = git.fetch()
+                        .setRemote("origin")
+                        .setUnshallow(true);
+                setAuthentication(unshallow, projectName, userName, "origin");
+                unshallow.call();
             }
+        } catch (Exception e) {
+            logger.error("An error occurred while setting up local repo for '" + projectName + "' project.", e);
+            throw e;
         }
     }
 
@@ -415,7 +432,6 @@ public class GatewayScriptModule extends AbstractScriptModule implements GitScri
         // Create project config record
         GitProjectsConfigRecord projectRecord = new GitProjectsConfigRecord();
         projectRecord.setProjectName(projectName);
-        projectRecord.setURI(repoUri);
         projectRecord.save();
 
         // Create user registration record
@@ -439,7 +455,7 @@ public class GatewayScriptModule extends AbstractScriptModule implements GitScri
 
         // Attempt to initialize the local repo
         try {
-            setupLocalRepoImpl(projectName, ignitionUser);
+            materializeRepo(projectName, ignitionUser, repoUri);
         } catch (Exception e) {
             // Rollback: delete all records on failure
             try {
@@ -466,10 +482,9 @@ public class GatewayScriptModule extends AbstractScriptModule implements GitScri
             throw new Exception("Project '" + projectName + "' is already registered.");
         }
 
-        // Create project config record with empty URI (no remote)
+        // Create project config record (registration marker; remotes live in .git/config)
         GitProjectsConfigRecord projectRecord = new GitProjectsConfigRecord();
         projectRecord.setProjectName(projectName);
-        projectRecord.setURI("");
         projectRecord.save();
 
         // Create user registration record

@@ -7,18 +7,20 @@ import com.inductiveautomation.ignition.gateway.config.ResourceTypeMeta;
 import com.inductiveautomation.ignition.gateway.model.GatewayContext;
 
 /**
- * Project → git repo configuration. Migrated from a SimpleORM {@code PersistentRecord} to the
- * Ignition 8.3 resource/config system: storage is a {@link NamedResourceHandler}, the persisted
- * shape is the immutable {@link Config} record, and this class is a mutable DTO façade preserving
- * the previous getter/setter/finder API so callers are unaffected. Numeric {@code id} identity is
- * preserved (resource name = {@code String.valueOf(id)}).
+ * Project registration marker ({@code id} + {@code projectName}). Holds no remote/URI data —
+ * {@code .git/config} is the sole source of truth for remotes; the clone URL is passed as a
+ * parameter to {@code initializeProject} and consumed at registration time, never persisted.
+ * Migrated from a SimpleORM {@code PersistentRecord} to the Ignition 8.3 resource/config system:
+ * storage is a {@link NamedResourceHandler}, the persisted shape is the immutable {@link Config}
+ * record, and this class is a mutable DTO façade. Numeric {@code id} identity is preserved
+ * (resource name = {@code String.valueOf(id)}).
  */
 public class GitProjectsConfigRecord {
 
     public static final String MODULE_ID = "com.operametrix.ignition.git";
 
     /** Immutable persisted form. */
-    public record Config(long id, String projectName, String uri) {}
+    public record Config(long id, String projectName) {}
 
     public static final ResourceType TYPE = new ResourceType(MODULE_ID, "git-project");
 
@@ -46,7 +48,6 @@ public class GitProjectsConfigRecord {
 
     private long id;
     private String projectName;
-    private String uri;
 
     public GitProjectsConfigRecord() {
     }
@@ -54,7 +55,6 @@ public class GitProjectsConfigRecord {
     private GitProjectsConfigRecord(Config c) {
         this.id = c.id();
         this.projectName = c.projectName();
-        this.uri = c.uri();
     }
 
     public long getId() {
@@ -65,20 +65,8 @@ public class GitProjectsConfigRecord {
         return projectName;
     }
 
-    public String getURI() {
-        return uri;
-    }
-
     public void setProjectName(String projectName) {
         this.projectName = projectName;
-    }
-
-    public void setURI(String uri) {
-        this.uri = uri;
-    }
-
-    public boolean hasRemote() {
-        return uri != null && !uri.isEmpty();
     }
 
     private static final Object SAVE_LOCK = new Object();
@@ -89,7 +77,7 @@ public class GitProjectsConfigRecord {
                 if (id == 0L) {
                     id = nextId();
                 }
-                Config c = new Config(id, projectName, uri == null ? "" : uri);
+                Config c = new Config(id, projectName);
                 String name = String.valueOf(id);
                 if (handler.findResource(name).isPresent()) {
                     handler.modify(name, c).join();

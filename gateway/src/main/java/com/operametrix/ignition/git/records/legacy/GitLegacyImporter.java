@@ -87,10 +87,11 @@ public final class GitLegacyImporter {
             String name = String.valueOf(id);
             try {
                 if (GitProjectsConfigRecord.handler().findResource(name).isEmpty()) {
+                    // Legacy URI is intentionally not migrated: .git/config is now the
+                    // source of truth for remotes, so the record only carries identity.
                     GitProjectsConfigRecord.handler().create(name,
                             new GitProjectsConfigRecord.Config(id,
-                                    r.getString(LegacyProjectsConfig.ProjectName),
-                                    r.getString(LegacyProjectsConfig.URI))).join();
+                                    r.getString(LegacyProjectsConfig.ProjectName))).join();
                     n++;
                 }
                 deleteLegacy(ctx, r);
