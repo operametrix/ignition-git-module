@@ -50,8 +50,7 @@ public class GatewayScriptModule extends AbstractScriptModule implements GitScri
                             boolean importTheme,
                             boolean importImages) throws Exception {
 
-        GitProjectsConfigRecord projectRecord = getGitProjectConfigRecord(projectName);
-        if (!projectRecord.hasRemote()) {
+        if (!projectHasRemote(projectName)) {
             throw new RuntimeException("No remote repository configured. Add a remote before pulling.");
         }
 
@@ -97,8 +96,7 @@ public class GatewayScriptModule extends AbstractScriptModule implements GitScri
 
     @Override
     public boolean pushImpl(String projectName, String userName, String remoteName, boolean pushAllBranches, boolean pushTags, boolean forcePush) throws Exception {
-        GitProjectsConfigRecord projectRecord = getGitProjectConfigRecord(projectName);
-        if (!projectRecord.hasRemote()) {
+        if (!projectHasRemote(projectName)) {
             throw new RuntimeException("No remote repository configured. Add a remote before pushing.");
         }
 
@@ -510,11 +508,20 @@ public class GatewayScriptModule extends AbstractScriptModule implements GitScri
     @Override
     protected boolean hasRemoteRepositoryImpl(String projectName) {
         try {
-            GitProjectsConfigRecord record = getGitProjectConfigRecord(projectName);
-            return record.hasRemote();
+            return projectHasRemote(projectName);
         } catch (Exception e) {
             return false;
         }
+    }
+
+    /**
+     * Whether the project's git repo has any remote configured in {@code .git/config}.
+     * Unlike {@link GitProjectsConfigRecord#hasRemote()} — which only reflects the record's
+     * stored URI (populated at init for the cloned remote) — this inspects the live git
+     * config, so user-named (non-origin) remotes added later are recognized.
+     */
+    private boolean projectHasRemote(String projectName) throws Exception {
+        return !GitManager.listRemotes(getProjectFolderPath(projectName)).isEmpty();
     }
 
     @Override
@@ -544,12 +551,6 @@ public class GatewayScriptModule extends AbstractScriptModule implements GitScri
         creds.setRemoteName(remoteName);
         creds.save();
 
-        // DB sync: if "origin", update GitProjectsConfigRecord.URI
-        if ("origin".equals(remoteName)) {
-            projectRecord.setURI(remoteUrl);
-            projectRecord.save();
-        }
-
         return true;
     }
 
@@ -565,12 +566,6 @@ public class GatewayScriptModule extends AbstractScriptModule implements GitScri
                 projectRecord.getId(), ignitionUser, remoteName);
         if (creds != null) {
             creds.delete();
-        }
-
-        // DB sync: if "origin", clear GitProjectsConfigRecord.URI
-        if ("origin".equals(remoteName)) {
-            projectRecord.setURI("");
-            projectRecord.save();
         }
 
         return true;
@@ -592,12 +587,6 @@ public class GatewayScriptModule extends AbstractScriptModule implements GitScri
             creds.setIgnitionUser(ignitionUser);
             creds.setRemoteName(remoteName);
             creds.save();
-        }
-
-        // DB sync: if "origin", update GitProjectsConfigRecord.URI
-        if ("origin".equals(remoteName)) {
-            projectRecord.setURI(newUrl);
-            projectRecord.save();
         }
 
         return true;
@@ -638,8 +627,7 @@ public class GatewayScriptModule extends AbstractScriptModule implements GitScri
 
     @Override
     protected boolean fetchImpl(String projectName, String userName, String remoteName) throws Exception {
-        GitProjectsConfigRecord projectRecord = getGitProjectConfigRecord(projectName);
-        if (!projectRecord.hasRemote()) {
+        if (!projectHasRemote(projectName)) {
             throw new RuntimeException("No remote repository configured. Add a remote before fetching.");
         }
 
