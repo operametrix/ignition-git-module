@@ -263,11 +263,93 @@ public class GitBaseAction {
             java.awt.Frame frame = context.getFrame();
             Method updateProject = frame.getClass().getMethod("updateProject");
             updateProject.invoke(frame);
+
+            // Best-effort repair after the in-place refresh (see repairModuleFolderNodes).
+            repairModuleFolderNodes();
         } catch (Exception e) {
             logger.error("Failed to pull project from gateway", e);
             ErrorUtil.showError("Git updated the project on the gateway, but the Designer could not "
                     + "refresh automatically. The project view may be out of sync — update or reopen "
                     + "the project to load the latest state.", e);
+        }
+    }
+
+    /**
+     * Best-effort workaround for an Ignition Designer limitation exposed by in-place project
+     * refresh. When {@code updateProject()} first introduces a module's resources into an
+     * already-open project (e.g. a git pull/checkout/merge that adds Perspective content),
+     * the incremental tree-update path can leave that module's namespace node
+     * (e.g. {@code com.inductiveautomation.perspective}) registered as a <em>non-folder</em>.
+     * A later save then fails inside Perspective's {@code SessionPropsAdapter} with
+     * "Unable to create folder path, found non-folder in the way at
+     * 'com.inductiveautomation.perspective'". Ignition's own {@code validateFolderStructure()}
+     * self-repair explicitly skips module-level nodes, so it never heals this; only a full
+     * project reload (constructor path) otherwise fixes it.
+     *
+     * <p>Here we mend just the broken node in place: {@code DesignerProjectTreeImpl}
+     * (the concrete {@code DesignableProject}) keeps its module roots in a private
+     * {@code moduleNodes} map; any entry that is not a folder is converted to one via the
+     * tree's own {@code makeFolder}. All access is reflective — these are Designer internals,
+     * not public API — and any failure is swallowed so the plain {@code updateProject()}
+     * refresh remains the fallback (worst case: the pre-existing reopen-to-fix behaviour).
+     */
+    private static void repairModuleFolderNodes() {
+        try {
+            Object tree = context.getProject(); // DesignerProjectTreeImpl implements DesignableProject
+            Class<?> treeClass = tree.getClass();
+
+            java.lang.reflect.Field moduleNodesField = treeClass.getDeclaredField("moduleNodes");
+            moduleNodesField.setAccessible(true);
+            java.util.Map<?, ?> moduleNodes = (java.util.Map<?, ?>) moduleNodesField.get(tree);
+            if (moduleNodes == null || moduleNodes.isEmpty()) {
+                return;
+            }
+
+            Method makeFolder = treeClass.getDeclaredMethod("makeFolder", ResourcePath.class);
+            makeFolder.setAccessible(true);
+
+            boolean repairedAny = false;
+            for (Object node : moduleNodes.values()) {
+                if (node == null) {
+                    continue;
+                }
+                Class<?> nodeClass = node.getClass();
+                Method isFolder = nodeClass.getDeclaredMethod("isFolder");
+                isFolder.setAccessible(true);
+                if (Boolean.TRUE.equals(isFolder.invoke(node))) {
+                    continue;
+                }
+                Method getPath = nodeClass.getDeclaredMethod("getPath");
+                getPath.setAccessible(true);
+                Object path = getPath.invoke(node);
+
+                Object folderResource = makeFolder.invoke(tree, path);
+                Method update = nodeClass.getDeclaredMethod("update",
+                        com.inductiveautomation.ignition.common.resourcecollection.Resource.class);
+                update.setAccessible(true);
+                update.invoke(node, folderResource);
+                repairedAny = true;
+                logger.info("Repaired non-folder module node '{}' after in-place project refresh.", path);
+            }
+
+            if (repairedAny) {
+                // Propagate the fix through the resource collection's effective state.
+                Method updateEffectiveState = null;
+                for (Class<?> c = treeClass; c != null && updateEffectiveState == null; c = c.getSuperclass()) {
+                    try {
+                        updateEffectiveState = c.getDeclaredMethod("updateEffectiveState");
+                    } catch (NoSuchMethodException ignore) {
+                        // walk up
+                    }
+                }
+                if (updateEffectiveState != null) {
+                    updateEffectiveState.setAccessible(true);
+                    updateEffectiveState.invoke(tree);
+                }
+            }
+        } catch (Throwable t) {
+            logger.warn("Could not repair module folder nodes after project refresh; a save may fail "
+                    + "with a 'non-folder in the way' error until the project is reopened: {}", t.toString());
         }
     }
 
