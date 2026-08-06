@@ -335,7 +335,6 @@ public class GatewayHook extends AbstractGatewayModuleHook {
             JsonObject o = new JsonObject();
             GitConfigRemoteRecord remote = GitConfigRemoteRecord.get();
             o.addProperty("configured", remote != null);
-            o.addProperty("defaultBranch", context.getSystemPropertiesManager().getSystemName());
             if (remote != null) {
                 o.addProperty("uri", remote.getUri());
                 o.addProperty("branch", remote.getBranch());
@@ -404,7 +403,7 @@ public class GatewayHook extends AbstractGatewayModuleHook {
             JsonObject body = new Gson().fromJson(req.readBody(), JsonObject.class);
             String branch = optString(body, "branch");
             if (branch == null || branch.isBlank()) {
-                branch = context.getSystemPropertiesManager().getSystemName();
+                branch = "main";
             }
             DataDirGitManager.saveRemote(optString(body, "uri"), branch,
                     optLong(body, "sshKeyId"), optLong(body, "httpsCredentialId"));

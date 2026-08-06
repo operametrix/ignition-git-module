@@ -40,7 +40,6 @@ export interface CredentialOption {
 }
 export interface RemoteResp {
   configured: boolean;
-  defaultBranch: string;
   uri?: string;
   branch?: string;
   sshKeyId?: number;

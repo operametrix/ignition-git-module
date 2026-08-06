@@ -1,7 +1,7 @@
 import React from "react";
-import { Button, Loading, PageHeader } from "../../webui";
+import { Button, Loading } from "../../webui";
 import { useGetStatusQuery, useInitMutation } from "./GitConfig.service";
-import RemoteCard from "./RemoteCard";
+import RemoteSync from "./RemoteSync";
 import HistoryList from "./HistoryList";
 import "./_styles.scss";
 
@@ -9,12 +9,14 @@ const GitConfig = () => {
   const { data, isLoading } = useGetStatusQuery();
   const [init, { isLoading: initing }] = useInitMutation();
 
+  const initialized = !!(data && data.initialized);
+
   const renderBody = () => {
     if (isLoading) {
       return <Loading isLoading={true} />;
     }
 
-    if (!data || !data.initialized) {
+    if (!initialized) {
       return (
         <section className="gitcfg-section">
           <div className="gitcfg-section-header">
@@ -37,17 +39,12 @@ const GitConfig = () => {
       );
     }
 
-    return (
-      <>
-        <RemoteCard />
-        <HistoryList />
-      </>
-    );
+    return <HistoryList />;
   };
 
   return (
     <div className="gitcfg">
-      <PageHeader pageTitle="Versioning" />
+      <RemoteSync initialized={initialized} />
       <div className="gitcfg-content">{renderBody()}</div>
     </div>
   );
