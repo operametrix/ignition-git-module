@@ -3,18 +3,24 @@ import { DataGrid, Modal, Chip } from "../../webui";
 import { useGetHistoryQuery, useRestoreMutation } from "./GitConfig.service";
 import CommitResources from "./CommitResources";
 
-// DataGrid custom cell: short hash (monospace) plus any ref names as a chip.
+// DataGrid custom cell: short hash (monospace) plus local/remote pointer chips — shown only on
+// the two tip commits the branch pointers reference (like git's `main` / `origin/main`), not on
+// every row. `_local` / `_remote` are stamped onto the row in HistoryList.
 const HashCell = ({ row, cell }: any) => {
-  const refs = row && row.originalValue ? row.originalValue.refs : "";
+  const ov = row && row.originalValue ? row.originalValue : {};
   return (
     <span className="gitcfg-mono">
       {cell.getValue()}
-      {refs ? (
+      {ov._local ? (
         <>
           {" "}
-          <Chip colorClass="info" alt>
-            {refs}
-          </Chip>
+          <Chip alt>Local</Chip>
+        </>
+      ) : null}
+      {ov._remote ? (
+        <>
+          {" "}
+          <Chip colorClass="success">Remote</Chip>
         </>
       ) : null}
     </span>
@@ -55,7 +61,19 @@ const HistoryList = () => {
     shortHash: string;
   } | null>(null);
 
-  const commits = data ? data.commits : [];
+  // Stamp the two pointer commits (local tip / remote tip) so HashCell can badge just those.
+  // Memoized on `data` so unrelated re-renders (opening the restore dialog) don't rebuild the
+  // rows and reset the grid.
+  const commits = useMemo(() => {
+    if (!data) {
+      return [];
+    }
+    return data.commits.map((c) => ({
+      ...c,
+      _local: !!data.localHead && c.hash === data.localHead,
+      _remote: !!data.remoteHead && c.hash === data.remoteHead,
+    }));
+  }, [data]);
 
   // Stable identities so re-renders (restore dialog, real data changes) don't reset the grid.
   const showMore = useMemo(

@@ -9,6 +9,7 @@ import org.eclipse.jgit.api.PushCommand;
 import org.eclipse.jgit.api.RemoteSetUrlCommand;
 import org.eclipse.jgit.api.Status;
 import org.eclipse.jgit.lib.ObjectId;
+import org.eclipse.jgit.lib.RefUpdate;
 import org.eclipse.jgit.lib.Repository;
 import org.eclipse.jgit.transport.PushResult;
 import org.eclipse.jgit.transport.RefSpec;
@@ -302,6 +303,16 @@ public class DataDirGitManager {
                         }
                     }
                 }
+                // Advance the local remote-tracking ref so the history can mark which commits are
+                // on the remote (our refspec doesn't update it automatically).
+                Repository repo = git.getRepository();
+                ObjectId head = repo.resolve("HEAD");
+                if (head != null) {
+                    RefUpdate ru = repo.updateRef(trackingRef(remote.getBranch()));
+                    ru.setNewObjectId(head);
+                    ru.setForceUpdate(true);
+                    ru.update();
+                }
                 lastPushTime = System.currentTimeMillis();
                 lastPushError = null;
             } catch (Exception e) {
@@ -311,6 +322,40 @@ public class DataDirGitManager {
                 throw new RuntimeException(e);
             }
         }
+    }
+
+    private static String trackingRef(String branch) {
+        return "refs/remotes/" + ORIGIN + "/" + branch;
+    }
+
+    /**
+     * Ref pointers for the history: {@code [localHeadHash, remoteHeadHash]} (full hashes). The
+     * remote head is the local remote-tracking ref that {@link #push()} advances; it is {@code ""}
+     * when no remote is configured or nothing has been pushed. These mark just the two tip commits
+     * (like git's branch pointers), not every commit.
+     */
+    public static String[] pointerHashes() {
+        String local = "";
+        String remote = "";
+        synchronized (DATA_DIR_LOCK) {
+            try (Git git = GitManager.getGit(dataDir())) {
+                Repository repo = git.getRepository();
+                ObjectId head = repo.resolve("HEAD");
+                if (head != null) {
+                    local = head.getName();
+                }
+                GitConfigRemoteRecord r = GitConfigRemoteRecord.get();
+                if (r != null) {
+                    ObjectId trackingId = repo.resolve(trackingRef(r.getBranch()));
+                    if (trackingId != null) {
+                        remote = trackingId.getName();
+                    }
+                }
+            } catch (Exception e) {
+                logger.warn("Could not resolve config repo ref pointers", e);
+            }
+        }
+        return new String[]{local, remote};
     }
 
     /** Validate URI + credential with an ls-remote — touches no local or remote state. */

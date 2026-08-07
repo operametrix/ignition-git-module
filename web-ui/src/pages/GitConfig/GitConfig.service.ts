@@ -20,6 +20,10 @@ export interface Commit {
 }
 export interface HistoryResp {
   commits: Commit[];
+  remoteConfigured: boolean;
+  // Full hashes the local / remote branch tips point at ("" when none).
+  localHead: string;
+  remoteHead: string;
   hasMore: boolean;
 }
 export interface CommitFile {
@@ -102,7 +106,8 @@ export const gitConfigApi = baseApi.injectEndpoints({
     }),
     push: builder.mutation<unknown, void>({
       query: () => ({ url: `${BASE}/push`, method: "POST", body: {} }),
-      invalidatesTags: ["remote"],
+      // History too: a push flips commits from local to remote.
+      invalidatesTags: ["remote", "history"],
     }),
     addCredential: builder.mutation<
       { id: number; type: string },

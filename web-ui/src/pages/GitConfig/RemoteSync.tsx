@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { SettingsGw } from "@inductiveautomation/ignition-icons";
 import {
   Button,
   Chip,
@@ -145,57 +146,53 @@ const RemoteSync = ({ initialized }: { initialized: boolean }) => {
     }
   };
 
-  const actionButtons =
-    initialized && remote
-      ? remote.configured
-        ? [
-            {
-              children: "Push",
-              colorClass: "primary",
-              loading: pushing,
-              disabled: pushing,
-              onClick: () =>
-                push()
-                  .unwrap()
-                  .catch(() => undefined),
-            },
-            {
-              children: "Remote settings…",
-              colorClass: "secondary",
-              onClick: openEdit,
-            },
-          ]
-        : [
-            {
-              children: "Configure remote…",
-              colorClass: "secondary",
-              onClick: openEdit,
-            },
-          ]
-      : undefined;
+  const configured = !!(remote && remote.configured);
 
-  const renderStatus = () => {
-    if (!initialized || !remote || !remote.configured) {
-      return null;
-    }
-    return (
-      <div className="gitcfg-remote-status">
-        <span className="gitcfg-mono">{remote.uri}</span>
-        <Chip alt>branch: {remote.branch}</Chip>
-        {remote.lastPush ? (
-          remote.lastPush.ok ? (
-            <Chip colorClass="success">
-              last push: {new Date(remote.lastPush.time).toLocaleString()}
-            </Chip>
-          ) : (
-            <Chip colorClass="error">push failed: {remote.lastPush.error}</Chip>
-          )
+  const lastPushStatus =
+    configured && remote ? (
+      remote.lastPush ? (
+        remote.lastPush.ok ? (
+          <Chip colorClass="success">
+            last push: {new Date(remote.lastPush.time).toLocaleString()}
+          </Chip>
         ) : (
-          <Chip alt>never pushed</Chip>
-        )}
-      </div>
-    );
-  };
+          <Chip colorClass="error">push failed: {remote.lastPush.error}</Chip>
+        )
+      ) : (
+        <Chip alt>never pushed</Chip>
+      )
+    ) : null;
+
+  // Right-aligned header cluster: [last-push status] [Push] [cog]. Rendered as customContent so
+  // it sits in the header row; margin-left:auto (in _styles) pushes it flush right, with the
+  // datetime to the left of the Push button. The cog is an icon-only Button (children, not
+  // startIcon, so MUI doesn't offset it — keeps the glyph centered).
+  const headerActions = initialized ? (
+    <div className="gitcfg-header-actions">
+      {lastPushStatus}
+      {configured ? (
+        <Button
+          colorClass="primary"
+          disabled={pushing}
+          onClick={() =>
+            push()
+              .unwrap()
+              .catch(() => undefined)
+          }
+        >
+          {pushing ? "Pushing…" : "Push"}
+        </Button>
+      ) : null}
+      <Button
+        soloIcon
+        colorClass="secondary"
+        aria-label={configured ? "Remote settings" : "Configure remote"}
+        onClick={openEdit}
+      >
+        <SettingsGw width={18} height={18} />
+      </Button>
+    </div>
+  ) : null;
 
   const editForm = (
     <div className="gitcfg-form">
@@ -293,14 +290,10 @@ const RemoteSync = ({ initialized }: { initialized: boolean }) => {
 
   return (
     <>
-      <PageHeader
-        pageTitle="Versioning"
-        actionButtons={actionButtons}
-        customContentAppend={renderStatus()}
-      />
+      <PageHeader pageTitle="Versioning" customContent={headerActions} />
       <Modal
         open={popup === "edit"}
-        type="custom"
+        type="primary"
         title={
           remote && remote.configured ? "Remote settings" : "Configure remote"
         }
@@ -315,7 +308,7 @@ const RemoteSync = ({ initialized }: { initialized: boolean }) => {
       />
       <Modal
         open={popup === "addCred"}
-        type="custom"
+        type="primary"
         title={credType === "SSH" ? "Add SSH key" : "Add HTTPS credential"}
         modalConfig={{
           content: addCredForm,

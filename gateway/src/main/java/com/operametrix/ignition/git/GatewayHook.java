@@ -277,6 +277,8 @@ public class GatewayHook extends AbstractGatewayModuleHook {
             int skip = parseInt(req.getParameter("skip"), 0);
             int limit = parseInt(req.getParameter("limit"), 25);
             List<String[]> commits = DataDirGitManager.history(skip, limit);
+            boolean remoteConfigured = GitConfigRemoteRecord.get() != null;
+            String[] pointers = DataDirGitManager.pointerHashes();
             JsonArray arr = new JsonArray();
             for (String[] c : commits) {
                 JsonObject co = new JsonObject();
@@ -290,6 +292,10 @@ public class GatewayHook extends AbstractGatewayModuleHook {
             }
             JsonObject o = new JsonObject();
             o.add("commits", arr);
+            o.addProperty("remoteConfigured", remoteConfigured);
+            // Ref pointers: which single commit the local and remote branch tips point at.
+            o.addProperty("localHead", pointers[0]);
+            o.addProperty("remoteHead", pointers[1]);
             o.addProperty("hasMore", commits.size() == limit);
             return o.toString();
         } catch (Exception e) {
