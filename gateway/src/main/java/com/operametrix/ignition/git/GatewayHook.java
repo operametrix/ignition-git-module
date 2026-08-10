@@ -713,7 +713,7 @@ public class GatewayHook extends AbstractGatewayModuleHook {
 
     private Object handleInit(RequestContext req, HttpServletResponse resp) {
         try {
-            DataDirGitManager.initRepo(req.getActor());
+            DataDirGitManager.initRepo();
             JsonObject o = new JsonObject();
             o.addProperty("ok", true);
             o.addProperty("initialized", true);

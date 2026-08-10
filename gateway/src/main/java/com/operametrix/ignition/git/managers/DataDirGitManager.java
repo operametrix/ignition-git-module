@@ -100,7 +100,7 @@ public class DataDirGitManager {
      * First-run initialization: {@code git init} at the data dir, write {@code .gitignore}, stage all
      * non-ignored files, and make the baseline commit. Explicit (never auto-run at startup).
      */
-    public static void initRepo(String actingUser) {
+    public static void initRepo() {
         synchronized (DATA_DIR_LOCK) {
             if (isInitialized()) {
                 throw new RuntimeException("Config versioning is already initialized.");
@@ -109,14 +109,19 @@ public class DataDirGitManager {
                 GitManager.disableSsl(git);
                 writeGitignore();
                 git.add().addFilepattern(".").call();
-                CommitCommand commit = git.commit().setMessage("Initial config-as-code commit");
-                commit.setAuthor(actingUser, GitManager.resolveUserEmail(actingUser));
-                commit.call();
+                // Authored as the gateway (like the auto-commits), not the acting web user, so the
+                // whole config history is uniformly attributed to the gateway.
+                git.commit().setMessage("Initial config-as-code commit").setAuthor(gatewayAuthor(), "").call();
             } catch (Exception e) {
                 logger.error("Error initializing config versioning repo", e);
                 throw new RuntimeException(e);
             }
         }
+    }
+
+    /** The gateway's system name — the author for config-repo commits (init + auto-commits). */
+    private static String gatewayAuthor() {
+        return getContext().getSystemPropertiesManager().getSystemName();
     }
 
     private static void writeGitignore() throws IOException {
@@ -186,8 +191,7 @@ public class DataDirGitManager {
                 // "." respects .gitignore; the setUpdate pass also stages deletions of tracked files.
                 git.add().addFilepattern(".").call();
                 git.add().setUpdate(true).addFilepattern(".").call();
-                String gatewayName = getContext().getSystemPropertiesManager().getSystemName();
-                git.commit().setMessage(message).setAuthor(gatewayName, "").call();
+                git.commit().setMessage(message).setAuthor(gatewayAuthor(), "").call();
             } catch (Exception e) {
                 logger.error("Error committing data-dir config", e);
                 throw new RuntimeException(e);
