@@ -281,6 +281,51 @@ public class DataDirGitManager {
         }
     }
 
+    /**
+     * Completely remove config versioning: delete {@code <dataDir>/.git} (all history), the
+     * {@code .gitignore}, and the remote record. **Credential records are kept** (they are shared
+     * with the Designer per-project repos). Afterward {@link #isInitialized()} is false, so the
+     * page reverts to the Initialize screen. Opens no JGit handle (so the working tree isn't
+     * locked during the recursive delete).
+     */
+    public static void deleteRepo() {
+        synchronized (DATA_DIR_LOCK) {
+            if (!isInitialized()) {
+                throw new RuntimeException("Config versioning is not initialized.");
+            }
+            try {
+                GitConfigRemoteRecord record = GitConfigRemoteRecord.get();
+                if (record != null) {
+                    record.delete();
+                }
+                deleteRecursively(dataDir().resolve(".git"));
+                Files.deleteIfExists(dataDir().resolve(".gitignore"));
+                lastPushTime = 0;
+                lastPushError = null;
+            } catch (Exception e) {
+                logger.error("Failed to remove config versioning", e);
+                throw new RuntimeException(e);
+            }
+        }
+    }
+
+    /** Recursively delete a path (depth-first), tolerating a missing root. */
+    private static void deleteRecursively(Path root) throws IOException {
+        if (!Files.exists(root)) {
+            return;
+        }
+        try (var walk = Files.walk(root)) {
+            walk.sorted(java.util.Comparator.reverseOrder())
+                    .forEach(p -> {
+                        try {
+                            Files.delete(p);
+                        } catch (IOException e) {
+                            throw new RuntimeException("Could not delete " + p, e);
+                        }
+                    });
+        }
+    }
+
     /** Manual push of the local history to the configured remote branch. */
     public static void push() {
         GitConfigRemoteRecord remote = GitConfigRemoteRecord.get();
@@ -363,6 +408,18 @@ public class DataDirGitManager {
         try {
             LsRemoteCommand lsRemote = Git.lsRemoteRepository().setRemote(uri).setHeads(true);
             GitManager.setAuthenticationFromIds(lsRemote, uri, sshKeyId, httpsCredentialId);
+            lsRemote.call();
+        } catch (Exception e) {
+            throw new RuntimeException(e.getMessage() == null ? e.toString() : e.getMessage(), e);
+        }
+    }
+
+    /** Test with raw plaintext secrets (not yet persisted) — used by the inline Configure drawer. */
+    public static void testRemoteRaw(String uri, String sshKeyPlaintext, String httpsUser,
+                                     String httpsPassword) {
+        try {
+            LsRemoteCommand lsRemote = Git.lsRemoteRepository().setRemote(uri).setHeads(true);
+            GitManager.setAuthenticationRaw(lsRemote, uri, sshKeyPlaintext, httpsUser, httpsPassword);
             lsRemote.call();
         } catch (Exception e) {
             throw new RuntimeException(e.getMessage() == null ? e.toString() : e.getMessage(), e);

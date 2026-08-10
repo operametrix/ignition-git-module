@@ -15,6 +15,10 @@ import com.inductiveautomation.ignition.common.gson.JsonElement;
 import com.inductiveautomation.ignition.common.gson.JsonObject;
 import com.inductiveautomation.ignition.common.licensing.LicenseState;
 import com.inductiveautomation.ignition.gateway.config.ResourceTypeMetaRegistry;
+import com.inductiveautomation.ignition.gateway.secrets.ManagedSecretProvider;
+import com.inductiveautomation.ignition.gateway.secrets.Plaintext;
+import com.inductiveautomation.ignition.gateway.secrets.Secret;
+import com.inductiveautomation.ignition.gateway.secrets.SecretConfig;
 import com.inductiveautomation.ignition.gateway.dataroutes.HttpMethod;
 import com.inductiveautomation.ignition.gateway.dataroutes.PermissionType;
 import com.inductiveautomation.ignition.gateway.dataroutes.RequestContext;
@@ -208,6 +212,10 @@ public class GatewayHook extends AbstractGatewayModuleHook {
                 .requirePermission(PermissionType.READ).nocache()
                 .handler(this::handleGetCredentials).mount();
 
+        routes.newRoute("/secret-providers").method(HttpMethod.GET).type(RouteGroup.TYPE_JSON)
+                .requirePermission(PermissionType.READ).nocache()
+                .handler(this::handleGetSecretProviders).mount();
+
         routes.newRoute("/remote").method(HttpMethod.POST).type(RouteGroup.TYPE_JSON)
                 .requirePermission(PermissionType.WRITE)
                 .handler(this::handleSaveRemote).mount();
@@ -235,6 +243,10 @@ public class GatewayHook extends AbstractGatewayModuleHook {
         routes.newRoute("/init").method(HttpMethod.POST).type(RouteGroup.TYPE_JSON)
                 .requirePermission(PermissionType.WRITE)
                 .handler(this::handleInit).mount();
+
+        routes.newRoute("/deinit").method(HttpMethod.POST).type(RouteGroup.TYPE_JSON)
+                .requirePermission(PermissionType.WRITE)
+                .handler(this::handleDeinit).mount();
     }
 
     private Object handleStatus(RequestContext req, HttpServletResponse resp) {
@@ -344,10 +356,28 @@ public class GatewayHook extends AbstractGatewayModuleHook {
             if (remote != null) {
                 o.addProperty("uri", remote.getUri());
                 o.addProperty("branch", remote.getBranch());
-                o.addProperty("sshKeyId", remote.getSshKeyId());
-                o.addProperty("httpsCredentialId", remote.getHttpsCredentialId());
-                o.addProperty("credentialLabel",
-                        credentialLabel(remote.getSshKeyId(), remote.getHttpsCredentialId()));
+                // Secret prefill: mode + (referenced) provider/secret + (https) username. The
+                // embedded secret itself is never returned — the drawer leaves it blank to keep it.
+                SecretConfig secret = null;
+                if (remote.getSshKeyId() > 0) {
+                    GitUserSshKeyRecord key = GitUserSshKeyRecord.findById(remote.getSshKeyId());
+                    if (key != null) {
+                        secret = key.getSecret();
+                    }
+                } else if (remote.getHttpsCredentialId() > 0) {
+                    GitUserHttpsCredentialRecord cred =
+                            GitUserHttpsCredentialRecord.findById(remote.getHttpsCredentialId());
+                    if (cred != null) {
+                        secret = cred.getSecret();
+                        o.addProperty("username", cred.getUserName());
+                    }
+                }
+                boolean referenced = secret != null && secret.isReferenced();
+                o.addProperty("secretMode", referenced ? "reference" : "inline");
+                if (referenced) {
+                    o.addProperty("providerName", secret.getAsReferenced().getProviderName());
+                    o.addProperty("secretName", secret.getAsReferenced().getSecretName());
+                }
                 long time = DataDirGitManager.getLastPushTime();
                 if (time > 0) {
                     JsonObject lastPush = new JsonObject();
@@ -364,19 +394,6 @@ public class GatewayHook extends AbstractGatewayModuleHook {
         } catch (Exception e) {
             return error(resp, e);
         }
-    }
-
-    private static String credentialLabel(long sshKeyId, long httpsCredentialId) {
-        if (sshKeyId > 0) {
-            GitUserSshKeyRecord key = GitUserSshKeyRecord.findById(sshKeyId);
-            return key == null ? "missing SSH key" : key.getKeyName() + " (SSH)";
-        }
-        if (httpsCredentialId > 0) {
-            GitUserHttpsCredentialRecord cred = GitUserHttpsCredentialRecord.findById(httpsCredentialId);
-            return cred == null ? "missing HTTPS credential"
-                    : cred.getHostPattern() + " — " + cred.getUserName() + " (HTTPS)";
-        }
-        return "none";
     }
 
     private Object handleGetCredentials(RequestContext req, HttpServletResponse resp) {
@@ -407,16 +424,88 @@ public class GatewayHook extends AbstractGatewayModuleHook {
     private Object handleSaveRemote(RequestContext req, HttpServletResponse resp) {
         try {
             JsonObject body = new Gson().fromJson(req.readBody(), JsonObject.class);
+            String uri = optString(body, "uri");
+            if (uri == null || uri.isBlank()) {
+                throw new RuntimeException("A repository URI is required.");
+            }
             String branch = optString(body, "branch");
             if (branch == null || branch.isBlank()) {
                 branch = "main";
             }
-            DataDirGitManager.saveRemote(optString(body, "uri"), branch,
-                    optLong(body, "sshKeyId"), optLong(body, "httpsCredentialId"));
+            // Create/update the config remote's own credential in place from the inline secret
+            // (no user-entered name; auto-derived), then link it. Keeps a single dedicated record.
+            boolean ssh = !uri.trim().toLowerCase().startsWith("http");
+            boolean reference = "reference".equalsIgnoreCase(optString(body, "mode"));
+            GitConfigRemoteRecord existing = GitConfigRemoteRecord.get();
+            long sshKeyId = 0, httpsCredentialId = 0;
+            if (ssh) {
+                GitUserSshKeyRecord rec = existing != null && existing.getSshKeyId() > 0
+                        ? GitUserSshKeyRecord.findById(existing.getSshKeyId()) : null;
+                if (rec == null) {
+                    rec = new GitUserSshKeyRecord();
+                }
+                rec.setIgnitionUser(req.getActor());
+                rec.setKeyName("Config repository (" + hostOf(uri) + ")");
+                if (reference) {
+                    rec.setSSHKeySecret(referencedSecret(body));
+                } else {
+                    String key = optString(body, "key");
+                    if (key != null && !key.isBlank()) {
+                        rec.setSSHKey(key);
+                    } else if (!rec.hasSecret()) {
+                        throw new RuntimeException("A private key is required.");
+                    }
+                }
+                rec.save();
+                sshKeyId = rec.getId();
+            } else {
+                GitUserHttpsCredentialRecord rec = existing != null && existing.getHttpsCredentialId() > 0
+                        ? GitUserHttpsCredentialRecord.findById(existing.getHttpsCredentialId()) : null;
+                if (rec == null) {
+                    rec = new GitUserHttpsCredentialRecord();
+                }
+                rec.setIgnitionUser(req.getActor());
+                rec.setHostPattern(hostOf(uri));
+                String username = optString(body, "username");
+                rec.setUserName(username == null ? "" : username.trim());
+                if (reference) {
+                    rec.setPasswordSecret(referencedSecret(body));
+                } else {
+                    String password = optString(body, "password");
+                    if (password != null && !password.isBlank()) {
+                        rec.setPassword(password);
+                    } else if (!rec.hasSecret()) {
+                        throw new RuntimeException("A password/token is required.");
+                    }
+                }
+                rec.save();
+                httpsCredentialId = rec.getId();
+            }
+            DataDirGitManager.saveRemote(uri, branch, sshKeyId, httpsCredentialId);
             return ok();
         } catch (Exception e) {
             return error(resp, e);
         }
+    }
+
+    /** Builds a referenced {@link SecretConfig} from the request's providerName/secretName. */
+    private static SecretConfig referencedSecret(JsonObject body) {
+        String providerName = optString(body, "providerName");
+        String secretName = optString(body, "secretName");
+        if (providerName == null || providerName.isBlank() || secretName == null || secretName.isBlank()) {
+            throw new RuntimeException("A provider and secret name are required to reference a stored secret.");
+        }
+        return SecretConfig.referenced(providerName.trim(), secretName.trim());
+    }
+
+    /** Best-effort host extracted from a git URI, for auto-naming the credential. */
+    private static String hostOf(String uri) {
+        if (uri == null) {
+            return "remote";
+        }
+        java.util.regex.Matcher m =
+                java.util.regex.Pattern.compile("(?:://|@)([^/:]+)").matcher(uri.trim());
+        return m.find() ? m.group(1) : "remote";
     }
 
     private Object handleRemoveRemote(RequestContext req, HttpServletResponse resp) {
@@ -431,8 +520,36 @@ public class GatewayHook extends AbstractGatewayModuleHook {
     private Object handleTestRemote(RequestContext req, HttpServletResponse resp) {
         try {
             JsonObject body = new Gson().fromJson(req.readBody(), JsonObject.class);
-            DataDirGitManager.testRemote(optString(body, "uri"),
-                    optLong(body, "sshKeyId"), optLong(body, "httpsCredentialId"));
+            String uri = optString(body, "uri");
+            boolean ssh = uri != null && !uri.trim().toLowerCase().startsWith("http");
+            boolean reference = "reference".equalsIgnoreCase(optString(body, "mode"));
+            String username = optString(body, "username");
+            if (reference) {
+                // Resolve the referenced secret to plaintext for the test.
+                SecretConfig cfg = referencedSecret(body);
+                Secret<?> secret = Secret.create(context, cfg);
+                Plaintext pt = secret.getPlaintext();
+                try {
+                    String plain = pt.getAsString(java.nio.charset.StandardCharsets.UTF_8);
+                    DataDirGitManager.testRemoteRaw(uri, ssh ? plain : null, username, ssh ? null : plain);
+                } finally {
+                    pt.clear();
+                }
+            } else {
+                String key = optString(body, "key");
+                String password = optString(body, "password");
+                String secretVal = ssh ? key : password;
+                if (secretVal == null || secretVal.isBlank()) {
+                    // Editing without re-entering the embedded secret: test the saved credential.
+                    GitConfigRemoteRecord remote = GitConfigRemoteRecord.get();
+                    if (remote == null) {
+                        throw new RuntimeException("Enter a secret to test, or save the remote first.");
+                    }
+                    DataDirGitManager.testRemote(uri, remote.getSshKeyId(), remote.getHttpsCredentialId());
+                } else {
+                    DataDirGitManager.testRemoteRaw(uri, ssh ? key : null, username, ssh ? null : password);
+                }
+            }
             return ok();
         } catch (Exception e) {
             return error(resp, e);
@@ -452,31 +569,59 @@ public class GatewayHook extends AbstractGatewayModuleHook {
         try {
             JsonObject body = new Gson().fromJson(req.readBody(), JsonObject.class);
             String type = optString(body, "type");
+            // mode ∈ inline (type the secret, encrypted at rest) | reference (point at a
+            // Secret Provider secret). Defaults to inline so older callers keep working.
+            String mode = optString(body, "mode");
+            boolean reference = "reference".equalsIgnoreCase(mode);
+            SecretConfig referenced = null;
+            if (reference) {
+                String providerName = optString(body, "providerName");
+                String secretName = optString(body, "secretName");
+                if (providerName == null || providerName.isBlank()
+                        || secretName == null || secretName.isBlank()) {
+                    throw new RuntimeException("A provider and secret name are required to reference a stored secret.");
+                }
+                referenced = SecretConfig.referenced(providerName.trim(), secretName.trim());
+            }
             JsonObject o = new JsonObject();
             if ("SSH".equalsIgnoreCase(type)) {
                 String name = optString(body, "name");
-                String key = optString(body, "key");
-                if (name == null || name.isBlank() || key == null || key.isBlank()) {
-                    throw new RuntimeException("Key name and private key are required.");
+                if (name == null || name.isBlank()) {
+                    throw new RuntimeException("A key name is required.");
                 }
                 GitUserSshKeyRecord record = new GitUserSshKeyRecord();
                 record.setIgnitionUser(req.getActor());
                 record.setKeyName(name.trim());
-                record.setSSHKey(key);
+                if (reference) {
+                    record.setSSHKeySecret(referenced);
+                } else {
+                    String key = optString(body, "key");
+                    if (key == null || key.isBlank()) {
+                        throw new RuntimeException("The private key is required.");
+                    }
+                    record.setSSHKey(key);
+                }
                 record.save();
                 o.addProperty("id", record.getId());
             } else if ("HTTPS".equalsIgnoreCase(type)) {
                 String host = optString(body, "host");
                 String username = optString(body, "username");
-                String password = optString(body, "password");
-                if (host == null || host.isBlank() || password == null || password.isBlank()) {
-                    throw new RuntimeException("Host label and password/token are required.");
+                if (host == null || host.isBlank()) {
+                    throw new RuntimeException("A host label is required.");
                 }
                 GitUserHttpsCredentialRecord record = new GitUserHttpsCredentialRecord();
                 record.setIgnitionUser(req.getActor());
                 record.setHostPattern(host.trim());
                 record.setUserName(username == null ? "" : username.trim());
-                record.setPassword(password);
+                if (reference) {
+                    record.setPasswordSecret(referenced);
+                } else {
+                    String password = optString(body, "password");
+                    if (password == null || password.isBlank()) {
+                        throw new RuntimeException("The password/token is required.");
+                    }
+                    record.setPassword(password);
+                }
                 record.save();
                 o.addProperty("id", record.getId());
             } else {
@@ -485,6 +630,46 @@ public class GatewayHook extends AbstractGatewayModuleHook {
             o.addProperty("ok", true);
             o.addProperty("type", type.toUpperCase());
             return o.toString();
+        } catch (Exception e) {
+            return error(resp, e);
+        }
+    }
+
+    private Object handleGetSecretProviders(RequestContext req, HttpServletResponse resp) {
+        try {
+            JsonArray providers = new JsonArray();
+            for (ManagedSecretProvider provider : context.getSecretProviderManager().getProviders()) {
+                JsonObject po = new JsonObject();
+                po.addProperty("name", provider.getResource().name());
+                JsonArray secrets = new JsonArray();
+                try {
+                    // ManagedSecretProvider extends SecretProvider, so list() is available directly.
+                    for (String s : provider.list()) {
+                        secrets.add(s);
+                    }
+                } catch (Exception e) {
+                    // A provider that can't list (or doesn't support it) shouldn't blank the picker.
+                    po.addProperty("error", e.getMessage() == null ? e.toString() : e.getMessage());
+                }
+                po.add("secrets", secrets);
+                providers.add(po);
+            }
+            JsonObject o = new JsonObject();
+            o.add("providers", providers);
+            return o.toString();
+        } catch (Exception e) {
+            // Degrade to inline-only rather than 500 the drawer.
+            logger.warn("Could not list secret providers", e);
+            JsonObject o = new JsonObject();
+            o.add("providers", new JsonArray());
+            return o.toString();
+        }
+    }
+
+    private Object handleDeinit(RequestContext req, HttpServletResponse resp) {
+        try {
+            DataDirGitManager.deleteRepo();
+            return ok();
         } catch (Exception e) {
             return error(resp, e);
         }

@@ -59,41 +59,50 @@
   }
 }
 
-// Custom modal content ships with no internal spacing, so the form provides its own padding
-// and a comfortable min width, and stretches its inputs to fill the row.
+// Form wrapper. Matches the platform config drawers (e.g. Redundancy): a 16px gutter around the
+// cards and 16px between them; the Card component supplies its own grey header + white content.
 .gitcfg-form {
   display: flex;
   flex-direction: column;
   gap: 1rem;
+  padding: 1rem;
   box-sizing: border-box;
   width: 100%;
-  min-width: 420px;
-  padding: 0.5rem 0.25rem 0.75rem;
-}
-
-.gitcfg-field {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-
-  > span {
-    font-weight: 600;
-  }
-
-  // IA inputs (TextInput / SelectInput / TextArea) fill the field width.
-  input,
-  textarea,
-  .iaSelectInput,
-  [class*="select"] {
-    width: 100%;
-    box-sizing: border-box;
-  }
 }
 
 .gitcfg-actions {
   display: flex;
   gap: 0.5rem;
   margin-top: 0.25rem;
+}
+
+// Danger Zone card: red header bar (overrides the Card's default grey ia-card-header) so the
+// destructive section reads as dangerous. The body text sits below the destructive button.
+.gitcfg-danger-card {
+  .ia-card-header {
+    background: #b3261e;
+  }
+
+  p {
+    margin: 0 0 0.75rem;
+    line-height: 1.4;
+  }
+}
+
+// Field description text, matched to FormControlInput's native 12px grey description (a custom
+// ReactNode description otherwise renders at the default 16px).
+.gitcfg-desc {
+  display: block;
+  font-size: 12px;
+  color: #697077;
+}
+
+// Red "No Providers Exist" message under the provider field description (matches IA's error red).
+.gitcfg-provider-error {
+  display: block;
+  margin-top: 0.25rem;
+  color: #de1b1b;
+  font-size: 12px;
 }
 
 .gitcfg-ok {

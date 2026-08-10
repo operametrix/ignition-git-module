@@ -115,6 +115,21 @@ public class GitUserHttpsCredentialRecord {
         this.password = encrypt(plaintext);
     }
 
+    /** Reference path: point the password at a named secret in a Secret Provider. */
+    public void setPasswordSecret(SecretConfig cfg) {
+        this.password = cfg;
+    }
+
+    /** The stored {@link SecretConfig} (embedded or referenced), or null if unset. */
+    public SecretConfig getSecret() {
+        return password;
+    }
+
+    /** Whether a password secret is set. */
+    public boolean hasSecret() {
+        return password != null;
+    }
+
     /** Encrypts a plaintext password into an embedded {@link SecretConfig}. */
     public static SecretConfig encrypt(String plaintext) {
         try (Plaintext pt = Plaintext.fromString(plaintext == null ? "" : plaintext, StandardCharsets.UTF_8)) {

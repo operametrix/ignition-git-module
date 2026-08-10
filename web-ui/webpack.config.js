@@ -21,6 +21,8 @@ module.exports = (webpackConfigEnv, argv) => {
     "@reduxjs/toolkit",
     "@inductiveautomation/ignition-web-ui",
     "@inductiveautomation/ignition-icons",
+    // Shared with the gateway's ignition-web-ui so <Form> and useForm() use the same instance.
+    "react-hook-form",
     "luxon",
   ];
 

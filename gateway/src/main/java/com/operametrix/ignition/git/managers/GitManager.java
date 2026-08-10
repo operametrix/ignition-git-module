@@ -146,6 +146,25 @@ public class GitManager {
         }
     }
 
+    /**
+     * Auth from raw plaintext secrets — used to Test the config remote before it (or its
+     * credential) is persisted. Auth type follows the URL scheme.
+     */
+    public static void setAuthenticationRaw(TransportCommand<?, ?> command, String url,
+                                            String sshKeyPlaintext, String httpsUser,
+                                            String httpsPassword) throws Exception {
+        boolean isSsh = url != null && !url.toLowerCase().startsWith("http");
+        if (isSsh) {
+            if (sshKeyPlaintext == null || sshKeyPlaintext.isEmpty()) {
+                throw new Exception("A private key is required to test an SSH remote.");
+            }
+            command.setTransportConfigCallback(new SshTransportConfigCallback(sshKeyPlaintext));
+        } else {
+            command.setCredentialsProvider(new UsernamePasswordCredentialsProvider(
+                    httpsUser == null ? "" : httpsUser, httpsPassword == null ? "" : httpsPassword));
+        }
+    }
+
     private static String resolveSshKey(GitRemoteCredentialsRecord creds) {
         if (creds == null || creds.getSshKeyId() <= 0) {
             return null;

@@ -134,7 +134,8 @@ public final class GitLegacyImporter {
                             new GitUserSshKeyRecord.Config(id,
                                     r.getString(LegacyUserSshKey.IgnitionUser),
                                     r.getString(LegacyUserSshKey.KeyName),
-                                    r.getString(LegacyUserSshKey.SSHKey))).join();
+                                    r.getString(LegacyUserSshKey.SSHKey),
+                                    null)).join();  // legacy plaintext; upgrades to sshKeySecret on next save
                     n++;
                 }
                 deleteLegacy(ctx, r);

@@ -46,11 +46,56 @@ export interface RemoteResp {
   configured: boolean;
   uri?: string;
   branch?: string;
-  sshKeyId?: number;
-  httpsCredentialId?: number;
-  credentialLabel?: string;
+  // Secret prefill (the embedded secret itself is never returned).
+  secretMode?: "inline" | "reference";
+  username?: string;
+  providerName?: string;
+  secretName?: string;
   lastPush?: { time: number; ok: boolean; error?: string };
 }
+// Inline secret fields shared by save/test requests.
+export interface RemoteSecretReq {
+  uri: string;
+  mode: "inline" | "reference";
+  key?: string; // embedded SSH private key
+  password?: string; // embedded HTTPS password/token
+  username?: string; // HTTPS username
+  providerName?: string; // referenced
+  secretName?: string; // referenced
+}
+export interface SecretProvider {
+  name: string;
+  secrets: string[];
+  error?: string;
+}
+export interface SecretProvidersResp {
+  providers: SecretProvider[];
+}
+// Add-credential request: each secret is either typed inline or a Secret Provider reference.
+export type AddCredentialReq =
+  | { type: "SSH"; name: string; mode: "inline"; key: string }
+  | {
+      type: "SSH";
+      name: string;
+      mode: "reference";
+      providerName: string;
+      secretName: string;
+    }
+  | {
+      type: "HTTPS";
+      host: string;
+      username: string;
+      mode: "inline";
+      password: string;
+    }
+  | {
+      type: "HTTPS";
+      host: string;
+      username: string;
+      mode: "reference";
+      providerName: string;
+      secretName: string;
+    };
 
 export const gitConfigApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
@@ -82,26 +127,17 @@ export const gitConfigApi = baseApi.injectEndpoints({
       query: () => `${BASE}/credentials`,
       providesTags: ["credentials"],
     }),
-    saveRemote: builder.mutation<
-      unknown,
+    saveRemote: builder.mutation<unknown, RemoteSecretReq & { branch: string }>(
       {
-        uri: string;
-        branch: string;
-        sshKeyId: number;
-        httpsCredentialId: number;
+        query: (body) => ({ url: `${BASE}/remote`, method: "POST", body }),
+        invalidatesTags: ["remote"],
       }
-    >({
-      query: (body) => ({ url: `${BASE}/remote`, method: "POST", body }),
-      invalidatesTags: ["remote"],
-    }),
+    ),
     removeRemote: builder.mutation<unknown, void>({
       query: () => ({ url: `${BASE}/remote-remove`, method: "POST", body: {} }),
       invalidatesTags: ["remote"],
     }),
-    testRemote: builder.mutation<
-      unknown,
-      { uri: string; sshKeyId: number; httpsCredentialId: number }
-    >({
+    testRemote: builder.mutation<unknown, RemoteSecretReq>({
       query: (body) => ({ url: `${BASE}/remote-test`, method: "POST", body }),
     }),
     push: builder.mutation<unknown, void>({
@@ -109,10 +145,13 @@ export const gitConfigApi = baseApi.injectEndpoints({
       // History too: a push flips commits from local to remote.
       invalidatesTags: ["remote", "history"],
     }),
+    getSecretProviders: builder.query<SecretProvidersResp, void>({
+      query: () => `${BASE}/secret-providers`,
+      providesTags: ["secretProviders"],
+    }),
     addCredential: builder.mutation<
       { id: number; type: string },
-      | { type: "SSH"; name: string; key: string }
-      | { type: "HTTPS"; host: string; username: string; password: string }
+      AddCredentialReq
     >({
       query: (body) => ({ url: `${BASE}/credentials`, method: "POST", body }),
       invalidatesTags: ["credentials"],
@@ -125,6 +164,10 @@ export const gitConfigApi = baseApi.injectEndpoints({
       query: () => ({ url: `${BASE}/init`, method: "POST", body: {} }),
       invalidatesTags: ["status", "history"],
     }),
+    deinit: builder.mutation<unknown, void>({
+      query: () => ({ url: `${BASE}/deinit`, method: "POST", body: {} }),
+      invalidatesTags: ["status", "history", "remote"],
+    }),
   }),
   overrideExisting: false,
 });
@@ -136,6 +179,7 @@ export const {
   useLazyGetFileDiffQuery,
   useGetRemoteQuery,
   useGetCredentialsQuery,
+  useGetSecretProvidersQuery,
   useSaveRemoteMutation,
   useRemoveRemoteMutation,
   useTestRemoteMutation,
@@ -143,4 +187,5 @@ export const {
   useAddCredentialMutation,
   useRestoreMutation,
   useInitMutation,
+  useDeinitMutation,
 } = gitConfigApi;

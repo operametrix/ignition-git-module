@@ -42,7 +42,7 @@ const baseQuery = fetchBaseQuery({
 const baseApi = createApi({
   reducerPath: "gitConfigApi",
   baseQuery,
-  tagTypes: ["status", "history", "remote", "credentials"],
+  tagTypes: ["status", "history", "remote", "credentials", "secretProviders"],
   endpoints: () => ({}),
   keepUnusedDataFor: 0,
 });

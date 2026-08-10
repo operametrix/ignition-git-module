@@ -20,7 +20,7 @@ const HashCell = ({ row, cell }: any) => {
       {ov._remote ? (
         <>
           {" "}
-          <Chip colorClass="success">Remote</Chip>
+          <Chip colorClass="info">Remote</Chip>
         </>
       ) : null}
     </span>
@@ -124,7 +124,7 @@ const HistoryList = () => {
         type="confirm"
         title="Restore configuration"
         modalConfig={{
-          descriptionText: confirm
+          confirmationText: confirm
             ? `Restore the gateway configuration to ${confirm.shortHash}? This rewrites config on disk to exactly this version — any uncommitted config changes (including new, untracked files) are discarded — and applies it to the running gateway immediately, so live resources (database/device connections, etc.) may briefly drop. Inline encrypted secrets are tied to this gateway's encryption key.`
             : "",
           primaryText: restoring ? "Restoring…" : "Restore",
