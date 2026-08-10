@@ -378,6 +378,8 @@ public class GatewayHook extends AbstractGatewayModuleHook {
                     o.addProperty("providerName", secret.getAsReferenced().getProviderName());
                     o.addProperty("secretName", secret.getAsReferenced().getSecretName());
                 }
+                // Unsynced-commit count for the header sync indicator.
+                o.addProperty("ahead", DataDirGitManager.aheadCount());
                 long time = DataDirGitManager.getLastPushTime();
                 if (time > 0) {
                     JsonObject lastPush = new JsonObject();

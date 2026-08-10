@@ -1,36 +1,41 @@
 import React, { useState } from "react";
 import { SettingsGw, Refresh } from "@inductiveautomation/ignition-icons";
-import { Button, PageHeader, Tooltip } from "../../webui";
+import { Button, PageHeader } from "../../webui";
 import { useGetRemoteQuery, usePushMutation } from "./GitConfig.service";
 import ConfigDrawer from "./ConfigDrawer";
 
 // The Versioning page header. A primary "Configure Versioning" button (trailing cog) opens the
-// lateral configuration drawer; "Remote Sync" pushes to the remote, with the last sync time in its
-// tooltip. Syncing is strictly manual — there is no auto-push.
+// lateral configuration drawer; "Remote Sync" pushes to the remote, with bold text showing how
+// many local commits are not yet on the remote. The Sync button is primary only when diverged,
+// secondary when up to date. Syncing is strictly manual. The remote query polls so the unsynced
+// count stays current as config auto-commits happen.
 const RemoteSync = ({ initialized }: { initialized: boolean }) => {
-  const { data: remote } = useGetRemoteQuery(undefined, { skip: !initialized });
+  const { data: remote } = useGetRemoteQuery(undefined, {
+    skip: !initialized,
+    pollingInterval: 15000,
+  });
   const [push, { isLoading: pushing }] = usePushMutation();
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   const configured = !!(remote && remote.configured);
-
-  const syncTooltip = remote?.lastPush
-    ? remote.lastPush.ok
-      ? `Last sync: ${new Date(remote.lastPush.time).toLocaleString()}`
-      : `Last sync failed: ${remote.lastPush.error}`
-    : "Never synced";
+  const ahead = remote?.ahead ?? 0;
+  const unsynced = configured && ahead > 0;
 
   const headerActions = initialized ? (
     <div className="gitcfg-header-actions">
       {configured ? (
-        <Tooltip
-          content={syncTooltip}
-          type="simple"
-          position="bottom"
-          showArrow
-        >
+        <>
+          {unsynced ? (
+            <span className="gitcfg-sync-status gitcfg-sync-off">
+              {ahead} change{ahead === 1 ? "" : "s"} not synced
+            </span>
+          ) : (
+            <span className="gitcfg-sync-status gitcfg-sync-ok">
+              ✓ Up to date
+            </span>
+          )}
           <Button
-            colorClass="primary"
+            colorClass={unsynced ? "primary" : "secondary"}
             startIcon={<Refresh width={18} height={18} />}
             disabled={pushing}
             onClick={() =>
@@ -41,7 +46,7 @@ const RemoteSync = ({ initialized }: { initialized: boolean }) => {
           >
             {pushing ? "Syncing…" : "Remote Sync"}
           </Button>
-        </Tooltip>
+        </>
       ) : null}
       <Button
         colorClass="primary"

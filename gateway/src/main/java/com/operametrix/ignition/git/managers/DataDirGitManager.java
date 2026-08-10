@@ -11,6 +11,8 @@ import org.eclipse.jgit.api.Status;
 import org.eclipse.jgit.lib.ObjectId;
 import org.eclipse.jgit.lib.RefUpdate;
 import org.eclipse.jgit.lib.Repository;
+import org.eclipse.jgit.revwalk.RevCommit;
+import org.eclipse.jgit.revwalk.RevWalk;
 import org.eclipse.jgit.transport.PushResult;
 import org.eclipse.jgit.transport.RefSpec;
 import org.eclipse.jgit.transport.RemoteRefUpdate;
@@ -401,6 +403,42 @@ public class DataDirGitManager {
             }
         }
         return new String[]{local, remote};
+    }
+
+    /**
+     * Number of commits on the local branch that are not yet on the remote tracking ref — the
+     * "unsynced" count for the page's sync indicator. When nothing has been pushed yet, every
+     * commit counts. 0 when no remote is configured or the branches are level.
+     */
+    public static int aheadCount() {
+        GitConfigRemoteRecord remote = GitConfigRemoteRecord.get();
+        if (remote == null) {
+            return 0;
+        }
+        synchronized (DATA_DIR_LOCK) {
+            try (Git git = GitManager.getGit(dataDir())) {
+                Repository repo = git.getRepository();
+                ObjectId head = repo.resolve("HEAD");
+                if (head == null) {
+                    return 0;
+                }
+                try (RevWalk walk = new RevWalk(repo)) {
+                    walk.markStart(walk.parseCommit(head));
+                    ObjectId trackingId = repo.resolve(trackingRef(remote.getBranch()));
+                    if (trackingId != null) {
+                        walk.markUninteresting(walk.parseCommit(trackingId));
+                    }
+                    int count = 0;
+                    for (RevCommit ignored : walk) {
+                        count++;
+                    }
+                    return count;
+                }
+            } catch (Exception e) {
+                logger.warn("Could not compute the unsynced commit count", e);
+                return 0;
+            }
+        }
     }
 
     /** Validate URI + credential with an ls-remote — touches no local or remote state. */

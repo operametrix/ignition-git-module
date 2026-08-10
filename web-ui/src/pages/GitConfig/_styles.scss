@@ -46,6 +46,19 @@
   color: #888;
 }
 
+// Remote sync status text in the header — bold, slightly larger, no chip background.
+.gitcfg-sync-status {
+  font-weight: 700;
+  font-size: 15px;
+  white-space: nowrap;
+}
+.gitcfg-sync-off {
+  color: var(--warning); // IA warning token (not --warning-dark)
+}
+.gitcfg-sync-ok {
+  color: #697077; // muted: calm when up to date
+}
+
 // Header action cluster (last-push status + Push + cog), flush right in the PageHeader row.
 .gitcfg-header-actions {
   display: flex;

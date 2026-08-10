@@ -51,6 +51,8 @@ export interface RemoteResp {
   username?: string;
   providerName?: string;
   secretName?: string;
+  // Local commits not yet on the remote (0 = up to date).
+  ahead?: number;
   lastPush?: { time: number; ok: boolean; error?: string };
 }
 // Inline secret fields shared by save/test requests.
