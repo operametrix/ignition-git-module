@@ -29,6 +29,24 @@
   margin: 0 0 1rem;
 }
 
+// Center the BlankState card in the page (its parent is a plain block) — both axes, so it sits
+// mid-page like the platform's empty-state pages instead of hugging the top.
+.gitcfg-blank-wrap {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: calc(100vh - 220px);
+}
+
+// BlankState's icon container is a fixed 140×140 box (built for an <img> that fills it); collapse it
+// to the SVG's size and tighten the gap to the text so the icon reads bigger and sits closer.
+.gitcfg-blank > div:first-child {
+  height: auto;
+  width: auto;
+  margin-bottom: 0.75rem;
+}
+
+
 .gitcfg-commit {
   display: flex;
   flex-direction: column;

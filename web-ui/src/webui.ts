@@ -8,6 +8,7 @@ import * as WebUI from "@inductiveautomation/ignition-web-ui";
 
 const ui = WebUI as any;
 
+export const BlankState = ui.BlankState;
 export const Button = ui.Button;
 export const Card = ui.Card;
 export const Chip = ui.Chip;
