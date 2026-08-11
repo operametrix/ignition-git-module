@@ -12,6 +12,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import simpleorm.dataset.SQuery;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Collections;
 import java.util.List;
 
@@ -31,7 +33,17 @@ public final class GitLegacyImporter {
     private GitLegacyImporter() {
     }
 
+    /** Marker file at the data-dir root recording that the one-time migration has completed. */
+    private static final String MIGRATION_MARKER = ".git-module-legacy-migrated";
+
     public static void migrateIfNeeded(GatewayContext ctx) {
+        // Once done, skip entirely — otherwise the legacy SimpleORM metas get re-registered
+        // (creating empty tables on fresh installs) and re-queried on every single startup.
+        // The migration is idempotent regardless, so a missing/failed marker only re-runs it.
+        if (alreadyMigrated(ctx)) {
+            log.debug("Legacy git migration marker present; skipping.");
+            return;
+        }
         // SimpleORM only resolves a RecordMeta to its table once it has been registered
         // with the schema updater. The pre-8.3 module did this in its GatewayHook; the
         // 8.3 hook no longer does, so register the legacy metas here before querying.
@@ -59,6 +71,29 @@ public final class GitLegacyImporter {
             log.info("Migrated {} legacy git config row(s) from SimpleORM into the 8.3 resource store.", total);
         } else {
             log.debug("No legacy git config rows to migrate.");
+        }
+        markMigrated(ctx);
+    }
+
+    private static Path markerPath(GatewayContext ctx) {
+        return ctx.getSystemManager().getDataDir().toPath().resolve(MIGRATION_MARKER);
+    }
+
+    private static boolean alreadyMigrated(GatewayContext ctx) {
+        try {
+            return Files.exists(markerPath(ctx));
+        } catch (Exception e) {
+            return false;  // unsure → run the (idempotent) migration
+        }
+    }
+
+    private static void markMigrated(GatewayContext ctx) {
+        try {
+            Files.writeString(markerPath(ctx),
+                    "Legacy SimpleORM git config migrated to the 8.3 resource store.\n");
+        } catch (Exception e) {
+            // Non-fatal: migration is idempotent, so a missing marker just re-runs it next start.
+            log.warn("Could not write legacy-migration marker; migration may re-run next start: {}", e.toString());
         }
     }
 
@@ -130,12 +165,16 @@ public final class GitLegacyImporter {
             String name = String.valueOf(id);
             try {
                 if (GitUserSshKeyRecord.handler().findResource(name).isEmpty()) {
+                    // Encrypt at migration time (symmetric with the HTTPS path) so the key is
+                    // never written to the resource JSON in clear. The legacy plaintext component
+                    // stays null; getSSHKey() decrypts the embedded SecretConfig.
+                    String plainKey = r.getString(LegacyUserSshKey.SSHKey);
                     GitUserSshKeyRecord.handler().create(name,
                             new GitUserSshKeyRecord.Config(id,
                                     r.getString(LegacyUserSshKey.IgnitionUser),
                                     r.getString(LegacyUserSshKey.KeyName),
-                                    r.getString(LegacyUserSshKey.SSHKey),
-                                    null)).join();  // legacy plaintext; upgrades to sshKeySecret on next save
+                                    null,
+                                    GitUserSshKeyRecord.encrypt(plainKey))).join();
                     n++;
                 }
                 deleteLegacy(ctx, r);

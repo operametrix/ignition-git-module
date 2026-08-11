@@ -81,7 +81,10 @@ public class DataDirGitManager {
             "**/.alarms_*",
             "",
             "# Per-project resources are versioned separately by this module's per-project repos",
-            "projects/"
+            "projects/",
+            "",
+            "# Module-internal state at the data-dir root (not config), never versioned",
+            ".git-module-legacy-migrated"
     );
 
     /** A single uncommitted config change. {@code type} ∈ ADDED | MODIFIED | DELETED | UNTRACKED. */
