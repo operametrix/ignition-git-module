@@ -1,7 +1,8 @@
 import React, { useState } from "react";
 import { SettingsGw, Refresh } from "@inductiveautomation/ignition-icons";
-import { Button, PageHeader } from "../../webui";
+import { Button, PageHeader, useToastNotifications } from "../../webui";
 import { useGetRemoteQuery, usePushMutation } from "./GitConfig.service";
+import { errorToast } from "./errors";
 import ConfigDrawer from "./ConfigDrawer";
 
 // The Versioning page header. A primary "Configure Versioning" button (trailing cog) opens the
@@ -16,6 +17,7 @@ const RemoteSync = ({ initialized }: { initialized: boolean }) => {
   });
   const [push, { isLoading: pushing }] = usePushMutation();
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const toasts = useToastNotifications();
 
   const configured = !!(remote && remote.configured);
   const ahead = remote?.ahead ?? 0;
@@ -39,9 +41,7 @@ const RemoteSync = ({ initialized }: { initialized: boolean }) => {
             startIcon={<Refresh width={18} height={18} />}
             disabled={pushing}
             onClick={() =>
-              push()
-                .unwrap()
-                .catch(() => undefined)
+              push().unwrap().catch(errorToast(toasts, "Remote Sync failed"))
             }
           >
             {pushing ? "Syncing…" : "Remote Sync"}

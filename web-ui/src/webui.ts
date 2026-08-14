@@ -28,3 +28,15 @@ export const TextArea = ui.TextArea;
 export const TextAutocomplete = ui.TextAutocomplete;
 export const TextInput = ui.TextInput;
 export const Tooltip = ui.Tooltip;
+
+// Toast notifications — the platform's native way to surface errors/success. The gateway app shell
+// mounts the ToastContainer, so notify()/notifyError() from this hook render there.
+export const useToastNotifications = ui.useToastNotifications as () => {
+  notify: (props: any) => unknown;
+  notifyError: (message: any, titleOnly?: boolean, className?: string) => void;
+  notifySuccess: (
+    message: any,
+    titleOnly?: boolean,
+    className?: string
+  ) => void;
+};

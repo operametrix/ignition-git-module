@@ -1,6 +1,7 @@
 import React, { useCallback, useMemo, useState } from "react";
-import { DataGrid, Modal, Chip } from "../../webui";
+import { DataGrid, Modal, Chip, useToastNotifications } from "../../webui";
 import { useGetHistoryQuery, useRestoreMutation } from "./GitConfig.service";
+import { errorToast } from "./errors";
 import CommitResources from "./CommitResources";
 
 // DataGrid custom cell: short hash (monospace) plus local/remote pointer chips — shown only on
@@ -55,6 +56,7 @@ const HistoryList = () => {
     }
   );
   const [restore, { isLoading: restoring }] = useRestoreMutation();
+  const toasts = useToastNotifications();
   const [, setQuery] = useState("");
   const [confirm, setConfirm] = useState<{
     hash: string;
@@ -92,13 +94,13 @@ const HistoryList = () => {
     []
   );
 
-  const doRestore = async () => {
+  const doRestore = () => {
     if (!confirm) {
       return;
     }
     const hash = confirm.hash;
     setConfirm(null);
-    await restore({ hash }).unwrap();
+    restore({ hash }).unwrap().catch(errorToast(toasts, "Restore failed"));
   };
 
   return (

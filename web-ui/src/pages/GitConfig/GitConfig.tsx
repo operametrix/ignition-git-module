@@ -1,11 +1,17 @@
 import React from "react";
-import { BlankState, Button, Loading } from "../../webui";
+import {
+  BlankState,
+  Button,
+  Loading,
+  useToastNotifications,
+} from "../../webui";
 import {
   useGetStatusQuery,
   useGetRemoteQuery,
   useInitMutation,
   useUpdateFromRemoteMutation,
 } from "./GitConfig.service";
+import { errorToast } from "./errors";
 import RemoteSync from "./RemoteSync";
 import HistoryList from "./HistoryList";
 import "./_styles.scss";
@@ -16,6 +22,7 @@ const GitConfig = () => {
   const { data: remote } = useGetRemoteQuery();
   const [updateFromRemote, { isLoading: updating }] =
     useUpdateFromRemoteMutation();
+  const toasts = useToastNotifications();
 
   const initialized = !!(data && data.initialized);
   // A remote record survives a gateway-backup restore even though .git does not, so its presence
@@ -60,7 +67,7 @@ const GitConfig = () => {
                     onClick={() =>
                       updateFromRemote()
                         .unwrap()
-                        .catch(() => undefined)
+                        .catch(errorToast(toasts, "Update from remote failed"))
                     }
                   >
                     {updating ? "Updating…" : "Update from remote"}
@@ -70,7 +77,11 @@ const GitConfig = () => {
                   colorClass={remoteConfigured ? "secondary" : "primary"}
                   size="large"
                   disabled={initing}
-                  onClick={() => init()}
+                  onClick={() =>
+                    init()
+                      .unwrap()
+                      .catch(errorToast(toasts, "Initialize failed"))
+                  }
                 >
                   {initing ? "Initializing…" : "Initialize versioning"}
                 </Button>

@@ -353,9 +353,18 @@ public class DataDirGitManager {
                         remote.getSshKeyId(), remote.getHttpsCredentialId());
                 for (PushResult result : push.call()) {
                     for (RemoteRefUpdate update : result.getRemoteUpdates()) {
-                        if (update.getStatus() != RemoteRefUpdate.Status.OK
-                                && update.getStatus() != RemoteRefUpdate.Status.UP_TO_DATE) {
-                            throw new RuntimeException("Push rejected: " + update.getStatus()
+                        RemoteRefUpdate.Status st = update.getStatus();
+                        if (st != RemoteRefUpdate.Status.OK
+                                && st != RemoteRefUpdate.Status.UP_TO_DATE) {
+                            if (st == RemoteRefUpdate.Status.REJECTED_NONFASTFORWARD) {
+                                throw new RuntimeException("Push rejected: the remote branch '"
+                                        + remote.getBranch() + "' has commits this gateway doesn't "
+                                        + "have (non-fast-forward). Reconcile them before pushing — "
+                                        + "bring the remote's commits into this gateway, or reset the "
+                                        + "remote branch if its history isn't needed (e.g. it was "
+                                        + "seeded with a README).");
+                            }
+                            throw new RuntimeException("Push rejected: " + st
                                     + (update.getMessage() != null ? " — " + update.getMessage() : ""));
                         }
                     }
@@ -373,12 +382,46 @@ public class DataDirGitManager {
                 lastPushTime = System.currentTimeMillis();
                 lastPushError = null;
             } catch (Exception e) {
+                String friendly = friendlyPushError(e);
                 lastPushTime = System.currentTimeMillis();
-                lastPushError = e.getMessage() == null ? e.toString() : e.getMessage();
+                lastPushError = friendly;
                 logger.error("Push of the config repo failed", e);
-                throw new RuntimeException(e);
+                throw new RuntimeException(friendly, e);
             }
         }
+    }
+
+    /** Map a raw push failure (transport/auth/JGit) to a concise, user-facing message. */
+    private static String friendlyPushError(Exception e) {
+        String raw = e.getMessage() == null ? e.toString() : e.getMessage();
+        // Already-friendly messages we threw ourselves (e.g. the non-fast-forward explanation).
+        if (raw.startsWith("Push rejected:")) {
+            return raw;
+        }
+        String low = raw.toLowerCase();
+        // Authorization: authenticated OK, but this credential can't push (read-only / no write
+        // scope). JGit surfaces the refused receive-pack service, usually an HTTP 403.
+        if (low.contains("receive-pack") || low.contains("not permitted")
+                || low.contains(" 403") || low.contains("forbidden")
+                || low.contains("permission denied") || low.contains("write access")) {
+            return "Push denied: the credential can read this repository but isn't allowed to push "
+                    + "to it. Grant it write access, or use a token/key with write (push) permission.";
+        }
+        // Authentication: the gateway couldn't sign in at all — wrong or expired credential.
+        if (low.contains("not authorized") || low.contains("authentication")
+                || low.contains("auth fail") || low.contains(" 401")
+                || low.contains("invalid username") || low.contains("invalid credential")) {
+            return "Authentication failed: the gateway couldn't sign in to the remote. Check the "
+                    + "remote's credential — the token, password or SSH key may be wrong or expired.";
+        }
+        if (low.contains("unable to access") || low.contains("cannot open")
+                || low.contains("unknownhost") || low.contains("unknown host")
+                || low.contains("connection") || low.contains("timed out")
+                || low.contains("not found") || low.contains("could not read")) {
+            return "Could not reach the remote repository. Check the URL and that the gateway has "
+                    + "network access to it.";
+        }
+        return "Push failed: " + raw;
     }
 
     private static String trackingRef(String branch) {
