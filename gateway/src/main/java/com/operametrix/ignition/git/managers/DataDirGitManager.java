@@ -3,11 +3,14 @@ package com.operametrix.ignition.git.managers;
 import com.inductiveautomation.ignition.common.util.LoggerEx;
 import com.operametrix.ignition.git.records.GitConfigRemoteRecord;
 import org.eclipse.jgit.api.CommitCommand;
+import org.eclipse.jgit.api.FetchCommand;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.LsRemoteCommand;
 import org.eclipse.jgit.api.PushCommand;
 import org.eclipse.jgit.api.RemoteSetUrlCommand;
+import org.eclipse.jgit.api.ResetCommand;
 import org.eclipse.jgit.api.Status;
+import org.eclipse.jgit.lib.Constants;
 import org.eclipse.jgit.lib.ObjectId;
 import org.eclipse.jgit.lib.RefUpdate;
 import org.eclipse.jgit.lib.Repository;
@@ -391,6 +394,9 @@ public class DataDirGitManager {
     public static String[] pointerHashes() {
         String local = "";
         String remote = "";
+        if (!isInitialized()) {
+            return new String[]{local, remote};
+        }
         synchronized (DATA_DIR_LOCK) {
             try (Git git = GitManager.getGit(dataDir())) {
                 Repository repo = git.getRepository();
@@ -419,7 +425,10 @@ public class DataDirGitManager {
      */
     public static int aheadCount() {
         GitConfigRemoteRecord remote = GitConfigRemoteRecord.get();
-        if (remote == null) {
+        // Guard on the repo existing too: after a gwbk restore the remote record survives but
+        // .git does not, and calling getGit() on the missing repo would log a spurious ERROR
+        // on every /remote poll. Not-initialized ⇒ nothing pushed ⇒ 0 ahead.
+        if (remote == null || !isInitialized()) {
             return 0;
         }
         synchronized (DATA_DIR_LOCK) {
@@ -468,6 +477,102 @@ public class DataDirGitManager {
             lsRemote.call();
         } catch (Exception e) {
             throw new RuntimeException(e.getMessage() == null ? e.toString() : e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Bring config up to the configured remote's HEAD and apply it to the running gateway. Handles
+     * two entry states:
+     * <ul>
+     *   <li><b>Not initialized</b> — e.g. after a gateway-backup restore, which brings back
+     *       {@code config/} and the surviving {@link GitConfigRemoteRecord} but <em>not</em>
+     *       {@code <dataDir>/.git}: the repo is re-created, {@code origin} is wired from the record,
+     *       and the remote branch is fetched and laid down.</li>
+     *   <li><b>Initialized but behind</b> — fetch and fast-forward the working tree to the remote tip.</li>
+     * </ul>
+     * Refuses when the local branch has diverged (commits not on the remote) so nothing is discarded —
+     * push or restore those first. The working tree is forced to exactly the remote tree the same way
+     * {@link GitManager#restoreTree} does (overwrite tracked, {@code git clean} untracked), so gitignored
+     * key material (keystore / projects / db / {@code config/local}) is preserved. Returns the new HEAD
+     * short hash.
+     */
+    public static String updateFromRemote() {
+        GitConfigRemoteRecord remote = GitConfigRemoteRecord.get();
+        if (remote == null) {
+            throw new RuntimeException("No remote is configured to update from.");
+        }
+        String branch = remote.getBranch();
+        synchronized (DATA_DIR_LOCK) {
+            boolean fresh = !isInitialized();
+            try {
+                if (fresh) {
+                    // Re-establish the repo from the saved remote (post-restore recovery).
+                    try (Git git = Git.init().setDirectory(dataDir().toFile()).call()) {
+                        GitManager.disableSsl(git);
+                        git.remoteAdd().setName(ORIGIN).setUri(new URIish(remote.getUri())).call();
+                    }
+                    if (!Files.exists(dataDir().resolve(".gitignore"))) {
+                        writeGitignore();
+                    }
+                }
+                try (Git git = GitManager.getGit(dataDir())) {
+                    Repository repo = git.getRepository();
+
+                    FetchCommand fetch = git.fetch().setRemote(ORIGIN)
+                            .setRefSpecs(new RefSpec("+refs/heads/" + branch + ":" + trackingRef(branch)));
+                    GitManager.setAuthenticationFromIds(fetch, remote.getUri(),
+                            remote.getSshKeyId(), remote.getHttpsCredentialId());
+                    fetch.call();
+
+                    ObjectId remoteId = repo.resolve(trackingRef(branch));
+                    if (remoteId == null) {
+                        throw new RuntimeException("Branch '" + branch + "' was not found on the remote.");
+                    }
+
+                    ObjectId head = fresh ? null : repo.resolve(Constants.HEAD);
+                    if (head != null) {
+                        if (head.equals(remoteId)) {
+                            return remoteId.abbreviate(7).name();  // already up to date
+                        }
+                        try (RevWalk walk = new RevWalk(repo)) {
+                            boolean remoteContainsLocal = walk.isMergedInto(
+                                    walk.parseCommit(head), walk.parseCommit(remoteId));
+                            if (!remoteContainsLocal) {
+                                throw new RuntimeException("Local config has commit(s) not on the remote. "
+                                        + "Push or restore first — update-from-remote won't discard them.");
+                            }
+                        }
+                    }
+
+                    // Point the branch (and HEAD) at the remote tip, then bring the working tree to it.
+                    git.branchCreate().setName(branch).setStartPoint(remoteId.name()).setForce(true).call();
+                    repo.updateRef(Constants.HEAD).link("refs/heads/" + branch);
+                    if (fresh) {
+                        // Fresh repo laid over a restored working tree: config/ exists but is untracked,
+                        // so a hard reset would hit checkout conflicts. Stage the remote tree (MIXED)
+                        // then overwrite the tracked files via a path-checkout. clean() runs WITHOUT
+                        // setCleanDirectories(true): a directory clean deletes untracked dirs wholesale,
+                        // taking gitignored runtime data nested inside them with it (e.g. the tag value
+                        // store config/ignition/tags/valueStore.idb) — JGit does not spare it.
+                        git.reset().setMode(ResetCommand.ResetType.MIXED).setRef(remoteId.name()).call();
+                        git.checkout().setStartPoint(remoteId.name()).setAllPaths(true).call();
+                        git.clean().call();
+                    } else {
+                        // Existing repo (fast-forward): a hard reset moves tracked files (add/modify/
+                        // delete) to the remote tip and leaves untracked/ignored runtime data — the tag
+                        // value store, db, keystore — untouched. No clean needed.
+                        git.reset().setMode(ResetCommand.ResetType.HARD).setRef(remoteId.name()).call();
+                    }
+
+                    applyConfigToRunningGateway();
+                    return remoteId.abbreviate(7).name();
+                }
+            } catch (RuntimeException e) {
+                throw e;
+            } catch (Exception e) {
+                logger.error("Update-from-remote failed", e);
+                throw new RuntimeException(e.getMessage() == null ? e.toString() : e.getMessage(), e);
+            }
         }
     }
 

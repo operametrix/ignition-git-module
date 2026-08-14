@@ -1,6 +1,11 @@
 import React from "react";
 import { BlankState, Button, Loading } from "../../webui";
-import { useGetStatusQuery, useInitMutation } from "./GitConfig.service";
+import {
+  useGetStatusQuery,
+  useGetRemoteQuery,
+  useInitMutation,
+  useUpdateFromRemoteMutation,
+} from "./GitConfig.service";
 import RemoteSync from "./RemoteSync";
 import HistoryList from "./HistoryList";
 import "./_styles.scss";
@@ -8,8 +13,14 @@ import "./_styles.scss";
 const GitConfig = () => {
   const { data, isLoading } = useGetStatusQuery();
   const [init, { isLoading: initing }] = useInitMutation();
+  const { data: remote } = useGetRemoteQuery();
+  const [updateFromRemote, { isLoading: updating }] =
+    useUpdateFromRemoteMutation();
 
   const initialized = !!(data && data.initialized);
+  // A remote record survives a gateway-backup restore even though .git does not, so its presence
+  // on the uninitialized screen means "re-attach + recover from the remote" is possible.
+  const remoteConfigured = !!(remote && remote.configured);
 
   const renderBody = () => {
     if (isLoading) {
@@ -34,16 +45,36 @@ const GitConfig = () => {
               </svg>
             }
             label="Config versioning is not initialized"
-            content="Track and restore gateway configuration changes in git. Initializing creates a repository in the data directory and commits the current configuration."
+            content={
+              remoteConfigured
+                ? "A remote is configured but the local repository is missing (e.g. after a gateway-backup restore). Update from remote to re-attach and bring config to the latest committed version, or initialize a fresh repository from the current on-disk configuration."
+                : "Track and restore gateway configuration changes in git. Initializing creates a repository in the data directory and commits the current configuration."
+            }
             primaryButton={
-              <Button
-                colorClass="primary"
-                size="large"
-                disabled={initing}
-                onClick={() => init()}
-              >
-                {initing ? "Initializing…" : "Initialize versioning"}
-              </Button>
+              <div style={{ display: "flex", gap: "0.75rem" }}>
+                {remoteConfigured ? (
+                  <Button
+                    colorClass="primary"
+                    size="large"
+                    disabled={updating}
+                    onClick={() =>
+                      updateFromRemote()
+                        .unwrap()
+                        .catch(() => undefined)
+                    }
+                  >
+                    {updating ? "Updating…" : "Update from remote"}
+                  </Button>
+                ) : null}
+                <Button
+                  colorClass={remoteConfigured ? "secondary" : "primary"}
+                  size="large"
+                  disabled={initing}
+                  onClick={() => init()}
+                >
+                  {initing ? "Initializing…" : "Initialize versioning"}
+                </Button>
+              </div>
             }
           />
         </div>

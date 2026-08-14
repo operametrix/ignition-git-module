@@ -244,6 +244,10 @@ public class GatewayHook extends AbstractGatewayModuleHook {
                 .requirePermission(PermissionType.WRITE)
                 .handler(this::handleInit).mount();
 
+        routes.newRoute("/update-from-remote").method(HttpMethod.POST).type(RouteGroup.TYPE_JSON)
+                .requirePermission(PermissionType.WRITE)
+                .handler(this::handleUpdateFromRemote).mount();
+
         routes.newRoute("/deinit").method(HttpMethod.POST).type(RouteGroup.TYPE_JSON)
                 .requirePermission(PermissionType.WRITE)
                 .handler(this::handleDeinit).mount();
@@ -717,6 +721,23 @@ public class GatewayHook extends AbstractGatewayModuleHook {
             JsonObject o = new JsonObject();
             o.addProperty("ok", true);
             o.addProperty("initialized", true);
+            return o.toString();
+        } catch (Exception e) {
+            return error(resp, e);
+        }
+    }
+
+    /**
+     * Fetch the configured remote and bring config to its HEAD — used to pull committed changes,
+     * and to re-attach + recover after a gateway-backup restore (which drops {@code .git} but keeps
+     * the remote record). See {@link DataDirGitManager#updateFromRemote()}.
+     */
+    private Object handleUpdateFromRemote(RequestContext req, HttpServletResponse resp) {
+        try {
+            String hash = DataDirGitManager.updateFromRemote();
+            JsonObject o = new JsonObject();
+            o.addProperty("ok", true);
+            o.addProperty("hash", hash);
             return o.toString();
         } catch (Exception e) {
             return error(resp, e);

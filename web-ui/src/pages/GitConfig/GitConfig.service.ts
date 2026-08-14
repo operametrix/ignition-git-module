@@ -166,6 +166,16 @@ export const gitConfigApi = baseApi.injectEndpoints({
       query: () => ({ url: `${BASE}/init`, method: "POST", body: {} }),
       invalidatesTags: ["status", "history"],
     }),
+    // Fetch the remote and bring config to its HEAD (pull latest, or re-attach + recover
+    // after a gateway-backup restore that dropped .git but kept the remote record).
+    updateFromRemote: builder.mutation<{ hash: string }, void>({
+      query: () => ({
+        url: `${BASE}/update-from-remote`,
+        method: "POST",
+        body: {},
+      }),
+      invalidatesTags: ["status", "history", "remote"],
+    }),
     deinit: builder.mutation<unknown, void>({
       query: () => ({ url: `${BASE}/deinit`, method: "POST", body: {} }),
       invalidatesTags: ["status", "history", "remote"],
@@ -190,4 +200,5 @@ export const {
   useRestoreMutation,
   useInitMutation,
   useDeinitMutation,
+  useUpdateFromRemoteMutation,
 } = gitConfigApi;
