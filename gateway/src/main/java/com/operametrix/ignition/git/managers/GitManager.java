@@ -1201,10 +1201,13 @@ public class GitManager {
                 //    dirty tracked files), staged for the forward commit.
                 git.checkout().setStartPoint(targetCommit).setAllPaths(true).call();
 
-                // 3. Delete untracked (non-ignored) files and directories so the working tree
-                //    exactly matches the target. CleanCommand honors .gitignore by default, so
-                //    db/logs/keystore/projects are preserved.
-                git.clean().setCleanDirectories(true).call();
+                // 3. Delete stray untracked (non-ignored) files so the working tree matches the
+                //    target. NOTE: intentionally NO setCleanDirectories(true) — a directory clean
+                //    deletes untracked directories wholesale, taking gitignored runtime data nested
+                //    inside them with it (e.g. config/ignition/tags/valueStore.idb, the tag value
+                //    store), which JGit does not spare the way C git does. Tracked deletions are
+                //    already handled by step 1's git rm.
+                git.clean().call();
             }
         } catch (RuntimeException e) {
             throw e;
