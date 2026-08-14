@@ -132,12 +132,14 @@ export const gitConfigApi = baseApi.injectEndpoints({
     saveRemote: builder.mutation<unknown, RemoteSecretReq & { branch: string }>(
       {
         query: (body) => ({ url: `${BASE}/remote`, method: "POST", body }),
-        invalidatesTags: ["remote"],
+        // Saving the remote writes (and the gateway commits) the config-remote/credential
+        // resources, so refresh the history table too — not just the remote indicator.
+        invalidatesTags: ["remote", "history"],
       }
     ),
     removeRemote: builder.mutation<unknown, void>({
       query: () => ({ url: `${BASE}/remote-remove`, method: "POST", body: {} }),
-      invalidatesTags: ["remote"],
+      invalidatesTags: ["remote", "history"],
     }),
     testRemote: builder.mutation<unknown, RemoteSecretReq>({
       query: (body) => ({ url: `${BASE}/remote-test`, method: "POST", body }),

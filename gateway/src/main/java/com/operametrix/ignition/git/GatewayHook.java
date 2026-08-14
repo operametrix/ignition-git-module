@@ -488,6 +488,11 @@ public class GatewayHook extends AbstractGatewayModuleHook {
                 httpsCredentialId = rec.getId();
             }
             DataDirGitManager.saveRemote(uri, branch, sshKeyId, httpsCredentialId);
+            // Commit the new remote/credential resources synchronously so the History table
+            // reflects them the moment the call returns, rather than after the async auto-commit's
+            // quiesce window and the next poll. No-op if the tree is already clean; the later
+            // auto-commit for the same change then finds nothing to do.
+            DataDirGitManager.commitAllIfDirty("Configure config repository remote");
             return ok();
         } catch (Exception e) {
             return error(resp, e);
@@ -517,6 +522,7 @@ public class GatewayHook extends AbstractGatewayModuleHook {
     private Object handleRemoveRemote(RequestContext req, HttpServletResponse resp) {
         try {
             DataDirGitManager.removeRemote();
+            DataDirGitManager.commitAllIfDirty("Remove config repository remote");
             return ok();
         } catch (Exception e) {
             return error(resp, e);
