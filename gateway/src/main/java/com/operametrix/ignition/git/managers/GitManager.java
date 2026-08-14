@@ -20,6 +20,7 @@ import com.inductiveautomation.ignition.common.util.LoggerEx;
 import org.apache.commons.io.FileUtils;
 import org.eclipse.jgit.api.*;
 import org.eclipse.jgit.lib.*;
+import org.eclipse.jgit.storage.file.FileRepositoryBuilder;
 import org.eclipse.jgit.revwalk.RevCommit;
 import org.eclipse.jgit.revwalk.RevTree;
 import org.eclipse.jgit.revwalk.RevWalk;
@@ -63,7 +64,16 @@ public class GitManager {
 
     static public Git getGit(Path projectFolderPath) {
         try {
-            return Git.open(projectFolderPath.resolve(".git").toFile());
+            // Build the repository directly rather than via Git.open(), which registers it in
+            // JGit's reference-counted RepositoryCache. Callers open+close a short-lived Git per
+            // operation; the cache's own lifecycle plus our explicit closes race to decrement the
+            // same shared repo past zero, spamming "close() called when useCnt is already zero".
+            // An uncached FileRepository (useCnt=1) is closed exactly once, cleanly.
+            Repository repo = new FileRepositoryBuilder()
+                    .setGitDir(projectFolderPath.resolve(".git").toFile())
+                    .setWorkTree(projectFolderPath.toFile())
+                    .build();
+            return new Git(repo);
         } catch (IOException e) {
             logger.error("Unable to retrieve Git repository", e);
             throw new RuntimeException(e);
