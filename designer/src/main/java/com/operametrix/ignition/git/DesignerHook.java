@@ -1,6 +1,8 @@
 package com.operametrix.ignition.git;
 
 import com.operametrix.ignition.git.actions.GitBaseAction;
+import com.operametrix.ignition.git.ext.DesignerFeature;
+import com.operametrix.ignition.git.ext.DesignerFeatures;
 import com.operametrix.ignition.git.managers.GitActionManager;
 import com.operametrix.ignition.git.utils.IconUtils;
 import com.inductiveautomation.ignition.client.gateway_interface.GatewayConnection;
@@ -28,6 +30,7 @@ import java.util.*;
 import java.util.List;
 
 public class DesignerHook extends AbstractDesignerModuleHook {
+    private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DesignerHook.class);
     private static final String PROJECT_BROWSER_KEY = "Project Browser";
 
     public static DesignerHook instance;
@@ -75,6 +78,15 @@ public class DesignerHook extends AbstractDesignerModuleHook {
             initStatusBarUnregistered();
         }
 
+        // Start add-on features (proprietary DevOps subproject, if present) after the open-core UI is
+        // built. No-op on the free edition (none discovered); each feature gates itself on the license.
+        for (DesignerFeature feature : DesignerFeatures.all()) {
+            try {
+                feature.startup(context, activationState);
+            } catch (Exception e) {
+                logger.warn("Designer feature '" + feature.id() + "' failed during startup()", e);
+            }
+        }
     }
 
     private void initStatusBar(){
@@ -419,6 +431,14 @@ public class DesignerHook extends AbstractDesignerModuleHook {
     @Override
     public void shutdown() {
         super.shutdown();
+
+        for (DesignerFeature feature : DesignerFeatures.all()) {
+            try {
+                feature.shutdown();
+            } catch (Exception e) {
+                logger.warn("Designer feature '" + feature.id() + "' failed during shutdown()", e);
+            }
+        }
 
         StatusBar statusBar = context.getStatusBar();
         if (gitStatusBar != null) {

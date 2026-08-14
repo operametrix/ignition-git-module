@@ -7,6 +7,8 @@ import com.operametrix.ignition.git.records.GitReposUsersRecord;
 import com.operametrix.ignition.git.records.GitUserHttpsCredentialRecord;
 import com.operametrix.ignition.git.records.GitUserSshKeyRecord;
 import com.operametrix.ignition.git.records.legacy.GitLegacyImporter;
+import com.operametrix.ignition.git.ext.GatewayFeature;
+import com.operametrix.ignition.git.ext.GatewayFeatures;
 import com.operametrix.ignition.git.managers.ConfigAutoCommitter;
 import com.operametrix.ignition.git.managers.DataDirGitManager;
 import com.inductiveautomation.ignition.common.gson.Gson;
@@ -53,6 +55,9 @@ public class GatewayHook extends AbstractGatewayModuleHook {
     private GitRemoteCredentialsRecord.Handler remoteCredHandler;
     private GitConfigRemoteRecord.Handler configRemoteHandler;
     private ConfigAutoCommitter autoCommitter;
+
+    /** Retained from {@link #startup(LicenseState)} so add-on features can gate on it when routes mount. */
+    private LicenseState licenseState;
 
     /** Gateway context, available after {@link #setup(GatewayContext)} has run. */
     public static GatewayContext getContext() {
@@ -104,11 +109,22 @@ public class GatewayHook extends AbstractGatewayModuleHook {
                                 .position(50)
                                 .mount("/config-versioning", "GitConfigPage", jsModule)));
 
+        // Give add-on features (proprietary DevOps subproject, if present) a chance to register their
+        // own resource types / nav pages. No-op on the free edition (none discovered).
+        for (GatewayFeature feature : GatewayFeatures.all()) {
+            try {
+                feature.setup(context);
+            } catch (Exception e) {
+                logger.error("Gateway feature '{}' failed during setup()", feature.id(), e);
+            }
+        }
+
         logger.info("setup()");
     }
 
     @Override
     public void startup(LicenseState licenseState) {
+        this.licenseState = licenseState;
         projectHandler.startup();
         repoUserHandler.startup();
         sshKeyHandler.startup();
@@ -130,6 +146,15 @@ public class GatewayHook extends AbstractGatewayModuleHook {
         // Changes made while the gateway/module was offline can't reach the listener — sweep them.
         autoCommitter.commitLeftovers();
 
+        // Start add-on features now that the license state is known. Each feature gates itself.
+        for (GatewayFeature feature : GatewayFeatures.all()) {
+            try {
+                feature.startup(context, licenseState);
+            } catch (Exception e) {
+                logger.error("Gateway feature '{}' failed during startup()", feature.id(), e);
+            }
+        }
+
         logger.info("startup()");
     }
 
@@ -145,12 +170,23 @@ public class GatewayHook extends AbstractGatewayModuleHook {
         if (sshKeyHandler != null) sshKeyHandler.shutdown();
         if (repoUserHandler != null) repoUserHandler.shutdown();
         if (projectHandler != null) projectHandler.shutdown();
+
+        for (GatewayFeature feature : GatewayFeatures.all()) {
+            try {
+                feature.shutdown();
+            } catch (Exception e) {
+                logger.error("Gateway feature '{}' failed during shutdown()", feature.id(), e);
+            }
+        }
+
         logger.info("shutdown()");
     }
 
     @Override
     public boolean isFreeModule() {
-        return true;
+        // Free edition when no add-on features are bundled; the pro build (which packs the DevOps
+        // subproject into the same .modl) reports as a licensed module.
+        return !GatewayFeatures.hasAny();
     }
 
     @Override
@@ -251,6 +287,16 @@ public class GatewayHook extends AbstractGatewayModuleHook {
         routes.newRoute("/deinit").method(HttpMethod.POST).type(RouteGroup.TYPE_JSON)
                 .requirePermission(PermissionType.WRITE)
                 .handler(this::handleDeinit).mount();
+
+        // Add-on features mount their own routes into the same group. A feature that isn't licensed
+        // should skip mounting so its endpoints simply don't exist.
+        for (GatewayFeature feature : GatewayFeatures.all()) {
+            try {
+                feature.mountRoutes(context, routes);
+            } catch (Exception e) {
+                logger.error("Gateway feature '{}' failed mounting routes", feature.id(), e);
+            }
+        }
     }
 
     private Object handleStatus(RequestContext req, HttpServletResponse resp) {
