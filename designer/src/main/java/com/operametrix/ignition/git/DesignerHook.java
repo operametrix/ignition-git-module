@@ -418,6 +418,18 @@ public class DesignerHook extends AbstractDesignerModuleHook {
     }
 
     @Override
+    public void notifyActivationStateChanged(LicenseState licenseState) {
+        super.notifyActivationStateChanged(licenseState);
+        for (DesignerFeature feature : DesignerFeatures.all()) {
+            try {
+                feature.licenseChanged(context, licenseState);
+            } catch (Exception e) {
+                logger.warn("Designer feature '" + feature.id() + "' failed handling license change", e);
+            }
+        }
+    }
+
+    @Override
     public void notifyProjectSaveStart(SaveContext save) throws Exception {
         changes = context.getProject().getChanges();
         super.notifyProjectSaveStart(save);

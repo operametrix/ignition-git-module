@@ -31,6 +31,14 @@ public interface GatewayFeature {
     default void startup(GatewayContext context, LicenseState license) {}
 
     /**
+     * Mirrors {@code GatewayHook.notifyLicenseStateChanged} — the module's license changed at runtime
+     * (e.g. a license key was activated without a restart). Re-evaluate entitlement here. Because
+     * routes are mounted once, features should gate at request time against the latest license rather
+     * than relying on conditional mounting.
+     */
+    default void licenseChanged(GatewayContext context, LicenseState license) {}
+
+    /**
      * Mirrors {@code GatewayHook.mountRouteHandlers} — add REST routes to the module's route group
      * (already namespaced under {@code /data/git-config/…}). Prefix your routes to avoid collisions
      * with the open core's routes.

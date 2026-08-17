@@ -23,6 +23,12 @@ public interface DesignerFeature {
      */
     default void startup(DesignerContext context, LicenseState license) {}
 
+    /**
+     * Mirrors {@code DesignerHook.notifyActivationStateChanged} — the module's license changed at
+     * runtime. Re-evaluate entitlement and enable/disable proprietary UI accordingly.
+     */
+    default void licenseChanged(DesignerContext context, LicenseState license) {}
+
     /** Mirrors {@code DesignerHook.shutdown} — remove UI and release resources. Must not throw. */
     default void shutdown() {}
 }

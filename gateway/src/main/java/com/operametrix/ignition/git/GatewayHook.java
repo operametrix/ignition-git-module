@@ -183,6 +183,20 @@ public class GatewayHook extends AbstractGatewayModuleHook {
     }
 
     @Override
+    public void notifyLicenseStateChanged(LicenseState licenseState) {
+        this.licenseState = licenseState;
+        // Ignition delivers license activation/deactivation at runtime (no restart). Let each feature
+        // re-gate against the new state.
+        for (GatewayFeature feature : GatewayFeatures.all()) {
+            try {
+                feature.licenseChanged(context, licenseState);
+            } catch (Exception e) {
+                logger.error("Gateway feature '{}' failed handling license change", feature.id(), e);
+            }
+        }
+    }
+
+    @Override
     public boolean isFreeModule() {
         // Free edition when no add-on features are bundled; the pro build (which packs the DevOps
         // subproject into the same .modl) reports as a licensed module.
@@ -191,7 +205,8 @@ public class GatewayHook extends AbstractGatewayModuleHook {
 
     @Override
     public boolean isMakerEditionCompatible() {
-        return true;
+        // The paid DevOps build is not Maker-compatible; the free open core still is.
+        return !GatewayFeatures.hasAny();
     }
 
     @Override
