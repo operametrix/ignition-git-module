@@ -864,7 +864,9 @@ public class GitManager {
      * @param projectFolderPath path to the git working directory
      * @param skip              number of commits to skip (for pagination)
      * @param limit             maximum number of commits to return
-     * @return list of String arrays: [fullHash, shortHash, author, date, message, refs]
+     * @return list of String arrays: [fullHash, shortHash, author, date, message, refs, parents]
+     *         where {@code parents} is a space-separated list of parent full hashes
+     *         (empty for a root commit) used by the Designer to draw the commit graph.
      */
     public static List<String[]> getCommitLog(Path projectFolderPath, int skip, int limit) {
         List<String[]> commits = new ArrayList<>();
@@ -886,25 +888,29 @@ public class GitManager {
 
             LogCommand logCmd = git.log().setSkip(skip).setMaxCount(limit);
 
-            // Include the upstream remote-tracking branch so fetched commits
-            // appear in the history even before merging/pulling.
-            String branch = repo.getBranch();
-            if (branch != null) {
-                BranchConfig branchConfig = new BranchConfig(repo.getConfig(), branch);
-                String trackingBranch = branchConfig.getTrackingBranch();
-                if (trackingBranch != null) {
-                    Ref trackingRef = repo.exactRef(trackingBranch);
-                    if (trackingRef != null) {
-                        // Adding any ref disables the default HEAD start, so add both
-                        ObjectId headId = repo.resolve(Constants.HEAD);
-                        if (headId != null) {
-                            logCmd.add(headId);
-                        }
-                        ObjectId trackingId = trackingRef.getObjectId();
-                        if (trackingId != null) {
-                            logCmd.add(trackingId);
-                        }
-                    }
+            // Seed the walk from every local and remote-tracking branch (like
+            // `git log --all`) so the commit graph shows all branches — including
+            // divergent branches and fetched-but-unmerged upstream commits — rather
+            // than just the current branch. Adding any start disables the default
+            // HEAD start, so HEAD is added explicitly too (covers a detached HEAD).
+            java.util.Set<ObjectId> starts = new java.util.HashSet<>();
+            ObjectId headId = repo.resolve(Constants.HEAD);
+            if (headId != null) {
+                starts.add(headId);
+            }
+            for (Ref ref : repo.getRefDatabase().getRefsByPrefix(Constants.R_HEADS)) {
+                if (ref.getObjectId() != null) starts.add(ref.getObjectId());
+            }
+            for (Ref ref : repo.getRefDatabase().getRefsByPrefix(Constants.R_REMOTES)) {
+                if (ref.getObjectId() != null) starts.add(ref.getObjectId());
+            }
+            for (ObjectId start : starts) {
+                try {
+                    logCmd.add(start);
+                } catch (Exception addEx) {
+                    // Skip refs whose objects aren't present (e.g. not yet fetched on a
+                    // shallow clone) rather than failing the whole history load.
+                    logger.debug("Skipping ref start " + start.getName() + " in commit log walk", addEx);
                 }
             }
 
@@ -920,7 +926,12 @@ public class GitManager {
                 String message = commit.getShortMessage();
                 List<String> refs = refMap.getOrDefault(fullHash, java.util.Collections.emptyList());
                 String refsStr = String.join(",", refs);
-                commits.add(new String[]{fullHash, shortHash, author, date, message, refsStr});
+                StringBuilder parents = new StringBuilder();
+                for (int p = 0; p < commit.getParentCount(); p++) {
+                    if (p > 0) parents.append(" ");
+                    parents.append(commit.getParent(p).getName());
+                }
+                commits.add(new String[]{fullHash, shortHash, author, date, message, refsStr, parents.toString()});
             }
         } catch (Exception e) {
             logger.error("Error getting commit log", e);

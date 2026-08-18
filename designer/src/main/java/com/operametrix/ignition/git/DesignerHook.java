@@ -19,6 +19,9 @@ import com.jidesoft.docking.DockContext;
 import com.jidesoft.docking.DockableFrame;
 import com.jidesoft.docking.DockingManager;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import javax.swing.*;
 import javax.swing.Timer;
 import java.awt.*;
@@ -28,6 +31,7 @@ import java.util.*;
 import java.util.List;
 
 public class DesignerHook extends AbstractDesignerModuleHook {
+    private static final Logger logger = LoggerFactory.getLogger(DesignerHook.class);
     private static final String PROJECT_BROWSER_KEY = "Project Browser";
 
     public static DesignerHook instance;
@@ -79,11 +83,11 @@ public class DesignerHook extends AbstractDesignerModuleHook {
 
     private void initStatusBar(){
         StatusBar statusBar = context.getStatusBar();
-        gitStatusBar = new JPanel();
+        gitStatusBar = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
 
         // Branch button: git icon + branch name
         branchButton = new JButton();
-        branchButton.setIcon(IconUtils.getIcon("/com/operametrix/ignition/git/icons/ic_git.svg"));
+        branchButton.setIcon(IconUtils.getIcon("ic_git"));
         try {
             branchButton.setText(rpc.getCurrentBranch(projectName));
         } catch (Exception e) {
@@ -95,7 +99,7 @@ public class DesignerHook extends AbstractDesignerModuleHook {
         gitStatusBar.add(branchButton);
 
         // Remotes button: filled cloud icon + "Remotes" label
-        JButton remotesButton = new JButton("Remotes", IconUtils.getIcon("/com/operametrix/ignition/git/icons/ic_cloud_filled.svg"));
+        JButton remotesButton = new JButton("Remotes", IconUtils.getIcon("ic_cloud_filled"));
         remotesButton.setToolTipText("Manage Remotes");
         styleStatusBarButton(remotesButton);
         remotesButton.addActionListener(e -> GitActionManager.showRemotesPopup(projectName, userName));
@@ -103,7 +107,7 @@ public class DesignerHook extends AbstractDesignerModuleHook {
 
         // User button: user icon + username
         boolean userValid = rpc.isRegisteredUser(projectName, userName);
-        String userIconPath = userValid ? "/com/operametrix/ignition/git/icons/ic_verified_user.svg" : "/com/operametrix/ignition/git/icons/ic_unregister_user.svg";
+        String userIconPath = userValid ? "ic_verified_user" : "ic_unregister_user";
         JButton userButton = new JButton(userName, IconUtils.getIcon(userIconPath));
         userButton.setToolTipText("Manage Git Credentials");
         styleStatusBarButton(userButton);
@@ -113,9 +117,15 @@ public class DesignerHook extends AbstractDesignerModuleHook {
         statusBar.addDisplay(gitStatusBar);
 
         gitUserTimer = new Timer(10000, e -> {
-            boolean valid = rpc.isRegisteredUser(projectName, userName);
-            String userIconPath1 = valid ? "/com/operametrix/ignition/git/icons/ic_verified_user.svg" : "/com/operametrix/ignition/git/icons/ic_unregister_user.svg";
-            userButton.setIcon(IconUtils.getIcon(userIconPath1));
+            // Guard against transient RPC failures (e.g. HTTP 503 while the gateway or
+            // module is still starting/restarting) so the timer doesn't throw on the EDT.
+            try {
+                boolean valid = rpc.isRegisteredUser(projectName, userName);
+                String userIconPath1 = valid ? "ic_verified_user" : "ic_unregister_user";
+                userButton.setIcon(IconUtils.getIcon(userIconPath1));
+            } catch (Exception ex) {
+                logger.debug("Skipping user-status refresh; gateway RPC unavailable", ex);
+            }
 
             try {
                 branchButton.setText(rpc.getCurrentBranch(projectName));
@@ -129,11 +139,11 @@ public class DesignerHook extends AbstractDesignerModuleHook {
 
     private void initStatusBarUnregistered() {
         StatusBar statusBar = context.getStatusBar();
-        gitStatusBar = new JPanel();
+        gitStatusBar = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
 
         // Git icon + "Configure" — opens init wizard
         JButton notConfiguredButton = new JButton("Configure",
-                IconUtils.getIcon("/com/operametrix/ignition/git/icons/ic_git.svg"));
+                IconUtils.getIcon("ic_git"));
         styleStatusBarButton(notConfiguredButton);
         notConfiguredButton.addActionListener(e -> GitActionManager.showInitRepoPopup(projectName, userName));
         gitStatusBar.add(notConfiguredButton);
@@ -141,8 +151,8 @@ public class DesignerHook extends AbstractDesignerModuleHook {
         // User button — manage credentials before init
         boolean hasCredentials = hasUserCredentials(userName);
         String userIconPath = hasCredentials
-                ? "/com/operametrix/ignition/git/icons/ic_verified_user.svg"
-                : "/com/operametrix/ignition/git/icons/ic_unregister_user.svg";
+                ? "ic_verified_user"
+                : "ic_unregister_user";
         JButton userButton = new JButton(userName, IconUtils.getIcon(userIconPath));
         userButton.setToolTipText("Manage Git Credentials");
         styleStatusBarButton(userButton);
@@ -155,8 +165,8 @@ public class DesignerHook extends AbstractDesignerModuleHook {
         gitUserTimer = new Timer(10000, e -> {
             boolean hasCreds = hasUserCredentials(userName);
             String iconPath = hasCreds
-                    ? "/com/operametrix/ignition/git/icons/ic_verified_user.svg"
-                    : "/com/operametrix/ignition/git/icons/ic_unregister_user.svg";
+                    ? "ic_verified_user"
+                    : "ic_unregister_user";
             userButton.setIcon(IconUtils.getIcon(iconPath));
         });
         gitUserTimer.start();
@@ -223,7 +233,7 @@ public class DesignerHook extends AbstractDesignerModuleHook {
         GitActionManager.wireCommitPanel(commitPanel, projectName, userName);
 
         commitFrame = new DockableFrame("Commit",
-                IconUtils.getIcon("/com/operametrix/ignition/git/icons/ic_commit.svg"));
+                IconUtils.getIcon("ic_commit"));
         commitFrame.setTitle(BundleUtil.get().getStringLenient("DesignerHook.Commit.Title"));
         commitFrame.getContentPane().add(commitPanel);
         commitFrame.setPreferredSize(new Dimension(525, 400));
@@ -333,7 +343,7 @@ public class DesignerHook extends AbstractDesignerModuleHook {
         GitActionManager.wireHistoryPanel(historyPanel, projectName, userName);
 
         historyFrame = new DockableFrame("History",
-                IconUtils.getIcon("/com/operametrix/ignition/git/icons/ic_history.svg"));
+                IconUtils.getIcon("ic_history"));
         historyFrame.setTitle(BundleUtil.get().getStringLenient("DesignerHook.History.Title"));
         historyFrame.getContentPane().add(historyPanel);
         historyFrame.setPreferredSize(new Dimension(525, 400));

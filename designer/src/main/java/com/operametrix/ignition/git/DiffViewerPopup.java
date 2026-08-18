@@ -1,17 +1,15 @@
 package com.operametrix.ignition.git;
 
 import com.inductiveautomation.ignition.designer.gui.CommonUI;
+import com.operametrix.ignition.git.utils.IconUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.imageio.ImageIO;
 import javax.swing.*;
 import javax.swing.text.*;
 import java.awt.*;
 import java.awt.event.AdjustmentEvent;
 import java.awt.event.AdjustmentListener;
-import java.io.IOException;
-import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -29,15 +27,7 @@ public class DiffViewerPopup extends JDialog {
     public DiffViewerPopup(String resourcePath, String oldContent, String newContent, Component parent,
                            String leftHeaderText, String rightHeaderText) {
         super(SwingUtilities.getWindowAncestor(parent));
-        try {
-            InputStream iconStream = getClass().getResourceAsStream("/com/operametrix/ignition/git/icons/ic_commit.svg");
-            if (iconStream != null) {
-                ImageIcon icon = new ImageIcon(ImageIO.read(iconStream));
-                setIconImage(icon.getImage());
-            }
-        } catch (IOException e) {
-            logger.trace(e.toString(), e);
-        }
+        IconUtils.setWindowIcon(this, "ic_commit");
 
         setTitle("Diff: " + resourcePath);
         setSize(900, 600);

@@ -1,18 +1,14 @@
 package com.operametrix.ignition.git;
 
 import com.inductiveautomation.ignition.designer.gui.CommonUI;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.operametrix.ignition.git.utils.IconUtils;
 
-import javax.imageio.ImageIO;
 import javax.swing.*;
 import javax.swing.border.TitledBorder;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import java.io.IOException;
-import java.io.InputStream;
 import java.util.List;
 
 /**
@@ -26,7 +22,6 @@ import java.util.List;
  * can be viewed side by side.
  */
 public class CommitDetailPopup extends JDialog {
-    private final Logger logger = LoggerFactory.getLogger(getClass());
 
     private final String commitHash;
     private final String shortHash;
@@ -42,15 +37,7 @@ public class CommitDetailPopup extends JDialog {
         this.shortHash = shortHash;
         this.message = message;
 
-        try {
-            InputStream iconStream = getClass().getResourceAsStream("/com/operametrix/ignition/git/icons/ic_history.svg");
-            if (iconStream != null) {
-                ImageIcon icon = new ImageIcon(ImageIO.read(iconStream));
-                setIconImage(icon.getImage());
-            }
-        } catch (IOException e) {
-            logger.trace(e.toString(), e);
-        }
+        IconUtils.setWindowIcon(this, "ic_history");
 
         setTitle("Commit: " + shortHash);
         setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);

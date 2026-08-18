@@ -8,17 +8,20 @@ import javax.swing.*;
 import javax.swing.table.AbstractTableModel;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.TableCellRenderer;
+import javax.swing.table.TableColumn;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.awt.geom.Line2D;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
 
 /**
- * Commit history log panel showing the current branch's commits with
- * message, author, date, and colored ref badges. Designed to be embedded
- * as a dockable tab alongside the Project Browser and Changes panel.
+ * Commit history log panel showing the current branch's commits with a
+ * vscode-git-graph-style commit graph, message, author, date, and colored
+ * ref badges. Designed to be embedded as a dockable tab alongside the Project
+ * Browser and Changes panel.
  */
 public class HistoryPanel extends JPanel {
 
@@ -35,10 +38,17 @@ public class HistoryPanel extends JPanel {
             new Color(0xE91E8C),  // pink
     };
 
+    // Graph geometry
+    private static final int LANE_WIDTH = 14;
+    private static final int GRAPH_PAD = 6;
+    private static final int DOT_RADIUS = 4;
+
     private final JTable historyTable;
     private final JButton loadMoreButton;
     private final JLabel statusLabel;
     private final List<CommitNode> nodes = new ArrayList<>();
+    private final List<GraphRow> graphRows = new ArrayList<>();
+    private int laneCount = 1;
 
     private Runnable onPushRequested;
     private Runnable onFetchRequested;
@@ -58,13 +68,13 @@ public class HistoryPanel extends JPanel {
         toolbar.add(createToolbarButton(VectorIcons.get("refresh"), "Refresh", () -> {
             if (onRefreshRequested != null) onRefreshRequested.run();
         }));
-        toolbar.add(createToolbarButton(IconUtils.getIcon("/com/operametrix/ignition/git/icons/ic_push.svg"), "Push", () -> {
+        toolbar.add(createToolbarButton(IconUtils.getIcon("ic_push"), "Push", () -> {
             if (onPushRequested != null) onPushRequested.run();
         }));
-        toolbar.add(createToolbarButton(IconUtils.getIcon("/com/operametrix/ignition/git/icons/ic_fetch.svg"), "Fetch", () -> {
+        toolbar.add(createToolbarButton(IconUtils.getIcon("ic_fetch"), "Fetch", () -> {
             if (onFetchRequested != null) onFetchRequested.run();
         }));
-        toolbar.add(createToolbarButton(IconUtils.getIcon("/com/operametrix/ignition/git/icons/ic_pull.svg"), "Pull", () -> {
+        toolbar.add(createToolbarButton(IconUtils.getIcon("ic_pull"), "Pull", () -> {
             if (onPullRequested != null) onPullRequested.run();
         }));
         add(toolbar, BorderLayout.NORTH);
@@ -155,26 +165,34 @@ public class HistoryPanel extends JPanel {
     }
 
     private void configureColumns() {
-        // Column 0: Message
-        historyTable.getColumnModel().getColumn(0).setPreferredWidth(300);
+        // Column 0: Graph (fixed width derived from lane count)
+        int graphWidth = GRAPH_PAD * 2 + laneCount * LANE_WIDTH;
+        TableColumn graphCol = historyTable.getColumnModel().getColumn(0);
+        graphCol.setPreferredWidth(graphWidth);
+        graphCol.setMinWidth(graphWidth);
+        graphCol.setMaxWidth(graphWidth);
+        graphCol.setCellRenderer(new GraphRenderer());
 
-        // Column 1: Author
-        historyTable.getColumnModel().getColumn(1).setPreferredWidth(120);
-        historyTable.getColumnModel().getColumn(1).setMaxWidth(180);
+        // Column 1: Message
+        historyTable.getColumnModel().getColumn(1).setPreferredWidth(300);
+
+        // Column 2: Author
+        historyTable.getColumnModel().getColumn(2).setPreferredWidth(120);
+        historyTable.getColumnModel().getColumn(2).setMaxWidth(180);
         DefaultTableCellRenderer authorRenderer = new DefaultTableCellRenderer();
         authorRenderer.setForeground(Color.GRAY);
-        historyTable.getColumnModel().getColumn(1).setCellRenderer(authorRenderer);
+        historyTable.getColumnModel().getColumn(2).setCellRenderer(authorRenderer);
 
-        // Column 2: Refs (colored badges)
-        historyTable.getColumnModel().getColumn(2).setPreferredWidth(140);
-        historyTable.getColumnModel().getColumn(2).setMaxWidth(250);
-        historyTable.getColumnModel().getColumn(2).setCellRenderer(new RefsRenderer());
+        // Column 3: Refs (colored badges)
+        historyTable.getColumnModel().getColumn(3).setPreferredWidth(140);
+        historyTable.getColumnModel().getColumn(3).setMaxWidth(250);
+        historyTable.getColumnModel().getColumn(3).setCellRenderer(new RefsRenderer());
     }
 
     /**
      * Update the history data. Safe to call from any thread.
      *
-     * @param ds     Dataset with columns: hash, shortHash, author, date, message, refs
+     * @param ds     Dataset with columns: hash, shortHash, author, date, message, refs, parents
      * @param append true to append to existing data, false to replace
      */
     public void setData(Dataset ds, boolean append) {
@@ -183,6 +201,7 @@ public class HistoryPanel extends JPanel {
                 nodes.clear();
             }
 
+            boolean hasParents = datasetHasColumn(ds, "parents");
             for (int i = 0; i < ds.getRowCount(); i++) {
                 CommitNode node = new CommitNode();
                 node.hash = (String) ds.getValueAt(i, "hash");
@@ -193,8 +212,13 @@ public class HistoryPanel extends JPanel {
                 String refsStr = (String) ds.getValueAt(i, "refs");
                 node.refs = (refsStr != null && !refsStr.isEmpty())
                         ? refsStr.split(",") : new String[0];
+                String parentsStr = hasParents ? (String) ds.getValueAt(i, "parents") : null;
+                node.parents = (parentsStr != null && !parentsStr.trim().isEmpty())
+                        ? parentsStr.trim().split("\\s+") : new String[0];
                 nodes.add(node);
             }
+
+            computeGraph();
 
             HistoryTableModel model = (HistoryTableModel) historyTable.getModel();
             model.fireTableDataChanged();
@@ -204,8 +228,136 @@ public class HistoryPanel extends JPanel {
         });
     }
 
+    private static boolean datasetHasColumn(Dataset ds, String name) {
+        for (int c = 0; c < ds.getColumnCount(); c++) {
+            if (name.equals(ds.getColumnName(c))) return true;
+        }
+        return false;
+    }
+
     public int getCurrentOffset() {
         return nodes.size();
+    }
+
+    // --- Graph layout ---
+
+    /**
+     * Assigns each commit (row) to a swimlane and records the line segments that
+     * cross its row, using the standard incremental lane-tracking algorithm:
+     * lanes flow top-to-bottom, each "waiting" for a specific commit hash. When a
+     * commit is reached, its first parent continues in the same lane and any
+     * additional (merge) parents branch into new lanes.
+     */
+    private void computeGraph() {
+        graphRows.clear();
+        int maxLanes = 1;
+
+        // lanes.get(k) = hash the lane at column k is currently routing toward
+        // (null = free slot). Positions are stable across rows so passthrough
+        // lanes render as straight vertical lines.
+        List<String> lanes = new ArrayList<>();
+
+        for (CommitNode node : nodes) {
+            String h = node.hash;
+            List<String> top = new ArrayList<>(lanes);
+
+            // Locate (or open) this commit's lane.
+            int commitLane = top.indexOf(h);
+            if (commitLane < 0) {
+                commitLane = firstFreeLane(lanes);
+                if (commitLane == lanes.size()) {
+                    lanes.add(h);
+                } else {
+                    lanes.set(commitLane, h);
+                }
+            }
+
+            // First parent continues in the commit's lane; a root commit closes it.
+            if (node.parents.length >= 1) {
+                lanes.set(commitLane, node.parents[0]);
+            } else {
+                lanes.set(commitLane, null);
+            }
+
+            // Duplicate incoming children (other lanes awaiting this commit) end here.
+            for (int k = 0; k < top.size(); k++) {
+                if (k != commitLane && h.equals(top.get(k))) {
+                    lanes.set(k, null);
+                }
+            }
+
+            // Additional (merge) parents branch into their own lanes, reusing an
+            // existing lane already awaiting that parent when possible.
+            List<Integer> outgoing = new ArrayList<>();
+            if (node.parents.length >= 1) {
+                outgoing.add(commitLane);
+            }
+            for (int p = 1; p < node.parents.length; p++) {
+                String pp = node.parents[p];
+                int idx = lanes.indexOf(pp);
+                if (idx < 0) {
+                    idx = firstFreeLane(lanes);
+                    if (idx == lanes.size()) {
+                        lanes.add(pp);
+                    } else {
+                        lanes.set(idx, pp);
+                    }
+                }
+                outgoing.add(idx);
+            }
+
+            // Incoming lines: every top lane that was awaiting this commit.
+            List<Integer> incoming = new ArrayList<>();
+            for (int k = 0; k < top.size(); k++) {
+                if (h.equals(top.get(k))) incoming.add(k);
+            }
+
+            // Passthrough lines: top lanes flowing past this row untouched.
+            List<Integer> passthrough = new ArrayList<>();
+            for (int k = 0; k < top.size(); k++) {
+                String t = top.get(k);
+                if (t != null && !t.equals(h) && k != commitLane) {
+                    passthrough.add(k);
+                }
+            }
+
+            trimTrailingFree(lanes);
+
+            GraphRow gr = new GraphRow();
+            gr.nodeLane = commitLane;
+            gr.incoming = toIntArray(incoming);
+            gr.passthrough = toIntArray(passthrough);
+            gr.outgoing = toIntArray(outgoing);
+            graphRows.add(gr);
+
+            maxLanes = Math.max(maxLanes, Math.max(lanes.size(), commitLane + 1));
+            for (int idx : outgoing) maxLanes = Math.max(maxLanes, idx + 1);
+        }
+
+        laneCount = Math.max(1, maxLanes);
+    }
+
+    private static int firstFreeLane(List<String> lanes) {
+        for (int k = 0; k < lanes.size(); k++) {
+            if (lanes.get(k) == null) return k;
+        }
+        return lanes.size();
+    }
+
+    private static void trimTrailingFree(List<String> lanes) {
+        for (int k = lanes.size() - 1; k >= 0 && lanes.get(k) == null; k--) {
+            lanes.remove(k);
+        }
+    }
+
+    private static int[] toIntArray(List<Integer> list) {
+        int[] arr = new int[list.size()];
+        for (int i = 0; i < arr.length; i++) arr[i] = list.get(i);
+        return arr;
+    }
+
+    private static Color laneColor(int lane) {
+        return LABEL_COLORS[lane % LABEL_COLORS.length];
     }
 
     // --- Inner classes ---
@@ -217,10 +369,19 @@ public class HistoryPanel extends JPanel {
         public String date;
         public String message;
         public String[] refs;
+        public String[] parents = new String[0];
+    }
+
+    /** Per-row graph geometry computed by {@link #computeGraph()}. */
+    private static class GraphRow {
+        int nodeLane;
+        int[] incoming;      // top lane indices feeding into the node
+        int[] passthrough;   // top lane indices flowing straight through the row
+        int[] outgoing;      // bottom lane indices the node's parents flow into
     }
 
     private class HistoryTableModel extends AbstractTableModel {
-        private final String[] COLUMNS = {"Message", "Author", "Refs"};
+        private final String[] COLUMNS = {"Graph", "Message", "Author", "Refs"};
 
         @Override
         public int getRowCount() {
@@ -243,10 +404,12 @@ public class HistoryPanel extends JPanel {
             CommitNode node = nodes.get(rowIndex);
             switch (columnIndex) {
                 case 0:
-                    return node.message;
+                    return rowIndex;  // Rendered by GraphRenderer
                 case 1:
-                    return node.author;
+                    return node.message;
                 case 2:
+                    return node.author;
+                case 3:
                     return node;  // Rendered by RefsRenderer
                 default:
                     return "";
@@ -256,6 +419,76 @@ public class HistoryPanel extends JPanel {
         @Override
         public boolean isCellEditable(int rowIndex, int columnIndex) {
             return false;
+        }
+    }
+
+    /**
+     * Renders the commit-graph column: colored swimlane lines connecting each
+     * commit to its parents, with a filled node dot on the commit's lane.
+     */
+    private class GraphRenderer extends JPanel implements TableCellRenderer {
+        private int rowIndex = -1;
+
+        public GraphRenderer() {
+            setOpaque(true);
+        }
+
+        @Override
+        public Component getTableCellRendererComponent(JTable table, Object value,
+                                                        boolean isSelected, boolean hasFocus,
+                                                        int row, int column) {
+            this.rowIndex = (value instanceof Integer) ? (Integer) value : -1;
+            setBackground(isSelected ? table.getSelectionBackground() : table.getBackground());
+            return this;
+        }
+
+        private int laneX(int lane) {
+            return GRAPH_PAD + lane * LANE_WIDTH + LANE_WIDTH / 2;
+        }
+
+        @Override
+        protected void paintComponent(Graphics g) {
+            super.paintComponent(g);
+            if (rowIndex < 0 || rowIndex >= graphRows.size()) return;
+
+            GraphRow gr = graphRows.get(rowIndex);
+            Graphics2D g2 = (Graphics2D) g.create();
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            g2.setStroke(new BasicStroke(1.8f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+
+            int h = getHeight();
+            int mid = h / 2;
+            int nodeX = laneX(gr.nodeLane);
+
+            // Passthrough lanes: straight vertical lines spanning the full row.
+            for (int lane : gr.passthrough) {
+                int x = laneX(lane);
+                g2.setColor(laneColor(lane));
+                g2.draw(new Line2D.Float(x, 0, x, h));
+            }
+
+            // Incoming: from each feeding lane at the top edge to the node center.
+            for (int lane : gr.incoming) {
+                int x = laneX(lane);
+                g2.setColor(laneColor(lane));
+                g2.draw(new Line2D.Float(x, 0, nodeX, mid));
+            }
+
+            // Outgoing: from the node center to each parent lane at the bottom edge.
+            for (int lane : gr.outgoing) {
+                int x = laneX(lane);
+                g2.setColor(laneColor(lane));
+                g2.draw(new Line2D.Float(nodeX, mid, x, h));
+            }
+
+            // Node dot.
+            g2.setColor(laneColor(gr.nodeLane));
+            g2.fillOval(nodeX - DOT_RADIUS, mid - DOT_RADIUS, DOT_RADIUS * 2, DOT_RADIUS * 2);
+            g2.setColor(getBackground());
+            g2.setStroke(new BasicStroke(1.2f));
+            g2.drawOval(nodeX - DOT_RADIUS, mid - DOT_RADIUS, DOT_RADIUS * 2, DOT_RADIUS * 2);
+
+            g2.dispose();
         }
     }
 

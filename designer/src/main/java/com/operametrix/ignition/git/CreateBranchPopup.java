@@ -1,35 +1,22 @@
 package com.operametrix.ignition.git;
 
 import com.inductiveautomation.ignition.designer.gui.CommonUI;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.operametrix.ignition.git.utils.IconUtils;
 
-import javax.imageio.ImageIO;
 import javax.swing.*;
 import java.awt.*;
-import java.io.IOException;
-import java.io.InputStream;
 
 /**
  * Lightweight popup for creating a new branch from the current HEAD.
  * Just a name field + Create/Cancel buttons — no start point, no advanced options.
  */
 public class CreateBranchPopup extends JDialog {
-    private final Logger logger = LoggerFactory.getLogger(getClass());
 
     private final JTextField branchNameField;
 
     public CreateBranchPopup(Component parent) {
         super(SwingUtilities.getWindowAncestor(parent));
-        try {
-            InputStream iconStream = getClass().getResourceAsStream("/com/operametrix/ignition/git/icons/ic_branch.svg");
-            if (iconStream != null) {
-                ImageIcon icon = new ImageIcon(ImageIO.read(iconStream));
-                setIconImage(icon.getImage());
-            }
-        } catch (IOException e) {
-            logger.trace(e.toString(), e);
-        }
+        IconUtils.setWindowIcon(this, "ic_branch");
 
         setTitle("Create New Branch");
         setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);

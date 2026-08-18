@@ -69,7 +69,8 @@ public interface GitScriptInterface {
     List<String> getResourceDiff(String projectName, String resourcePath);
 
     /** Get paginated commit history for the project repository.
-     *  Returns a Dataset with columns: hash, shortHash, author, date, message. */
+     *  Returns a Dataset with columns: hash, shortHash, author, date, message, refs, parents
+     *  (parents is a space-separated list of parent hashes, used to draw the commit graph). */
     Dataset getCommitHistory(String projectName, int skip, int limit);
 
     /** Get the list of files changed in a specific commit.

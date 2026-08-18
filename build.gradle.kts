@@ -41,5 +41,5 @@ ignitionModule {
         "com.operametrix.ignition.git.GatewayHook" to "G"
     ))
 
-    skipModlSigning.set(false)
+    skipModlSigning.set(true)
 }

@@ -2,13 +2,11 @@ package com.operametrix.ignition.git;
 
 
 import com.operametrix.ignition.git.components.SelectAllHeader;
+import com.operametrix.ignition.git.utils.IconUtils;
 import com.inductiveautomation.ignition.designer.gui.CommonUI;
 import com.intellij.uiDesigner.core.GridConstraints;
 import com.intellij.uiDesigner.core.GridLayoutManager;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-import javax.imageio.ImageIO;
 import javax.swing.*;
 import javax.swing.border.TitledBorder;
 import javax.swing.plaf.FontUIResource;
@@ -18,14 +16,11 @@ import javax.swing.text.StyleContext;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import java.io.IOException;
-import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
 public class CommitPopup extends JDialog {
-    private final Logger logger = LoggerFactory.getLogger(getClass());
     private JPanel panel;
     private JTextArea messageTextArea;
     private JLabel messageLabel;
@@ -37,13 +32,7 @@ public class CommitPopup extends JDialog {
 
     public CommitPopup(Object[][] data, Component parent) {
         super(SwingUtilities.getWindowAncestor(parent));
-        try {
-            InputStream commitIconStream = getClass().getResourceAsStream("/com/operametrix/ignition/git/icons/ic_commit.svg");
-            ImageIcon commitIcon = new ImageIcon(ImageIO.read(commitIconStream));
-            setIconImage(commitIcon.getImage());
-        } catch (IOException e) {
-            logger.trace(e.toString(), e);
-        }
+        IconUtils.setWindowIcon(this, "ic_commit");
         setContentPane(panel);
         setTitle("Commit");
         setSize(500, 500);
