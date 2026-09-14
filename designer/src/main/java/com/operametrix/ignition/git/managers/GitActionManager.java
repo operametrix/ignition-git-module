@@ -3,7 +3,6 @@ package com.operametrix.ignition.git.managers;
 import com.operametrix.ignition.git.BranchPopup;
 import com.operametrix.ignition.git.CommitDetailPopup;
 import com.operametrix.ignition.git.CreateBranchPopup;
-import com.operametrix.ignition.git.CommitPopup;
 import com.operametrix.ignition.git.UserCredentialsPopup;
 import com.operametrix.ignition.git.DesignerHook;
 import com.operametrix.ignition.git.DiffViewerPopup;
@@ -18,8 +17,6 @@ import com.operametrix.ignition.git.HistoryPanel;
 import com.operametrix.ignition.git.MergeConflictPopup;
 import com.inductiveautomation.ignition.client.util.gui.ErrorUtil;
 import com.inductiveautomation.ignition.common.Dataset;
-import com.inductiveautomation.ignition.common.resourcecollection.ChangeOperation;
-import com.inductiveautomation.ignition.common.resourcecollection.ResourceId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,7 +32,6 @@ import static com.operametrix.ignition.git.DesignerHook.rpc;
 import static com.operametrix.ignition.git.actions.GitBaseAction.*;
 public class GitActionManager {
 
-    static CommitPopup commitPopup;
     static PullPopup pullPopup;
     static PushPopup pushPopup;
     static FetchPopup fetchPopup;
@@ -44,84 +40,6 @@ public class GitActionManager {
     static InitRepoPopup initRepoPopup;
     static RemotesPopup remotesPopup;
     private static final Logger logger = LoggerFactory.getLogger(GitActionManager.class);
-
-
-
-    public static Object[][] getCommitPopupData(String projectName, String userName) {
-        List<ChangeOperation> changes = DesignerHook.changes;
-
-        // Log the total number of change operations found
-        logger.debug("Total number of change operations: {}", changes.size());
-
-        Dataset ds = rpc.getUncommitedChanges(projectName, userName);
-        Object[][] data = new Object[ds.getRowCount()][];
-
-        List<String> resourcesChangedId = new ArrayList<>();
-        for (ChangeOperation c : changes) {
-            ResourceId pri = ChangeOperation.getResourceIdFromChange(c);
-            resourcesChangedId.add(pri.getResourcePath().toString());
-
-            // Log each change operation's details
-            logger.debug("ChangeOperation Type: {}, Resource: {}", c.getOperationType(), pri.getResourcePath());
-        }
-
-        for (int i = 0; i < ds.getRowCount(); i++) {
-            String resource = (String) ds.getValueAt(i, "resource");
-
-            boolean toAdd = resourcesChangedId.contains(resource);
-            Object[] row = {toAdd, resource, ds.getValueAt(i, "type"), ds.getValueAt(i, "actor"), ds.getValueAt(i, "timestamp")};
-
-            // Log the decision to add or not add the resource to the commit popup
-            logger.debug("Resource: {}, Add to commit popup: {}", resource, toAdd);
-
-            data[i] = row;
-        }
-
-        return data;
-    }
-
-
-    public static void showCommitPopup(String projectName, String userName) {
-        Object[][] data = GitActionManager.getCommitPopupData(projectName, userName);
-        if (commitPopup != null) {
-            commitPopup.setData(data);
-            commitPopup.setVisible(true);
-            commitPopup.toFront();
-        } else {
-            commitPopup = new CommitPopup(data, context.getFrame()) {
-                @Override
-                public void onActionPerformed(List<String> changes, String commitMessage, boolean amend) {
-                    handleCommitAction(changes, commitMessage, amend);
-                    resetMessage();
-                }
-
-                @Override
-                public void onDiffRequested(String resource, String type) {
-                    showDiffViewer(projectName, resource, type);
-                }
-
-                @Override
-                public void onAmendToggled(boolean amend) {
-                    if (amend) {
-                        new Thread(() -> {
-                            try {
-                                Dataset history = rpc.getCommitHistory(projectName, 0, 1);
-                                if (history.getRowCount() > 0) {
-                                    String lastMessage = (String) history.getValueAt(0, "message");
-                                    SwingUtilities.invokeLater(() -> setCommitMessage(lastMessage));
-                                }
-                            } catch (Exception e) {
-                                logger.error("Error fetching last commit message", e);
-                            }
-                        }).start();
-                    } else {
-                        setCommitMessage("");
-                    }
-                }
-            };
-        }
-    }
-
 
     /**
      * Run a gateway-state snapshot operation on a background thread with a modal

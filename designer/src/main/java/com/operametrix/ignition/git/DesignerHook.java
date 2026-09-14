@@ -10,12 +10,10 @@ import com.inductiveautomation.ignition.common.BundleUtil;
 import com.inductiveautomation.ignition.common.Dataset;
 import com.inductiveautomation.ignition.common.ConcurrencySessionInfo;
 import com.inductiveautomation.ignition.common.licensing.LicenseState;
-import com.inductiveautomation.ignition.common.resourcecollection.ChangeOperation;
 
 import com.inductiveautomation.ignition.designer.gui.StatusBar;
 import com.inductiveautomation.ignition.designer.model.DesignerContext;
 import com.inductiveautomation.ignition.designer.model.AbstractDesignerModuleHook;
-import com.inductiveautomation.ignition.designer.model.SaveContext;
 
 import com.jidesoft.docking.DockContext;
 import com.jidesoft.docking.DockableFrame;
@@ -39,7 +37,6 @@ public class DesignerHook extends AbstractDesignerModuleHook {
             "com.operametrix.ignition.git",
             GitScriptInterface.class
     );
-    public static List<ChangeOperation> changes = new ArrayList<>();
     public static DesignerContext context;
     public static String projectName;
     public static String userName;
@@ -427,12 +424,6 @@ public class DesignerHook extends AbstractDesignerModuleHook {
                 logger.warn("Designer feature '" + feature.id() + "' failed handling license change", e);
             }
         }
-    }
-
-    @Override
-    public void notifyProjectSaveStart(SaveContext save) throws Exception {
-        changes = context.getProject().getChanges();
-        super.notifyProjectSaveStart(save);
     }
 
     @Override
