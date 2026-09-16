@@ -148,6 +148,8 @@ public class GitImageManager {
 }
 
 class PathIcon extends ImageIcon {
+    private static final LoggerEx logger = LoggerEx.newBuilder().build(PathIcon.class);
+
     protected static final Component COMP = new Component() {
     };
     private static MediaTracker tracker;
@@ -167,8 +169,11 @@ class PathIcon extends ImageIcon {
 
             try {
                 tracker.waitForID(id);
-            } catch (InterruptedException var4) {
-                System.err.println("Image loading interrupted!");
+            } catch (InterruptedException e) {
+                // Restore the flag: swallowing it hides the interrupt from whatever runs this next.
+                Thread.currentThread().interrupt();
+                tracker.removeImage(image, id);
+                logger.warn("Interrupted while measuring an image; its size is recorded as 0.", e);
                 return false;
             }
 
