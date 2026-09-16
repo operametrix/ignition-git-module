@@ -18,6 +18,8 @@ import com.inductiveautomation.ignition.designer.model.AbstractDesignerModuleHoo
 import com.jidesoft.docking.DockContext;
 import com.jidesoft.docking.DockableFrame;
 import com.jidesoft.docking.DockingManager;
+import com.jidesoft.docking.event.DockableFrameEvent;
+import com.jidesoft.docking.event.DockableFrameAdapter;
 
 import javax.swing.*;
 import javax.swing.Timer;
@@ -47,10 +49,13 @@ public class DesignerHook extends AbstractDesignerModuleHook {
 
     CommitPanel commitPanel;
     DockableFrame commitFrame;
+    /** Set when the operator closes the panel; cleared when it is reopened (View menu). */
+    private final AtomicBoolean commitDismissed = new AtomicBoolean();
     boolean commitFrameInitialized;
     Timer commitRefreshTimer;
     HistoryPanel historyPanel;
     DockableFrame historyFrame;
+    private final AtomicBoolean historyDismissed = new AtomicBoolean();
     boolean historyFrameInitialized;
     Timer panelVisibilityTimer;
 
@@ -281,6 +286,7 @@ public class DesignerHook extends AbstractDesignerModuleHook {
         commitFrame.setInitSide(DockContext.DOCK_SIDE_WEST);
         commitFrame.setInitIndex(0);
         commitFrame.setInitMode(DockContext.STATE_HIDDEN);
+        respectClose(commitFrame, commitDismissed, dockingManager);
         dockingManager.addFrame(commitFrame);
         commitFrameInitialized = true;
 
@@ -309,11 +315,11 @@ public class DesignerHook extends AbstractDesignerModuleHook {
             if (!commitFrameInitialized && !historyFrameInitialized) return;
             DockingManager dm = context.getDockingManager();
             boolean needsRestore = false;
-            if (commitFrameInitialized && commitFrame != null
+            if (commitFrameInitialized && commitFrame != null && !commitDismissed.get()
                     && isMissing(dm.getFrame(commitFrame.getKey()))) {
                 needsRestore = true;
             }
-            if (historyFrameInitialized && historyFrame != null
+            if (historyFrameInitialized && historyFrame != null && !historyDismissed.get()
                     && isMissing(dm.getFrame(historyFrame.getKey()))) {
                 needsRestore = true;
             }
@@ -392,6 +398,7 @@ public class DesignerHook extends AbstractDesignerModuleHook {
         historyFrame.setInitSide(DockContext.DOCK_SIDE_WEST);
         historyFrame.setInitIndex(0);
         historyFrame.setInitMode(DockContext.STATE_HIDDEN);
+        respectClose(historyFrame, historyDismissed, dockingManager);
         dockingManager.addFrame(historyFrame);
         historyFrameInitialized = true;
 
@@ -436,29 +443,45 @@ public class DesignerHook extends AbstractDesignerModuleHook {
     private void ensurePanelsVisible() {
         if (!commitFrameInitialized && !historyFrameInitialized) return;
         DockingManager dm = context.getDockingManager();
-        DockableFrame projectBrowser = dm.getFrame(PROJECT_BROWSER_KEY);
 
-        if (commitFrameInitialized && commitFrame != null) {
+        if (commitFrameInitialized && commitFrame != null && !commitDismissed.get()) {
             if (dm.getFrame(commitFrame.getKey()) == null) {
                 dm.addFrame(commitFrame);
             }
             dm.showFrame(commitFrame.getKey());
-            if (projectBrowser != null) {
-                dm.moveFrame(commitFrame.getKey(), PROJECT_BROWSER_KEY);
-            }
         }
-        if (historyFrameInitialized && historyFrame != null) {
+        if (historyFrameInitialized && historyFrame != null && !historyDismissed.get()) {
             if (dm.getFrame(historyFrame.getKey()) == null) {
                 dm.addFrame(historyFrame);
             }
             dm.showFrame(historyFrame.getKey());
-            if (projectBrowser != null) {
-                dm.moveFrame(historyFrame.getKey(), PROJECT_BROWSER_KEY);
+        }
+    }
+
+    /**
+     * Make the panel's close button mean what it says: mark it dismissed, then hide it. The repeating
+     * visibility poll skips a dismissed panel, so it stays closed until the operator brings it back
+     * through the Designer's View menu, at which point the dismissal is cleared.
+     *
+     * <p>The close button is intercepted rather than the frame's hidden event, because that event
+     * also fires for hides this module and the workspace machinery perform themselves — which would
+     * make a workspace switch look like a deliberate close.
+     */
+    private static void respectClose(DockableFrame frame, AtomicBoolean dismissed, DockingManager dm) {
+        String key = frame.getKey();
+        frame.setCloseAction(new AbstractAction() {
+            @Override
+            public void actionPerformed(java.awt.event.ActionEvent e) {
+                dismissed.set(true);
+                dm.hideFrame(key);
             }
-        }
-        if (projectBrowser != null) {
-            dm.activateFrame(PROJECT_BROWSER_KEY);
-        }
+        });
+        frame.addDockableFrameListener(new DockableFrameAdapter() {
+            @Override
+            public void dockableFrameShown(DockableFrameEvent e) {
+                dismissed.set(false);
+            }
+        });
     }
 
     private void cleanupHistoryPanel() {
