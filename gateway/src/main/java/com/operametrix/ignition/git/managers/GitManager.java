@@ -828,8 +828,10 @@ public class GitManager {
         String oldContent = "";
         String newContent = "";
 
-        // Read old content from HEAD
-        try (Repository repository = getGit(workDir).getRepository()) {
+        // Read old content from HEAD. The Git wrapper is what owns the repository handle, so it is
+        // what must be closed: closing only the repository leaked a handle on every diff.
+        try (Git git = getGit(workDir)) {
+            Repository repository = git.getRepository();
             ObjectId headId = repository.resolve("HEAD");
             if (headId != null) {
                 try (RevWalk revWalk = new RevWalk(repository)) {
