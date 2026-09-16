@@ -94,6 +94,8 @@ The page is React (8.3 gateway pages are React-only via `NavigationModel`; Wicke
 
 `io.ia.sdk.modl` plugin (v0.4.1). Module ID `com.operametrix.ignition.git`; version is `2.0.0.<yyyyMMddHH>` (the build appends a timestamp). The compile SDK (`sdk_version = 8.3.6`, latest stable) is deliberately decoupled from `requiredIgnitionVersion` (`min_ignition_version = 8.3.0`) so the `.modl` installs on any 8.3.x gateway — don't recouple them. 8.3 declares module deps via `moduleDependencySpecs { }` (empty here), replacing the old `moduleDependencies`. The `:web-ui` subproject has **no module scope** (it's not in `projectScopes`); its built bundle is pulled into the gateway jar via `modlImplementation(project(":web-ui"))` in `gateway/build.gradle.kts`, and `settings.gradle` adds the Node.js ivy repo so the node-gradle plugin can fetch the Node runtime. `skipModlSigning` is `false` (signing enabled) — copy `gradle.template.properties` to `gradle.properties` (gitignored) and fill in signing credentials, or flip `skipModlSigning` to `true` locally for unsigned dev builds.
 
+Editing `license.html` does not repackage it — the plugin stages a copy into `build/moduleContent/` that goes stale, so delete that copy (or `clean`) and check the notice inside the built `.modl`.
+
 ## Java Version
 
 Java 17 source/target, set via the toolchain in each subproject's `build.gradle.kts`.
