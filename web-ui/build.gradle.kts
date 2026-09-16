@@ -35,8 +35,8 @@ val yarnPackages by tasks.registering(YarnTask::class) {
 // Build the React bundle with webpack.
 val webpack by tasks.registering(NpmTask::class) {
     group = "Ignition Module"
-    description = "Runs 'npm run build-dev' (webpack) to build the Config Versioning page bundle."
-    args.set(listOf("run", "build-dev"))
+    description = "Runs 'npm run build-prod' (webpack) to build the Config Versioning page bundle."
+    args.set(listOf("run", "build-prod"))
 
     dependsOn(yarnPackages)
 

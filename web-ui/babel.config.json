@@ -4,7 +4,8 @@
         [
             "@babel/preset-react",
             {
-                "runtime": "automatic"
+                "_comment": "classic: JSX compiles to React.createElement, so the bundle uses the react external instead of pulling react/jsx-runtime in as a second copy",
+                "runtime": "classic"
             }
         ],
         "@babel/preset-typescript"
