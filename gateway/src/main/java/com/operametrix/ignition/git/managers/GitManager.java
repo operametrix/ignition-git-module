@@ -89,6 +89,26 @@ public class GitManager {
         return getContext().getSystemManager().getDataDir().toPath();
     }
 
+    /**
+     * Normalize a caller-supplied, repository-relative file path and reject anything that escapes
+     * {@code root} (absolute paths, {@code ..} segments). The diff route and its RPC take this path
+     * straight from the caller and {@code root} can be the gateway data directory, so without this an
+     * unvalidated path reads any file the gateway process can.
+     *
+     * @return the path relative to {@code root}, with forward slashes
+     */
+    static String repoRelativePath(Path root, String filePath) {
+        if (filePath == null || filePath.isBlank()) {
+            throw new IllegalArgumentException("A file path is required.");
+        }
+        Path base = root.toAbsolutePath().normalize();
+        Path resolved = base.resolve(filePath.replace("/", File.separator)).normalize();
+        if (!resolved.startsWith(base)) {
+            throw new IllegalArgumentException("Invalid file path: " + filePath);
+        }
+        return base.relativize(resolved).toString().replace(File.separator, "/");
+    }
+
 
     public static void clearDirectory(Path folderPath) {
         try {
@@ -758,6 +778,7 @@ public class GitManager {
 
     public static List<String> getResourceDiffContent(String projectName, String resourcePath) {
         Path projectPath = getProjectFolderPath(projectName);
+        resourcePath = repoRelativePath(projectPath, resourcePath);
 
         // For Ignition resources, the directory contains resource.json (metadata) plus
         // one or more data files (view.json, data.bin, code.py, etc.).
@@ -772,6 +793,7 @@ public class GitManager {
 
     /** {@code [oldContent, newContent]} of one file, HEAD vs working tree (JSON-normalized). */
     public static List<String> getWorkingTreeDiffContent(Path workDir, String filePath) {
+        filePath = repoRelativePath(workDir, filePath);
         String oldContent = "";
         String newContent = "";
 
@@ -981,6 +1003,7 @@ public class GitManager {
      * @return two-element list: [oldContent, newContent]; empty strings for missing content
      */
     public static List<String> getCommitFileDiffContent(Path projectFolderPath, String commitHash, String filePath) {
+        filePath = repoRelativePath(projectFolderPath, filePath);
         String oldContent = "";
         String newContent = "";
 
