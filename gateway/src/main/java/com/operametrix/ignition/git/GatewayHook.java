@@ -1,6 +1,7 @@
 package com.operametrix.ignition.git;
 
 import com.operametrix.ignition.git.records.GitConfigRemoteRecord;
+import com.operametrix.ignition.git.records.GitKnownHostRecord;
 import com.operametrix.ignition.git.records.GitProjectsConfigRecord;
 import com.operametrix.ignition.git.records.GitRemoteCredentialsRecord;
 import com.operametrix.ignition.git.records.GitReposUsersRecord;
@@ -54,6 +55,7 @@ public class GatewayHook extends AbstractGatewayModuleHook {
     private GitUserHttpsCredentialRecord.Handler httpsCredHandler;
     private GitRemoteCredentialsRecord.Handler remoteCredHandler;
     private GitConfigRemoteRecord.Handler configRemoteHandler;
+    private GitKnownHostRecord.Handler knownHostHandler;
     private ConfigAutoCommitter autoCommitter;
 
     /** Retained from {@link #startup(LicenseState)} so add-on features can gate on it when routes mount. */
@@ -76,6 +78,7 @@ public class GatewayHook extends AbstractGatewayModuleHook {
         registry.register(GitUserHttpsCredentialRecord.META);
         registry.register(GitRemoteCredentialsRecord.META);
         registry.register(GitConfigRemoteRecord.META);
+        registry.register(GitKnownHostRecord.META);
 
         // Create the resource handlers (DAOs) and publish them to the record façades.
         projectHandler = new GitProjectsConfigRecord.Handler(context);
@@ -84,6 +87,7 @@ public class GatewayHook extends AbstractGatewayModuleHook {
         httpsCredHandler = new GitUserHttpsCredentialRecord.Handler(context);
         remoteCredHandler = new GitRemoteCredentialsRecord.Handler(context);
         configRemoteHandler = new GitConfigRemoteRecord.Handler(context);
+        knownHostHandler = new GitKnownHostRecord.Handler(context);
 
         GitProjectsConfigRecord.setHandler(projectHandler);
         GitReposUsersRecord.setHandler(repoUserHandler);
@@ -91,6 +95,7 @@ public class GatewayHook extends AbstractGatewayModuleHook {
         GitUserHttpsCredentialRecord.setHandler(httpsCredHandler);
         GitRemoteCredentialsRecord.setHandler(remoteCredHandler);
         GitConfigRemoteRecord.setHandler(configRemoteHandler);
+        GitKnownHostRecord.setHandler(knownHostHandler);
 
         scriptModule = new GatewayScriptModule(context);
 
@@ -164,6 +169,7 @@ public class GatewayHook extends AbstractGatewayModuleHook {
             context.getConfigurationManager().removeListener(autoCommitter);
             autoCommitter.shutdown();
         }
+        if (knownHostHandler != null) knownHostHandler.shutdown();
         if (configRemoteHandler != null) configRemoteHandler.shutdown();
         if (remoteCredHandler != null) remoteCredHandler.shutdown();
         if (httpsCredHandler != null) httpsCredHandler.shutdown();
@@ -278,6 +284,10 @@ public class GatewayHook extends AbstractGatewayModuleHook {
         routes.newRoute("/remote-test").method(HttpMethod.POST).type(RouteGroup.TYPE_JSON)
                 .requirePermission(PermissionType.WRITE)
                 .handler(this::handleTestRemote).mount();
+
+        routes.newRoute("/known-host").method(HttpMethod.POST).type(RouteGroup.TYPE_JSON)
+                .requirePermission(PermissionType.WRITE)
+                .handler(this::handleTrustHostKey).mount();
 
         routes.newRoute("/push").method(HttpMethod.POST).type(RouteGroup.TYPE_JSON)
                 .requirePermission(PermissionType.WRITE)
@@ -580,6 +590,24 @@ public class GatewayHook extends AbstractGatewayModuleHook {
         java.util.regex.Matcher m =
                 java.util.regex.Pattern.compile("(?:://|@)([^/:]+)").matcher(uri.trim());
         return m.find() ? m.group(1) : "remote";
+    }
+
+    /**
+     * Accept an SSH server host key for the config repository, after the operator has been shown its
+     * fingerprint. Same store as the Designer's prompt, so a host accepted in either place is known
+     * to both.
+     */
+    private Object handleTrustHostKey(RequestContext req, HttpServletResponse resp) {
+        try {
+            JsonObject body = new Gson().fromJson(req.readBody(), JsonObject.class);
+            if (!scriptModule.trustHostKey(optString(body, "host"), optString(body, "keyType"),
+                    optString(body, "fingerprint"))) {
+                throw new RuntimeException("Could not record the host key.");
+            }
+            return ok();
+        } catch (Exception e) {
+            return error(resp, e);
+        }
     }
 
     private Object handleRemoveRemote(RequestContext req, HttpServletResponse resp) {

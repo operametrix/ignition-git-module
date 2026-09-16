@@ -165,6 +165,12 @@ public interface GitScriptInterface {
     boolean setRemoteTrustSelfSigned(String projectName, String remoteName, String ignitionUser,
                                      boolean trustSelfSigned);
 
+    /**
+     * Accept an SSH server host key for {@code host}, identified by its fingerprint. Replaces any key
+     * accepted for that host before, so a deliberate server key rotation can be confirmed once.
+     */
+    boolean trustHostKey(String host, String keyType, String fingerprint);
+
     /** Get the credential FK currently associated with a remote for a user.
      *  Returns a one-row Dataset with columns: sshKeyId, httpsCredentialId (both 0 if none),
      *  trustSelfSigned. */

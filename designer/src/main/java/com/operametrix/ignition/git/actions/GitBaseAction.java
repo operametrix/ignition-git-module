@@ -32,6 +32,66 @@ public class GitBaseAction {
         }
     }
 
+    /** Marker prefixes the gateway uses when an SSH server key is not trusted (see the gateway's
+     *  SshTransportConfigCallback). Matched as text because gateway classes aren't on the Designer
+     *  classpath — the same approach as MERGE_CONFLICT. */
+    private static final String UNKNOWN_HOST_KEY = "UNKNOWN_HOST_KEY:";
+    private static final String CHANGED_HOST_KEY = "CHANGED_HOST_KEY:";
+
+    /** First message in the cause chain containing {@code marker}, or null. */
+    private static String findMarker(Throwable error, String marker) {
+        for (Throwable t = error; t != null; t = t.getCause()) {
+            String message = t.getMessage();
+            if (message != null && message.contains(marker)) {
+                return message.substring(message.indexOf(marker) + marker.length());
+            }
+            if (t.getCause() == t) {
+                break;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Handle an operation that failed because the SSH server's key isn't trusted: offer to accept an
+     * unknown key (showing its fingerprint) and re-run {@code retry}, or refuse outright when a
+     * previously accepted key has changed. Returns true when the error was one of those cases.
+     */
+    public static boolean handleHostKeyError(Throwable cause, Runnable retry) {
+        String changed = findMarker(cause, CHANGED_HOST_KEY);
+        if (changed != null) {
+            String[] parts = changed.split("\\|", 2);
+            JOptionPane.showMessageDialog(context.getFrame(),
+                    "The SSH server for " + parts[0] + " presented a different host key than the one\n"
+                            + "accepted earlier.\n\n"
+                            + "Fingerprint now: " + (parts.length > 1 ? parts[1] : "unknown") + "\n\n"
+                            + "This happens after a deliberate server key change — or if the connection\n"
+                            + "is being intercepted. Verify the new key with whoever runs the server, then\n"
+                            + "remove the stored key on the gateway before connecting again.",
+                    "Host key changed", JOptionPane.ERROR_MESSAGE);
+            return true;
+        }
+        String unknown = findMarker(cause, UNKNOWN_HOST_KEY);
+        if (unknown == null) {
+            return false;
+        }
+        String[] parts = unknown.split("\\|", 3);
+        String host = parts[0];
+        String keyType = parts.length > 1 ? parts[1] : "";
+        String fingerprint = parts.length > 2 ? parts[2] : "";
+        int choice = JOptionPane.showConfirmDialog(context.getFrame(),
+                "The SSH server " + host + " isn't known yet.\n\n"
+                        + "Key type: " + keyType + "\n"
+                        + "Fingerprint: " + fingerprint + "\n\n"
+                        + "Accept this key only if it matches what the server's administrator published.\n"
+                        + "Accept it and continue?",
+                "Unknown host key", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+        if (choice == JOptionPane.YES_OPTION && rpc.trustHostKey(host, keyType, fingerprint)) {
+            retry.run();
+        }
+        return true;
+    }
+
     public static void handlePushAction(String remoteName) {
         if (!rpc.hasRemoteRepository(projectName)) {
             JOptionPane.showMessageDialog(context.getFrame(),
@@ -82,7 +142,9 @@ public class GitBaseAction {
                     }
                 } catch (Exception e) {
                     Throwable cause = e.getCause() != null ? e.getCause() : e;
-                    ErrorUtil.showError(cause.getMessage(), cause);
+                    if (!handleHostKeyError(cause, () -> handlePushAction(remoteName))) {
+                        ErrorUtil.showError(cause.getMessage(), cause);
+                    }
                 } finally {
                     if (instance != null) {
                         instance.refreshCommitPanel();
@@ -111,7 +173,9 @@ public class GitBaseAction {
                     get();
                 } catch (Exception e) {
                     Throwable cause = e.getCause() != null ? e.getCause() : e;
-                    ErrorUtil.showError(cause.getMessage(), cause);
+                    if (!handleHostKeyError(cause, () -> handleForcePush(remoteName))) {
+                        ErrorUtil.showError(cause.getMessage(), cause);
+                    }
                 } finally {
                     if (instance != null) {
                         instance.refreshCommitPanel();
@@ -161,7 +225,8 @@ public class GitBaseAction {
                             }
                         }
                         showMergeConflictPopup(projectName, userName, conflictingFiles);
-                    } else {
+                    } else if (!handleHostKeyError(cause,
+                            () -> handlePullAction(remoteName, importTags, importTheme, importImages))) {
                         ErrorUtil.showError(cause.getMessage(), cause);
                     }
                 } finally {
@@ -420,7 +485,9 @@ public class GitBaseAction {
                     get();
                 } catch (Exception e) {
                     Throwable cause = e.getCause() != null ? e.getCause() : e;
-                    ErrorUtil.showError(cause.getMessage(), cause);
+                    if (!handleHostKeyError(cause, () -> handleFetchAction(remoteName))) {
+                        ErrorUtil.showError(cause.getMessage(), cause);
+                    }
                 } finally {
                     if (instance != null) {
                         instance.refreshHistoryPanel();

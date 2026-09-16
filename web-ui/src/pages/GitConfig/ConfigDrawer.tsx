@@ -23,8 +23,10 @@ import {
   useSaveRemoteMutation,
   useRemoveRemoteMutation,
   useTestRemoteMutation,
+  useTrustHostKeyMutation,
   useDeinitMutation,
 } from "./GitConfig.service";
+import { HostKeyPrompt, unknownHostKey } from "./errors";
 
 const DEFAULT_BRANCH = "main";
 
@@ -59,6 +61,7 @@ const ConfigDrawer = ({
   const [saveRemote, { isLoading: saving }] = useSaveRemoteMutation();
   const [removeRemote] = useRemoveRemoteMutation();
   const [testRemote, { isLoading: testing }] = useTestRemoteMutation();
+  const [trustHostKey] = useTrustHostKeyMutation();
   const [deinit] = useDeinitMutation();
 
   const form = useForm<FormShape>({
@@ -88,6 +91,11 @@ const ConfigDrawer = ({
     text: string;
   } | null>(null);
   const [confirmRemoveRemote, setConfirmRemoveRemote] = useState(false);
+  // An SSH host key awaiting confirmation, with the action to re-run once it is accepted.
+  const [pendingHostKey, setPendingHostKey] = useState<{
+    prompt: HostKeyPrompt;
+    retry: () => void;
+  } | null>(null);
   const [confirmDeinit, setConfirmDeinit] = useState(false);
 
   // Prefill from the saved remote each time the drawer opens (embedded secrets stay blank).
@@ -147,7 +155,12 @@ const ConfigDrawer = ({
       }).unwrap();
       onClose();
     } catch (e: any) {
-      setFeedback({ ok: false, text: errText(e) });
+      const prompt = unknownHostKey(e);
+      if (prompt) {
+        setPendingHostKey({ prompt, retry: () => onSave() });
+      } else {
+        setFeedback({ ok: false, text: errText(e) });
+      }
     }
   });
 
@@ -156,6 +169,25 @@ const ConfigDrawer = ({
     try {
       await testRemote(secretPayload(getValues())).unwrap();
       setFeedback({ ok: true, text: "Connection OK." });
+    } catch (e: any) {
+      const prompt = unknownHostKey(e);
+      if (prompt) {
+        setPendingHostKey({ prompt, retry: () => doTest() });
+      } else {
+        setFeedback({ ok: false, text: errText(e) });
+      }
+    }
+  };
+
+  const acceptHostKey = async () => {
+    const pending = pendingHostKey;
+    setPendingHostKey(null);
+    if (!pending) {
+      return;
+    }
+    try {
+      await trustHostKey(pending.prompt).unwrap();
+      pending.retry();
     } catch (e: any) {
       setFeedback({ ok: false, text: errText(e) });
     }
@@ -365,6 +397,23 @@ const ConfigDrawer = ({
           setConfirmRemoveRemote(false);
           removeRemote();
         }}
+      />
+
+      <Modal
+        open={!!pendingHostKey}
+        type="confirm"
+        title="Unknown host key"
+        modalConfig={{
+          confirmationText: pendingHostKey
+            ? `${pendingHostKey.prompt.host} is not a known SSH server yet. Key type: ` +
+              `${pendingHostKey.prompt.keyType}. Fingerprint: ${pendingHostKey.prompt.fingerprint}. ` +
+              "Accept this key only if it matches what the server's administrator published."
+            : "",
+          primaryText: "Accept and continue",
+          secondaryText: "Cancel",
+        }}
+        onClose={() => setPendingHostKey(null)}
+        onConfirm={acceptHostKey}
       />
 
       <Modal

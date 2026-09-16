@@ -527,7 +527,11 @@ public class GitActionManager {
                                 progress.complete();
                                 Throwable cause = e.getCause() != null ? e.getCause() : e;
                                 logger.error("Error initializing repository", cause);
-                                ErrorUtil.showError("Failed to initialize repository: " + cause.getMessage(), cause);
+                                if (!handleHostKeyError(cause,
+                                        () -> onInitialize(repoUri, sshKeyId, httpsCredentialId))) {
+                                    ErrorUtil.showError("Failed to initialize repository: "
+                                            + cause.getMessage(), cause);
+                                }
                                 setEnabled(true);
                             }
                         }

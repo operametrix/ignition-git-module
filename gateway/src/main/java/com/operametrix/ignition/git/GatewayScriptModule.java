@@ -3,6 +3,7 @@ package com.operametrix.ignition.git;
 import com.operametrix.ignition.git.managers.*;
 import com.operametrix.ignition.git.records.GitProjectsConfigRecord;
 import com.operametrix.ignition.git.records.GitRemoteCredentialsRecord;
+import com.operametrix.ignition.git.records.GitKnownHostRecord;
 import com.operametrix.ignition.git.records.GitReposUsersRecord;
 import com.operametrix.ignition.git.records.GitUserHttpsCredentialRecord;
 import com.operametrix.ignition.git.records.GitUserSshKeyRecord;
@@ -926,6 +927,30 @@ public class GatewayScriptModule extends AbstractScriptModule implements GitScri
             return true;
         } catch (Exception e) {
             logger.error("Error setting certificate trust for remote", e);
+            return false;
+        }
+    }
+
+    @Override
+    protected boolean trustHostKeyImpl(String host, String keyType, String fingerprint) {
+        if (host == null || host.isBlank() || fingerprint == null || fingerprint.isBlank()) {
+            return false;
+        }
+        try {
+            // One accepted key per host: accepting a new one replaces it, so a deliberate server key
+            // rotation is confirmed once instead of leaving the old key valid too.
+            for (GitKnownHostRecord previous : GitKnownHostRecord.findByHost(host.trim())) {
+                previous.delete();
+            }
+            GitKnownHostRecord record = new GitKnownHostRecord();
+            record.setHost(host.trim().toLowerCase());
+            record.setKeyType(keyType);
+            record.setFingerprint(fingerprint.trim());
+            record.save();
+            logger.info("Accepted SSH host key for " + host + " (" + fingerprint + ")");
+            return true;
+        } catch (Exception e) {
+            logger.error("Error accepting the SSH host key for " + host, e);
             return false;
         }
     }

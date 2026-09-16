@@ -147,6 +147,13 @@ export const gitConfigApi = baseApi.injectEndpoints({
     testRemote: builder.mutation<unknown, RemoteSecretReq>({
       query: (body) => ({ url: `${BASE}/remote-test`, method: "POST", body }),
     }),
+    // Accept an SSH server's host key after showing its fingerprint to the operator.
+    trustHostKey: builder.mutation<
+      unknown,
+      { host: string; keyType: string; fingerprint: string }
+    >({
+      query: (body) => ({ url: `${BASE}/known-host`, method: "POST", body }),
+    }),
     push: builder.mutation<unknown, void>({
       query: () => ({ url: `${BASE}/push`, method: "POST", body: {} }),
       // History too: a push flips commits from local to remote.
@@ -200,6 +207,7 @@ export const {
   useSaveRemoteMutation,
   useRemoveRemoteMutation,
   useTestRemoteMutation,
+  useTrustHostKeyMutation,
   usePushMutation,
   useAddCredentialMutation,
   useRestoreMutation,

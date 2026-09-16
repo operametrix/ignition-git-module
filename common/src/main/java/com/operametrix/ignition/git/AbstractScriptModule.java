@@ -236,6 +236,11 @@ public abstract class AbstractScriptModule implements GitScriptInterface {
     }
 
     @Override
+    public boolean trustHostKey(String host, String keyType, String fingerprint) {
+        return trustHostKeyImpl(host, keyType, fingerprint);
+    }
+
+    @Override
     public Dataset getRemoteCredentialRef(String projectName, String remoteName, String ignitionUser) {
         return getRemoteCredentialRefImpl(projectName, remoteName, ignitionUser);
     }
@@ -293,6 +298,7 @@ public abstract class AbstractScriptModule implements GitScriptInterface {
                                                           long httpsCredentialId);
     protected abstract boolean setRemoteTrustSelfSignedImpl(String projectName, String remoteName,
                                                             String ignitionUser, boolean trustSelfSigned);
+    protected abstract boolean trustHostKeyImpl(String host, String keyType, String fingerprint);
     protected abstract Dataset getRemoteCredentialRefImpl(String projectName, String remoteName,
                                                           String ignitionUser);
 }
