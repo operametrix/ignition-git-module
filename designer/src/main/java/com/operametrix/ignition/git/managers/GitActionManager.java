@@ -447,6 +447,30 @@ public class GitActionManager {
                     }
 
                     @Override
+                    public void onTrustSelfSignedChanged(String remoteName, boolean trustSelfSigned) {
+                        try {
+                            rpc.setRemoteTrustSelfSigned(projectName, remoteName, userName, trustSelfSigned);
+                        } catch (Exception e) {
+                            logger.error("Error setting certificate trust for remote", e);
+                            ErrorUtil.showError("Failed to save the certificate setting: "
+                                    + e.getMessage(), e);
+                        }
+                    }
+
+                    @Override
+                    public boolean getSavedTrustSelfSigned(String remoteName) {
+                        try {
+                            Dataset ref = rpc.getRemoteCredentialRef(projectName, remoteName, userName);
+                            if (ref == null || ref.getRowCount() == 0) return false;
+                            Object val = ref.getValueAt(0, "trustSelfSigned");
+                            return val instanceof Boolean && (Boolean) val;
+                        } catch (Exception e) {
+                            logger.error("Error reading the certificate setting for remote", e);
+                            return false;
+                        }
+                    }
+
+                    @Override
                     public void onConfigureCredentials() {
                         showCredentialsPopup(projectName, userName);
                         addCredentialsCloseListener(userName, () -> {

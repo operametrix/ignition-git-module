@@ -112,7 +112,6 @@ public class DataDirGitManager {
                 throw new RuntimeException("Config versioning is already initialized.");
             }
             try (Git git = Git.init().setDirectory(dataDir().toFile()).call()) {
-                GitManager.disableSsl(git);
                 writeGitignore();
                 git.add().addFilepattern(".").call();
                 // Authored as the gateway (like the auto-commits), not the acting web user, so the
@@ -244,7 +243,8 @@ public class DataDirGitManager {
     }
 
     /** Save (create or update) the config remote: persist the record and sync origin in .git/config. */
-    public static void saveRemote(String uri, String branch, long sshKeyId, long httpsCredentialId) {
+    public static void saveRemote(String uri, String branch, long sshKeyId, long httpsCredentialId,
+                                  boolean trustSelfSigned) {
         if (uri == null || uri.isBlank()) {
             throw new RuntimeException("Remote URI cannot be empty.");
         }
@@ -262,6 +262,8 @@ public class DataDirGitManager {
                 } else {
                     git.remoteAdd().setName(ORIGIN).setUri(urIish).call();
                 }
+                // Certificates are verified unless this remote is explicitly opted out.
+                GitManager.setSslVerify(git, uri.trim(), trustSelfSigned);
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
@@ -273,14 +275,20 @@ public class DataDirGitManager {
             record.setBranch(branch.trim());
             record.setSshKeyId(sshKeyId);
             record.setHttpsCredentialId(httpsCredentialId);
+            record.setTrustSelfSigned(trustSelfSigned);
             record.save();
         }
     }
 
     public static void removeRemote() {
         synchronized (DATA_DIR_LOCK) {
+            GitConfigRemoteRecord previous = GitConfigRemoteRecord.get();
             try (Git git = GitManager.getGit(dataDir())) {
                 git.remoteRemove().setRemoteName(ORIGIN).call();
+                // Drop the certificate exception with the remote it belonged to.
+                if (previous != null) {
+                    GitManager.setSslVerify(git, previous.getUri(), false);
+                }
             } catch (Exception e) {
                 logger.warn("Could not remove origin from the config repo", e);
             }
@@ -500,27 +508,49 @@ public class DataDirGitManager {
         }
     }
 
-    /** Validate URI + credential with an ls-remote — touches no local or remote state. */
-    public static void testRemote(String uri, long sshKeyId, long httpsCredentialId) {
+    /** Applies auth to an ls-remote command; allowed to throw like the GitManager helpers do. */
+    private interface AuthSetup {
+        void apply(LsRemoteCommand command) throws Exception;
+    }
+
+    /**
+     * ls-remote for the Test button — touches no local or remote state. Runs against the data-dir
+     * repo whenever it exists so that repo's config applies, notably a per-URL "trust self-signed
+     * certificate" opt-in: otherwise Test would fail on a host the real push accepts.
+     */
+    private static void lsRemote(String uri, boolean trustSelfSigned, AuthSetup auth) {
         try {
-            LsRemoteCommand lsRemote = Git.lsRemoteRepository().setRemote(uri).setHeads(true);
-            GitManager.setAuthenticationFromIds(lsRemote, uri, sshKeyId, httpsCredentialId);
-            lsRemote.call();
+            if (isInitialized()) {
+                try (Git git = GitManager.getGit(dataDir())) {
+                    // Apply the requested setting first, so Test reflects the box as ticked rather
+                    // than whatever was last saved.
+                    GitManager.setSslVerify(git, uri, trustSelfSigned);
+                    LsRemoteCommand lsRemote = git.lsRemote().setRemote(uri).setHeads(true);
+                    auth.apply(lsRemote);
+                    lsRemote.call();
+                }
+            } else {
+                LsRemoteCommand lsRemote = Git.lsRemoteRepository().setRemote(uri).setHeads(true);
+                auth.apply(lsRemote);
+                lsRemote.call();
+            }
         } catch (Exception e) {
             throw new RuntimeException(e.getMessage() == null ? e.toString() : e.getMessage(), e);
         }
     }
 
+    /** Validate URI + credential with an ls-remote — touches no local or remote state. */
+    public static void testRemote(String uri, long sshKeyId, long httpsCredentialId,
+                                  boolean trustSelfSigned) {
+        lsRemote(uri, trustSelfSigned,
+                cmd -> GitManager.setAuthenticationFromIds(cmd, uri, sshKeyId, httpsCredentialId));
+    }
+
     /** Test with raw plaintext secrets (not yet persisted) — used by the inline Configure drawer. */
     public static void testRemoteRaw(String uri, String sshKeyPlaintext, String httpsUser,
-                                     String httpsPassword) {
-        try {
-            LsRemoteCommand lsRemote = Git.lsRemoteRepository().setRemote(uri).setHeads(true);
-            GitManager.setAuthenticationRaw(lsRemote, uri, sshKeyPlaintext, httpsUser, httpsPassword);
-            lsRemote.call();
-        } catch (Exception e) {
-            throw new RuntimeException(e.getMessage() == null ? e.toString() : e.getMessage(), e);
-        }
+                                     String httpsPassword, boolean trustSelfSigned) {
+        lsRemote(uri, trustSelfSigned, cmd -> GitManager.setAuthenticationRaw(cmd, uri, sshKeyPlaintext,
+                httpsUser, httpsPassword));
     }
 
     /**
@@ -551,7 +581,6 @@ public class DataDirGitManager {
                 if (fresh) {
                     // Re-establish the repo from the saved remote (post-restore recovery).
                     try (Git git = Git.init().setDirectory(dataDir().toFile()).call()) {
-                        GitManager.disableSsl(git);
                         git.remoteAdd().setName(ORIGIN).setUri(new URIish(remote.getUri())).call();
                     }
                     if (!Files.exists(dataDir().resolve(".gitignore"))) {

@@ -224,7 +224,9 @@ public final class GitLegacyImporter {
                                     r.getString(LegacyRemoteCredentials.IgnitionUser),
                                     r.getString(LegacyRemoteCredentials.RemoteName),
                                     r.getLong(LegacyRemoteCredentials.SshKeyId),
-                                    r.getLong(LegacyRemoteCredentials.HttpsCredentialId))).join();
+                                    r.getLong(LegacyRemoteCredentials.HttpsCredentialId),
+                                    // Legacy rows predate the per-remote trust flag: verify certificates.
+                                    false)).join();
                     n++;
                 }
                 deleteLegacy(ctx, r);

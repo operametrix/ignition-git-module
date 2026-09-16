@@ -386,8 +386,6 @@ public class GitManager {
         File projectDirFile = getProjectFolderPath(projectName).toFile();
         if (projectDirFile.exists()) {
             try (Git git = Git.init().setDirectory(projectDirFile).call()) {
-                disableSsl(git);
-
                 // GIT REMOTE ADD
                 URIish urIish = new URIish(URI);
                 git.remoteAdd()
@@ -431,9 +429,23 @@ public class GitManager {
         return new ResourcePath(new ResourceType(moduleId, typeId), resource);
     }
 
-    public static void disableSsl(Git git) throws IOException {
+    /**
+     * Trust a self-signed / internal-CA certificate for one remote URL, or go back to verifying it.
+     * Scoped to the URL ({@code http.<url>.sslVerify}, which JGit matches per remote) so opting one
+     * remote in never disables verification for the repository's other remotes.
+     *
+     * <p>Certificates are verified by default: nothing writes this key unless an operator asks for it.
+     */
+    public static void setSslVerify(Git git, String remoteUrl, boolean trustSelfSigned) throws IOException {
+        if (remoteUrl == null || remoteUrl.isBlank()) {
+            return;
+        }
         StoredConfig config = git.getRepository().getConfig();
-        config.setBoolean("http", null, "sslVerify", false);
+        if (trustSelfSigned) {
+            config.setBoolean("http", remoteUrl.trim(), "sslVerify", false);
+        } else {
+            config.unset("http", remoteUrl.trim(), "sslVerify");
+        }
         config.save();
     }
 

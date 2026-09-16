@@ -46,6 +46,8 @@ export interface RemoteResp {
   configured: boolean;
   uri?: string;
   branch?: string;
+  // Whether this remote's certificate is trusted without verification.
+  trustSelfSigned?: boolean;
   // Secret prefill (the embedded secret itself is never returned).
   secretMode?: "inline" | "reference";
   username?: string;
@@ -64,6 +66,7 @@ export interface RemoteSecretReq {
   username?: string; // HTTPS username
   providerName?: string; // referenced
   secretName?: string; // referenced
+  trustSelfSigned?: boolean; // skip certificate verification for this remote
 }
 export interface SecretProvider {
   name: string;

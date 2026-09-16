@@ -11,6 +11,7 @@ const ui = WebUI as any;
 export const BlankState = ui.BlankState;
 export const Button = ui.Button;
 export const Card = ui.Card;
+export const Checkbox = ui.Checkbox;
 export const Chip = ui.Chip;
 export const DataGrid = ui.DataGrid;
 export const Drawer = ui.Drawer;

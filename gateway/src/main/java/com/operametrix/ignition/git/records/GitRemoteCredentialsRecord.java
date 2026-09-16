@@ -16,7 +16,7 @@ import java.util.List;
 public class GitRemoteCredentialsRecord {
 
     public record Config(long id, long projectId, String ignitionUser, String remoteName,
-                         long sshKeyId, long httpsCredentialId) {}
+                         long sshKeyId, long httpsCredentialId, boolean trustSelfSigned) {}
 
     public static final ResourceType TYPE =
             new ResourceType(GitProjectsConfigRecord.MODULE_ID, "git-remote-credential");
@@ -49,6 +49,7 @@ public class GitRemoteCredentialsRecord {
     private String remoteName;
     private long sshKeyId;
     private long httpsCredentialId;
+    private boolean trustSelfSigned;
 
     public GitRemoteCredentialsRecord() {
     }
@@ -60,6 +61,7 @@ public class GitRemoteCredentialsRecord {
         this.remoteName = c.remoteName();
         this.sshKeyId = c.sshKeyId();
         this.httpsCredentialId = c.httpsCredentialId();
+        this.trustSelfSigned = c.trustSelfSigned();
     }
 
     public long getId() {
@@ -94,6 +96,15 @@ public class GitRemoteCredentialsRecord {
         this.httpsCredentialId = httpsCredentialId;
     }
 
+    /** Whether this remote's certificate is trusted without verification (self-signed / internal CA). */
+    public boolean isTrustSelfSigned() {
+        return trustSelfSigned;
+    }
+
+    public void setTrustSelfSigned(boolean trustSelfSigned) {
+        this.trustSelfSigned = trustSelfSigned;
+    }
+
     private static final Object SAVE_LOCK = new Object();
 
     public void save() {
@@ -106,7 +117,8 @@ public class GitRemoteCredentialsRecord {
                             .max()
                             .orElse(0L) + 1L;
                 }
-                Config c = new Config(id, projectId, ignitionUser, remoteName, sshKeyId, httpsCredentialId);
+                Config c = new Config(id, projectId, ignitionUser, remoteName, sshKeyId, httpsCredentialId,
+                        trustSelfSigned);
                 String name = String.valueOf(id);
                 if (handler.findResource(name).isPresent()) {
                     handler.modify(name, c).join();

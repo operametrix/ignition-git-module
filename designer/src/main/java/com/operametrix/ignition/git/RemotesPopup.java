@@ -41,6 +41,7 @@ public class RemotesPopup extends JDialog {
     // Credential dropdown
     private JPanel credentialPanel;
     private JComboBox<String> credentialDropdown;
+    private JCheckBox trustSelfSignedBox;
     private JButton configureCredentialsButton;
     private List<Long> credentialIds = new ArrayList<>();
     private Dataset savedSshKeys;
@@ -258,6 +259,14 @@ public class RemotesPopup extends JDialog {
         gbc.fill = GridBagConstraints.HORIZONTAL;
         formPanel.add(credentialPanel, gbc);
 
+        // HTTPS only: certificates are verified unless an operator opts this remote out.
+        trustSelfSignedBox = new JCheckBox("Trust self-signed certificate");
+        trustSelfSignedBox.setToolTipText(
+                "Skip certificate verification for this remote (self-signed or internal CA).");
+        trustSelfSignedBox.setVisible(false);
+        gbc.gridy = 4;
+        formPanel.add(trustSelfSignedBox, gbc);
+
         main.add(formPanel, BorderLayout.CENTER);
 
         // Buttons
@@ -288,6 +297,7 @@ public class RemotesPopup extends JDialog {
         authTypeLabel.setText(isHttps ? "HTTPS" : "SSH");
 
         credentialPanel.setVisible(hasUrl);
+        trustSelfSignedBox.setVisible(hasUrl && isHttps);
         if (hasUrl) {
             populateCredentialDropdown(isHttps);
         }
@@ -348,6 +358,8 @@ public class RemotesPopup extends JDialog {
         urlField.setText("");
         authTypeLabel.setVisible(false);
         credentialPanel.setVisible(false);
+        trustSelfSignedBox.setSelected(false);
+        trustSelfSignedBox.setVisible(false);
         showCard(CARD_FORM);
     }
 
@@ -362,6 +374,7 @@ public class RemotesPopup extends JDialog {
         urlField.setText(url);
         updateFormAuthType();
         preselectSavedCredential(name, url.toLowerCase().startsWith("http"));
+        trustSelfSignedBox.setSelected(getSavedTrustSelfSigned(name));
         showCard(CARD_FORM);
     }
 
@@ -418,6 +431,11 @@ public class RemotesPopup extends JDialog {
         if (selectedCredId > 0) {
             onSavedCredentialSelected(name, isHttps ? 0 : selectedCredId,
                     isHttps ? selectedCredId : 0);
+        }
+
+        // Certificate trust applies to HTTPS only; SSH remotes are verified by host key instead.
+        if (isHttps) {
+            onTrustSelfSignedChanged(name, trustSelfSignedBox.isSelected());
         }
     }
 
@@ -482,6 +500,15 @@ public class RemotesPopup extends JDialog {
     /** Returns the credential id (SSH key or HTTPS credential) currently saved for the remote, or 0. */
     public long getSavedCredentialId(String remoteName, boolean isHttps) {
         return 0;
+    }
+
+    /** Called when the HTTPS certificate-trust choice changes for a remote. */
+    public void onTrustSelfSignedChanged(String remoteName, boolean trustSelfSigned) {
+    }
+
+    /** Whether this remote is currently set to trust a self-signed certificate. */
+    public boolean getSavedTrustSelfSigned(String remoteName) {
+        return false;
     }
 
     /** Called when the user clicks "Configure..." to open the User Credentials popup. */

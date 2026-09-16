@@ -278,14 +278,12 @@ public class GatewayScriptModule extends AbstractScriptModule implements GitScri
         if (repoUri == null || repoUri.isEmpty()) {
             // Local-only repo: just create .git
             try (Git git = Git.init().setDirectory(projectFolderPath.toFile()).call()) {
-                disableSsl(git);
+                // Nothing else to configure: a local-only repo has no remote.
             }
             return;
         }
 
         try (Git git = Git.init().setDirectory(projectFolderPath.toFile()).call()) {
-            disableSsl(git);
-
             final URIish urIish = new URIish(repoUri);
 
             git.remoteAdd().setName("origin").setUri(urIish).call();
@@ -506,7 +504,6 @@ public class GatewayScriptModule extends AbstractScriptModule implements GitScri
         boolean hadGitDir = Files.exists(projectFolderPath.resolve(".git"));
         try {
             try (Git git = Git.init().setDirectory(projectFolderPath.toFile()).call()) {
-                disableSsl(git);
                 git.add().addFilepattern(".").call();
 
                 CommitCommand commit = git.commit().setMessage("Initial commit");
@@ -905,20 +902,49 @@ public class GatewayScriptModule extends AbstractScriptModule implements GitScri
     }
 
     @Override
+    protected boolean setRemoteTrustSelfSignedImpl(String projectName, String remoteName,
+                                                   String ignitionUser, boolean trustSelfSigned) {
+        try {
+            GitRemoteCredentialsRecord creds = getRemoteCredentialsRecord(
+                    projectName, ignitionUser, remoteName);
+            if (creds == null) {
+                GitProjectsConfigRecord projectRecord = getGitProjectConfigRecord(projectName);
+                creds = new GitRemoteCredentialsRecord();
+                creds.setProjectId(projectRecord.getId());
+                creds.setIgnitionUser(ignitionUser);
+                creds.setRemoteName(remoteName);
+            }
+            creds.setTrustSelfSigned(trustSelfSigned);
+            creds.save();
+
+            // Apply it to the repo so the next fetch/push picks it up, scoped to this remote's URL.
+            Path projectFolderPath = getProjectFolderPath(projectName);
+            String url = getRemoteUrl(projectFolderPath, remoteName);
+            try (Git git = getGit(projectFolderPath)) {
+                GitManager.setSslVerify(git, url, trustSelfSigned);
+            }
+            return true;
+        } catch (Exception e) {
+            logger.error("Error setting certificate trust for remote", e);
+            return false;
+        }
+    }
+
+    @Override
     protected Dataset getRemoteCredentialRefImpl(String projectName, String remoteName,
                                                  String ignitionUser) {
         DatasetBuilder builder = new DatasetBuilder();
-        builder.colNames(List.of("sshKeyId", "httpsCredentialId"));
-        builder.colTypes(List.of(Long.class, Long.class));
+        builder.colNames(List.of("sshKeyId", "httpsCredentialId", "trustSelfSigned"));
+        builder.colTypes(List.of(Long.class, Long.class, Boolean.class));
         try {
             GitRemoteCredentialsRecord creds = getRemoteCredentialsRecord(
                     projectName, ignitionUser, remoteName);
             long sshKeyId = creds != null ? creds.getSshKeyId() : 0L;
             long httpsCredentialId = creds != null ? creds.getHttpsCredentialId() : 0L;
-            builder.addRow(sshKeyId, httpsCredentialId);
+            builder.addRow(sshKeyId, httpsCredentialId, creds != null && creds.isTrustSelfSigned());
         } catch (Exception e) {
             logger.error("Error getting remote credential reference", e);
-            builder.addRow(0L, 0L);
+            builder.addRow(0L, 0L, false);
         }
         Dataset ds = builder.build();
         return ds != null ? ds : new BasicDataset();

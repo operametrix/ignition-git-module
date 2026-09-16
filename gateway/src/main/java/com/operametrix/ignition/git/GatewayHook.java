@@ -421,6 +421,7 @@ public class GatewayHook extends AbstractGatewayModuleHook {
             if (remote != null) {
                 o.addProperty("uri", remote.getUri());
                 o.addProperty("branch", remote.getBranch());
+                o.addProperty("trustSelfSigned", remote.isTrustSelfSigned());
                 // Secret prefill: mode + (referenced) provider/secret + (https) username. The
                 // embedded secret itself is never returned — the drawer leaves it blank to keep it.
                 SecretConfig secret = null;
@@ -548,7 +549,8 @@ public class GatewayHook extends AbstractGatewayModuleHook {
                 rec.save();
                 httpsCredentialId = rec.getId();
             }
-            DataDirGitManager.saveRemote(uri, branch, sshKeyId, httpsCredentialId);
+            DataDirGitManager.saveRemote(uri, branch, sshKeyId, httpsCredentialId,
+                    optBool(body, "trustSelfSigned"));
             // Commit the new remote/credential resources synchronously so the History table
             // reflects them the moment the call returns, rather than after the async auto-commit's
             // quiesce window and the next poll. No-op if the tree is already clean; the later
@@ -604,7 +606,8 @@ public class GatewayHook extends AbstractGatewayModuleHook {
                 Plaintext pt = secret.getPlaintext();
                 try {
                     String plain = pt.getAsString(java.nio.charset.StandardCharsets.UTF_8);
-                    DataDirGitManager.testRemoteRaw(uri, ssh ? plain : null, username, ssh ? null : plain);
+                    DataDirGitManager.testRemoteRaw(uri, ssh ? plain : null, username,
+                            ssh ? null : plain, optBool(body, "trustSelfSigned"));
                 } finally {
                     pt.clear();
                 }
@@ -618,9 +621,11 @@ public class GatewayHook extends AbstractGatewayModuleHook {
                     if (remote == null) {
                         throw new RuntimeException("Enter a secret to test, or save the remote first.");
                     }
-                    DataDirGitManager.testRemote(uri, remote.getSshKeyId(), remote.getHttpsCredentialId());
+                    DataDirGitManager.testRemote(uri, remote.getSshKeyId(), remote.getHttpsCredentialId(),
+                            optBool(body, "trustSelfSigned"));
                 } else {
-                    DataDirGitManager.testRemoteRaw(uri, ssh ? key : null, username, ssh ? null : password);
+                    DataDirGitManager.testRemoteRaw(uri, ssh ? key : null, username,
+                            ssh ? null : password, optBool(body, "trustSelfSigned"));
                 }
             }
             return ok();
@@ -756,6 +761,11 @@ public class GatewayHook extends AbstractGatewayModuleHook {
     private static long optLong(JsonObject body, String key) {
         return body != null && body.has(key) && !body.get(key).isJsonNull()
                 ? body.get(key).getAsLong() : 0L;
+    }
+
+    private static boolean optBool(JsonObject body, String key) {
+        return body != null && body.has(key) && !body.get(key).isJsonNull()
+                && body.get(key).getAsBoolean();
     }
 
     private static String ok() {

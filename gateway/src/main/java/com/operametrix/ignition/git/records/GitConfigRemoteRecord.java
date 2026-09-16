@@ -12,7 +12,8 @@ import com.inductiveautomation.ignition.gateway.model.GatewayContext;
  */
 public class GitConfigRemoteRecord {
 
-    public record Config(long id, String uri, String branch, long sshKeyId, long httpsCredentialId) {}
+    public record Config(long id, String uri, String branch, long sshKeyId, long httpsCredentialId,
+                         boolean trustSelfSigned) {}
 
     public static final ResourceType TYPE =
             new ResourceType(GitProjectsConfigRecord.MODULE_ID, "git-config-remote");
@@ -42,6 +43,7 @@ public class GitConfigRemoteRecord {
     private String branch;
     private long sshKeyId;
     private long httpsCredentialId;
+    private boolean trustSelfSigned;
 
     public GitConfigRemoteRecord() {
     }
@@ -51,6 +53,7 @@ public class GitConfigRemoteRecord {
         this.branch = c.branch();
         this.sshKeyId = c.sshKeyId();
         this.httpsCredentialId = c.httpsCredentialId();
+        this.trustSelfSigned = c.trustSelfSigned();
     }
 
     public String getUri() {
@@ -85,9 +88,19 @@ public class GitConfigRemoteRecord {
         this.httpsCredentialId = httpsCredentialId;
     }
 
+    /** Whether the config remote's certificate is trusted without verification. */
+    public boolean isTrustSelfSigned() {
+        return trustSelfSigned;
+    }
+
+    public void setTrustSelfSigned(boolean trustSelfSigned) {
+        this.trustSelfSigned = trustSelfSigned;
+    }
+
     public void save() {
         try {
-            Config c = new Config(SINGLETON_ID, uri, branch, sshKeyId, httpsCredentialId);
+            Config c = new Config(SINGLETON_ID, uri, branch, sshKeyId, httpsCredentialId,
+                    trustSelfSigned);
             if (handler.findResource(SINGLETON_NAME).isPresent()) {
                 handler.modify(SINGLETON_NAME, c).join();
             } else {

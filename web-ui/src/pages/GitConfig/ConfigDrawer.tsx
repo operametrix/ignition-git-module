@@ -4,10 +4,11 @@ import { DeleteGw } from "@inductiveautomation/ignition-icons";
 import {
   Button,
   Card,
+  Checkbox,
   Drawer,
   DrawerTemplate,
-  DrawerTemplateSize,
   DrawerTemplateColorTheme,
+  DrawerTemplateSize,
   Form,
   FormControlInput,
   Modal,
@@ -39,6 +40,7 @@ interface FormShape {
   username: string; // HTTPS username
   provider: string; // referenced provider
   secretName: string; // referenced secret name
+  trustSelfSigned: boolean; // skip certificate verification (HTTPS only)
 }
 
 // The "Configure Versioning" lateral panel. The remote's secret is entered/referenced inline in
@@ -69,6 +71,7 @@ const ConfigDrawer = ({
       username: "",
       provider: "",
       secretName: "",
+      trustSelfSigned: false,
     },
   });
   const { watch, setValue, getValues, reset, handleSubmit } = form;
@@ -78,6 +81,7 @@ const ConfigDrawer = ({
   const password = watch("password");
   const provider = watch("provider");
   const secretName = watch("secretName");
+  const trustSelfSigned = watch("trustSelfSigned");
 
   const [feedback, setFeedback] = useState<{
     ok: boolean;
@@ -100,6 +104,7 @@ const ConfigDrawer = ({
       username: remote.username || "",
       provider: remote.providerName || "",
       secretName: remote.secretName || "",
+      trustSelfSigned: !!remote.trustSelfSigned,
     });
     setFeedback(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -130,6 +135,7 @@ const ConfigDrawer = ({
     username: d.username.trim(),
     providerName: d.provider,
     secretName: d.secretName,
+    trustSelfSigned: d.trustSelfSigned,
   });
 
   const onSave = handleSubmit(async (d) => {
@@ -200,6 +206,16 @@ const ConfigDrawer = ({
             id="cfg-username"
             label="Username"
             input={<TextInput />}
+          />
+        ) : null}
+        {credType === "HTTPS" ? (
+          <Checkbox
+            label="Trust self-signed certificate"
+            description="Skip certificate verification for this remote (self-signed or internal CA)."
+            defaultValue={trustSelfSigned}
+            onChange={(_e: any, checked: boolean) =>
+              setValue("trustSelfSigned", checked)
+            }
           />
         ) : null}
         {mode === "inline" ? (

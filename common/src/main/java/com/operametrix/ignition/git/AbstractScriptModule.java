@@ -230,6 +230,12 @@ public abstract class AbstractScriptModule implements GitScriptInterface {
     }
 
     @Override
+    public boolean setRemoteTrustSelfSigned(String projectName, String remoteName, String ignitionUser,
+                                            boolean trustSelfSigned) {
+        return setRemoteTrustSelfSignedImpl(projectName, remoteName, ignitionUser, trustSelfSigned);
+    }
+
+    @Override
     public Dataset getRemoteCredentialRef(String projectName, String remoteName, String ignitionUser) {
         return getRemoteCredentialRefImpl(projectName, remoteName, ignitionUser);
     }
@@ -285,6 +291,8 @@ public abstract class AbstractScriptModule implements GitScriptInterface {
     protected abstract boolean setRemoteCredentialRefImpl(String projectName, String remoteName,
                                                           String ignitionUser, long sshKeyId,
                                                           long httpsCredentialId);
+    protected abstract boolean setRemoteTrustSelfSignedImpl(String projectName, String remoteName,
+                                                            String ignitionUser, boolean trustSelfSigned);
     protected abstract Dataset getRemoteCredentialRefImpl(String projectName, String remoteName,
                                                           String ignitionUser);
 }

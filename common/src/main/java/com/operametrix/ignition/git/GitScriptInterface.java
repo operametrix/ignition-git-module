@@ -157,8 +157,17 @@ public interface GitScriptInterface {
     boolean setRemoteCredentialRef(String projectName, String remoteName, String ignitionUser,
                                     long sshKeyId, long httpsCredentialId);
 
+    /**
+     * Trust a self-signed / internal-CA certificate for one remote, or go back to verifying it.
+     * Applied as {@code http.<url>.sslVerify} in the project's git config, so it covers only this
+     * remote and not the others in the same repository.
+     */
+    boolean setRemoteTrustSelfSigned(String projectName, String remoteName, String ignitionUser,
+                                     boolean trustSelfSigned);
+
     /** Get the credential FK currently associated with a remote for a user.
-     *  Returns a one-row Dataset with columns: sshKeyId, httpsCredentialId (both 0 if none). */
+     *  Returns a one-row Dataset with columns: sshKeyId, httpsCredentialId (both 0 if none),
+     *  trustSelfSigned. */
     Dataset getRemoteCredentialRef(String projectName, String remoteName, String ignitionUser);
 
 }
