@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { DeleteGw } from "@inductiveautomation/ignition-icons";
 import {
@@ -99,10 +99,20 @@ const ConfigDrawer = ({
   const [confirmDeinit, setConfirmDeinit] = useState(false);
 
   // Prefill from the saved remote each time the drawer opens (embedded secrets stay blank).
+  // Waits for the remote query: opening the drawer before it resolves used to leave every field
+  // blank, and saving from there wrote those blanks over the configured remote. The guard keeps the
+  // prefill to once per opening, so the 15s poll behind this query can't overwrite what is being
+  // typed.
+  const prefilled = useRef(false);
   useEffect(() => {
-    if (!open || !remote) {
+    if (!open) {
+      prefilled.current = false;
       return;
     }
+    if (prefilled.current || !remote) {
+      return;
+    }
+    prefilled.current = true;
     reset({
       uri: remote.uri || "",
       branch: remote.branch || DEFAULT_BRANCH,
@@ -116,7 +126,7 @@ const ConfigDrawer = ({
     });
     setFeedback(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
+  }, [open, remote]);
 
   const configured = !!(remote && remote.configured);
   const sshUri = !!uri && !uri.trim().toLowerCase().startsWith("http");
