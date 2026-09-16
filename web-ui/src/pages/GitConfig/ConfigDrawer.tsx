@@ -203,6 +203,29 @@ const ConfigDrawer = ({
     }
   };
 
+  // Both of these used to be fired and forgotten: a failure left the drawer looking as though the
+  // remote had been removed, or versioning deleted, when nothing had changed on the gateway.
+  const doRemoveRemote = async () => {
+    setConfirmRemoveRemote(false);
+    setFeedback(null);
+    try {
+      await removeRemote().unwrap();
+    } catch (e: any) {
+      setFeedback({ ok: false, text: errText(e) });
+    }
+  };
+
+  const doDeinit = async () => {
+    setConfirmDeinit(false);
+    setFeedback(null);
+    try {
+      await deinit().unwrap();
+      onClose();
+    } catch (e: any) {
+      setFeedback({ ok: false, text: errText(e) });
+    }
+  };
+
   const keepHint = configured ? " (leave blank to keep current)" : "";
 
   const drawerBody = (
@@ -403,10 +426,7 @@ const ConfigDrawer = ({
           warningGeneral: true,
         }}
         onClose={() => setConfirmRemoveRemote(false)}
-        onConfirm={() => {
-          setConfirmRemoveRemote(false);
-          removeRemote();
-        }}
+        onConfirm={doRemoveRemote}
       />
 
       <Modal
@@ -438,11 +458,7 @@ const ConfigDrawer = ({
           warningGeneral: true,
         }}
         onClose={() => setConfirmDeinit(false)}
-        onConfirm={() => {
-          setConfirmDeinit(false);
-          deinit();
-          onClose();
-        }}
+        onConfirm={doDeinit}
       />
     </>
   );
