@@ -2,7 +2,8 @@
 
 ## THE BEERWARE LICENSE (Revision 42):
 
-Enzo Sagnelonge, working for AXONE-IO, wrote this code.<br/>
+[OperaMetrix](https://www.operametrix.com) develops and maintains this code — a substantial
+rework of the original created by Enzo Sagnelonge at [AXONE-IO](https://www.axone-io.com/).<br/>
 As long as you retain this notice, you can do whatever you want with this stuff.<br/>
 If we meet someday, and you think this stuff is worth it, you can buy me a beer in return.<br/>
 
