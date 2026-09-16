@@ -9,10 +9,11 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 
 import static com.operametrix.ignition.git.GatewayHook.getContext;
 import static com.operametrix.ignition.git.managers.GitManager.clearDirectory;
@@ -21,11 +22,32 @@ import static com.operametrix.ignition.git.managers.GitManager.getProjectFolderP
 public class GitImageManager {
     private final static LoggerEx logger = LoggerEx.newBuilder().build(GitImageManager.class);
 
+    /** An image folder to recreate, in parent-before-child order. */
+    private record PendingFolder(String name, String parent) {}
+
+    /** One snapshot image, already read and validated, ready to insert. */
+    private record PendingImage(String name, ImageFormat format, String path, byte[] bytes,
+                                int width, int height) {}
+
+    /**
+     * Replace the gateway's image store with the project's {@code images/} snapshot.
+     *
+     * <p>The whole snapshot is read and validated first, and the store is only cleared once every
+     * file is known to be readable. Previously the store was emptied up front, so a file that could
+     * not be read part-way through left the gateway with no images at all. (A failure during the
+     * inserts themselves is still not rolled back: the images already written stay, and the log
+     * names the one that failed. An empty or absent snapshot still empties the store, as before —
+     * that is what a snapshot with no images means.)
+     */
     public static void importImages(String projectName) {
         Path projectDir = getProjectFolderPath(projectName);
         File directory = projectDir.resolve("images").toFile();
 
-        // DELETION — clear the gateway image store before re-importing the snapshot.
+        List<PendingFolder> folders = new ArrayList<>();
+        List<PendingImage> images = new ArrayList<>();
+        File[] files = directory.listFiles();
+        collect(files != null ? files : new File[0], "", folders, images);
+
         ImageManager imageManager = getContext().getImageManager();
         for (ImageResource image : imageManager.getImages("")) {
             String imagePath = image.path().getPath().toString();
@@ -36,75 +58,67 @@ public class GitImageManager {
             }
         }
 
-        // INSERTION
-        File[] files = directory.listFiles();
-        uploadFiles(files != null ? files : new File[0]);
-    }
-
-    protected static void uploadFiles(File[] files) {
-        for (File file : files) {
-            if (file.isDirectory()) {
-                uploadFolder(file, "");
-            } else {
-                uploadFile(file, "");
+        for (PendingFolder folder : folders) {
+            try {
+                imageManager.insertImageFolder(folder.name(), folder.parent());
+            } catch (Exception ex) {
+                logger.error("Unable to create image folder '" + folder.name() + "'", ex);
+            }
+        }
+        for (PendingImage image : images) {
+            try {
+                imageManager.insertImage(image.name(), "", image.format(), image.path(),
+                        image.bytes(), image.width(), image.height(), image.bytes().length);
+            } catch (Exception ex) {
+                logger.error("Unable to import image '" + image.path() + image.name() + "'", ex);
             }
         }
     }
 
-
-    protected static void uploadFile(File f, String path) {
-        String lName = f.getName().toLowerCase();
-        if (lName.endsWith(".png") || lName
-                .endsWith(".gif") || lName
-                .endsWith(".jpg") || lName
-                .endsWith(".jpeg") || lName
-                .endsWith(".svg"))
-            try {
-                String ext = lName.substring(lName.lastIndexOf(".") + 1);
-                ImageFormat format = ImageFormat.forExtension(ext).orElse(null);
-                if (format == null) {
-                    logger.warn("Unsupported image extension '" + ext + "' for file: '" + f.getName() + "'");
-                    return;
+    /** Walk the snapshot, reading every image into memory; throws before anything is deleted. */
+    private static void collect(File[] files, String path, List<PendingFolder> folders,
+                                List<PendingImage> images) {
+        for (File file : files) {
+            if (file.isDirectory()) {
+                folders.add(new PendingFolder(file.getName(), path.isEmpty() ? null : path));
+                File[] children = file.listFiles();
+                collect(children != null ? children : new File[0], path + file.getName() + "/",
+                        folders, images);
+            } else {
+                PendingImage image = read(file, path);
+                if (image != null) {
+                    images.add(image);
                 }
-                byte[] bytes = Files.readAllBytes(f.toPath());
-                int width = 0;
-                int height = 0;
-                Image img = Toolkit.getDefaultToolkit().createImage(bytes);
-                if (PathIcon.waitForImage(img)) {
-                    width = img.getWidth(null);
-                    height = img.getHeight(null);
-                }
-
-                try {
-                    getContext().getImageManager().insertImage(f.getName(), "", format, path, bytes, width, height, bytes.length);
-                } catch (Exception ex) {
-                    logger.error(ex.getMessage(), ex);
-                }
-            } catch (FileNotFoundException e) {
-                logger.error("FileNotFound exception for file: '" + f.getPath() + "'");
-            } catch (IOException e) {
-                logger.error("IOException exception for file: '" + f.getPath() + "'");
-            } catch (Exception e) {
-                throw new RuntimeException(e);
             }
+        }
     }
 
-
-    protected static void uploadFolder(File dir, String path) {
+    /** Read one file as an image, or null when it isn't one we import. */
+    private static PendingImage read(File f, String path) {
+        String lName = f.getName().toLowerCase();
+        if (!(lName.endsWith(".png") || lName.endsWith(".gif") || lName.endsWith(".jpg")
+                || lName.endsWith(".jpeg") || lName.endsWith(".svg"))) {
+            return null;
+        }
+        String ext = lName.substring(lName.lastIndexOf(".") + 1);
+        ImageFormat format = ImageFormat.forExtension(ext).orElse(null);
+        if (format == null) {
+            logger.warn("Unsupported image extension '" + ext + "' for file: '" + f.getName() + "'");
+            return null;
+        }
         try {
-            getContext().getImageManager().insertImageFolder(dir.getName(), path.equals("") ? null : path);
-            File[] files = dir.listFiles();
-            if (files != null) {
-                for (File file : files) {
-                    if (file.isDirectory()) {
-                        uploadFolder(file, path + dir.getName() + "/");
-                    } else {
-                        uploadFile(file, path + dir.getName() + "/");
-                    }
-                }
+            byte[] bytes = Files.readAllBytes(f.toPath());
+            int width = 0;
+            int height = 0;
+            Image img = Toolkit.getDefaultToolkit().createImage(bytes);
+            if (PathIcon.waitForImage(img)) {
+                width = img.getWidth(null);
+                height = img.getHeight(null);
             }
-        } catch (Exception ex) {
-            logger.error(ex.getMessage(), ex);
+            return new PendingImage(f.getName(), format, path, bytes, width, height);
+        } catch (IOException e) {
+            // Abort while the gateway still has its images.
+            throw new RuntimeException("Could not read image '" + f.getPath() + "': " + e.getMessage(), e);
         }
     }
 
