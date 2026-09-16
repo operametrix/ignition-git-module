@@ -453,11 +453,18 @@ public class GatewayScriptModule extends AbstractScriptModule implements GitScri
         }
         remoteCreds.save();
 
-        // Attempt to initialize the local repo
+        // Attempt to initialize the local repo. Only a repo this call created may be rolled back:
+        // materializeRepo returns early when one already exists, and deleting that would destroy the
+        // project's history.
+        boolean hadGitDir = Files.exists(getProjectFolderPath(projectName).resolve(".git"));
         try {
             materializeRepo(projectName, ignitionUser, repoUri);
         } catch (Exception e) {
-            // Rollback: delete all records on failure
+            // Rollback: delete the records and the half-created repo, which would otherwise make the
+            // next registration attempt take the "already initialized" path.
+            if (!hadGitDir) {
+                GitManager.deleteGitDirectory(getProjectFolderPath(projectName));
+            }
             try {
                 remoteCreds.delete();
             } catch (Exception ignored) {
@@ -493,9 +500,11 @@ public class GatewayScriptModule extends AbstractScriptModule implements GitScri
         userRecord.setIgnitionUser(ignitionUser);
         userRecord.save();
 
-        // Initialize local repo: git init + add . + initial commit
+        // Initialize local repo: git init + add . + initial commit. As above, only a repo created
+        // by this call may be rolled back.
+        Path projectFolderPath = getProjectFolderPath(projectName);
+        boolean hadGitDir = Files.exists(projectFolderPath.resolve(".git"));
         try {
-            Path projectFolderPath = getProjectFolderPath(projectName);
             try (Git git = Git.init().setDirectory(projectFolderPath.toFile()).call()) {
                 disableSsl(git);
                 git.add().addFilepattern(".").call();
@@ -505,7 +514,10 @@ public class GatewayScriptModule extends AbstractScriptModule implements GitScri
                 commit.call();
             }
         } catch (Exception e) {
-            // Rollback: delete both records on failure
+            // Rollback: delete both records and the half-created repo on failure
+            if (!hadGitDir) {
+                GitManager.deleteGitDirectory(projectFolderPath);
+            }
             try {
                 userRecord.delete();
             } catch (Exception ignored) {

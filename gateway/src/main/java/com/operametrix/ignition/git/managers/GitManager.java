@@ -121,6 +121,22 @@ public class GitManager {
     }
 
     /**
+     * Delete a project's {@code .git} directory, to roll back a registration that failed halfway.
+     * Callers must only invoke this for a repository the failed call created: a pre-existing repo
+     * holds the project's history.
+     */
+    public static void deleteGitDirectory(Path projectFolderPath) {
+        File gitDir = projectFolderPath.resolve(".git").toFile();
+        try {
+            if (gitDir.exists()) {
+                FileUtils.deleteDirectory(gitDir);
+            }
+        } catch (Exception e) {
+            logger.error("Unable to remove " + gitDir + " while rolling back registration", e);
+        }
+    }
+
+    /**
      * Set authentication on a transport command. Every remote must have an
      * explicit credential FK (SshKeyId / HttpsCredentialId) set via
      * setRemoteCredentialRef on a GitRemoteCredentialsRecord; auth fails
