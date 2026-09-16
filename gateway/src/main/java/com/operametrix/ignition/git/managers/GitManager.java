@@ -788,7 +788,10 @@ public class GitManager {
         Collection<RevCommit> stashes = git.stashList().call();
         int index = 0;
         for (RevCommit stash : stashes) {
-            if (stash.getFullMessage().contains(targetMessage)) {
+            // Exact match: "contains" handed a branch another branch's stash whenever one name was a
+            // prefix of the other, so checking out "main" could restore the stash saved for
+            // "main-old" (and then drop it).
+            if (targetMessage.equals(stash.getFullMessage().trim())) {
                 try {
                     git.stashApply().setStashRef("stash@{" + index + "}").call();
                 } catch (org.eclipse.jgit.api.errors.StashApplyFailureException e) {
