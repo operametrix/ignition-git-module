@@ -1107,6 +1107,56 @@ public class GitManager {
      * @param paths             list of resource paths to discard
      * @return true if discard succeeded
      */
+    /**
+     * Revert working-tree files whose only difference from HEAD is JSON key ordering, returning the
+     * paths reverted (empty when there are none, or when the attempt failed).
+     *
+     * <p>The gateway re-serialises a project's resources whenever it imports one, and its key order
+     * need not match what was committed, so the working tree drifts dirty on its own. Those changes
+     * are hidden from the commit list by {@link #filterJsonOrderingChanges}, so they cannot be
+     * committed away from the Designer — but git still sees them, and a merge checkout refuses any
+     * file it must update that differs locally. That is what makes a pull fail with a
+     * CheckoutConflictException once someone merges a branch touching the same resources.
+     *
+     * <p>Only files that parse as JSON and compare equal to HEAD are reverted: the filter keeps
+     * anything it cannot parse, so a malformed or genuinely changed file is never discarded.
+     */
+    public static List<String> discardJsonOrderingChanges(Path projectFolderPath) {
+        try (Git git = getGit(projectFolderPath)) {
+            Status status = git.status().call();
+            Set<String> candidates = new LinkedHashSet<>();
+            candidates.addAll(status.getModified());
+            candidates.addAll(status.getChanged());
+            if (candidates.isEmpty()) {
+                return new ArrayList<>();
+            }
+
+            Set<String> realChanges =
+                    filterJsonOrderingChanges(git.getRepository(), projectFolderPath, candidates);
+            List<String> orderingOnly = new ArrayList<>();
+            for (String path : candidates) {
+                if (!realChanges.contains(path)) {
+                    orderingOnly.add(path);
+                }
+            }
+            if (orderingOnly.isEmpty()) {
+                return orderingOnly;
+            }
+
+            CheckoutCommand checkout = git.checkout();
+            for (String path : orderingOnly) {
+                checkout.addPath(path);
+            }
+            checkout.call();
+            return orderingOnly;
+        } catch (Exception e) {
+            // Best effort: leaving them in place only means the caller hits the conflict it would
+            // have hit anyway.
+            logger.warn("Could not revert JSON ordering-only changes", e);
+            return new ArrayList<>();
+        }
+    }
+
     public static boolean discardChanges(Path projectFolderPath, List<String> paths) {
         try (Git git = getGit(projectFolderPath)) {
             Status status = git.status().call();

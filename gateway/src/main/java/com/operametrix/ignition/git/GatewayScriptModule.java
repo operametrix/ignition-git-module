@@ -55,6 +55,17 @@ public class GatewayScriptModule extends AbstractScriptModule implements GitScri
             throw new RuntimeException("No remote repository configured. Add a remote before pulling.");
         }
 
+        // Clear the working tree of changes that are only JSON key ordering before merging. The
+        // gateway rewrites resource files whenever it imports the project, so the tree goes dirty on
+        // its own; those changes are hidden from the commit list and so cannot be committed away,
+        // but git still refuses to update any of those files during the merge. Branch switching is
+        // unaffected because it stashes and restores.
+        List<String> reordered = GitManager.discardJsonOrderingChanges(getProjectFolderPath(projectName));
+        if (!reordered.isEmpty()) {
+            logger.info("Reverted " + reordered.size()
+                    + " file(s) differing from HEAD only in JSON key ordering before pulling.");
+        }
+
         try (Git git = getGit(getProjectFolderPath(projectName))) {
             PullCommand pull = git.pull();
             pull.setRemote(remoteName);
