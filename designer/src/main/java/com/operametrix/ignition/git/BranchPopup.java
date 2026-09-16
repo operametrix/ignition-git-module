@@ -2,20 +2,15 @@ package com.operametrix.ignition.git;
 
 import com.inductiveautomation.ignition.client.icons.VectorIcons;
 import com.inductiveautomation.ignition.designer.gui.CommonUI;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.operametrix.ignition.git.utils.IconUtils;
 
-import javax.imageio.ImageIO;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import java.io.IOException;
-import java.io.InputStream;
 import java.util.List;
 
 public class BranchPopup extends JDialog {
-    private final Logger logger = LoggerFactory.getLogger(getClass());
 
     private JList<String> localBranchList;
     private JList<String> remoteBranchList;
@@ -25,16 +20,7 @@ public class BranchPopup extends JDialog {
 
     public BranchPopup(String currentBranch, List<String> localBranches, List<String> remoteBranches, Component parent) {
         super(SwingUtilities.getWindowAncestor(parent));
-        try {
-            InputStream iconStream = getClass().getResourceAsStream("/com/operametrix/ignition/git/icons/ic_branch.svg");
-            if (iconStream != null) {
-                ImageIcon icon = new ImageIcon(ImageIO.read(iconStream));
-                setIconImage(icon.getImage());
-            }
-        } catch (IOException e) {
-            logger.trace(e.toString(), e);
-        }
-
+        IconUtils.setWindowIcon(this, "ic_branch");
         setTitle("Branch Management");
         setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
         setContentPane(buildUI());

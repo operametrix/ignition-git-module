@@ -3,6 +3,7 @@ package com.operametrix.ignition.git;
 import com.inductiveautomation.ignition.client.icons.VectorIcons;
 import com.inductiveautomation.ignition.common.Dataset;
 import com.inductiveautomation.ignition.designer.gui.CommonUI;
+import com.operametrix.ignition.git.utils.IconUtils;
 
 import javax.swing.*;
 import javax.swing.event.DocumentEvent;
@@ -39,6 +40,7 @@ public class UserCredentialsPopup extends JDialog {
 
     public UserCredentialsPopup(Component parent) {
         super(SwingUtilities.getWindowAncestor(parent));
+        IconUtils.setWindowIcon(this, "ic_verified_user");
         setTitle("User Credentials");
         setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
         setContentPane(buildUI());
