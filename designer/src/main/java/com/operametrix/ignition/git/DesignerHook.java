@@ -25,6 +25,7 @@ import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.List;
 
 public class DesignerHook extends AbstractDesignerModuleHook {
@@ -121,16 +122,40 @@ public class DesignerHook extends AbstractDesignerModuleHook {
 
         statusBar.addDisplay(gitStatusBar);
 
+        // A Swing timer fires on the EDT, so these gateway round-trips would freeze the Designer
+        // every 10 seconds against a slow or unreachable gateway. Poll on a background thread and
+        // apply the result on the EDT; the in-flight guard stops slow polls from stacking up.
+        AtomicBoolean statusPollRunning = new AtomicBoolean();
         gitUserTimer = new Timer(10000, e -> {
-            boolean valid = rpc.isRegisteredUser(projectName, userName);
-            String userIconPath1 = valid ? "/com/operametrix/ignition/git/icons/ic_verified_user.svg" : "/com/operametrix/ignition/git/icons/ic_unregister_user.svg";
-            userButton.setIcon(IconUtils.getIcon(userIconPath1));
-
-            try {
-                branchButton.setText(rpc.getCurrentBranch(projectName));
-            } catch (Exception ex) {
-                branchButton.setText("unknown");
+            if (!statusPollRunning.compareAndSet(false, true)) {
+                return;
             }
+            new Thread(() -> {
+                try {
+                    boolean valid;
+                    try {
+                        valid = rpc.isRegisteredUser(projectName, userName);
+                    } catch (Exception ex) {
+                        valid = false;
+                    }
+                    String branch;
+                    try {
+                        branch = rpc.getCurrentBranch(projectName);
+                    } catch (Exception ex) {
+                        branch = "unknown";
+                    }
+                    String iconPath = valid
+                            ? "/com/operametrix/ignition/git/icons/ic_verified_user.svg"
+                            : "/com/operametrix/ignition/git/icons/ic_unregister_user.svg";
+                    String branchText = branch;
+                    SwingUtilities.invokeLater(() -> {
+                        userButton.setIcon(IconUtils.getIcon(iconPath));
+                        branchButton.setText(branchText);
+                    });
+                } finally {
+                    statusPollRunning.set(false);
+                }
+            }, "git-status-poll").start();
         });
 
         gitUserTimer.start();
@@ -160,13 +185,24 @@ public class DesignerHook extends AbstractDesignerModuleHook {
 
         statusBar.addDisplay(gitStatusBar);
 
-        // Poll to update user icon when credentials are added/removed
+        // Poll to update the user icon when credentials are added/removed. Off the EDT for the same
+        // reason as the registered status bar: hasUserCredentials makes two gateway calls.
+        AtomicBoolean credentialPollRunning = new AtomicBoolean();
         gitUserTimer = new Timer(10000, e -> {
-            boolean hasCreds = hasUserCredentials(userName);
-            String iconPath = hasCreds
-                    ? "/com/operametrix/ignition/git/icons/ic_verified_user.svg"
-                    : "/com/operametrix/ignition/git/icons/ic_unregister_user.svg";
-            userButton.setIcon(IconUtils.getIcon(iconPath));
+            if (!credentialPollRunning.compareAndSet(false, true)) {
+                return;
+            }
+            new Thread(() -> {
+                try {
+                    boolean hasCreds = hasUserCredentials(userName);
+                    String iconPath = hasCreds
+                            ? "/com/operametrix/ignition/git/icons/ic_verified_user.svg"
+                            : "/com/operametrix/ignition/git/icons/ic_unregister_user.svg";
+                    SwingUtilities.invokeLater(() -> userButton.setIcon(IconUtils.getIcon(iconPath)));
+                } finally {
+                    credentialPollRunning.set(false);
+                }
+            }, "git-credentials-poll").start();
         });
         gitUserTimer.start();
     }
@@ -298,14 +334,19 @@ public class DesignerHook extends AbstractDesignerModuleHook {
         refreshCommitPanel();
     }
 
+    /** Refreshes the status bar's branch label; the lookup runs off the EDT like the other refreshes. */
     public void refreshBranchLabel() {
         if (branchButton == null) return;
-        try {
-            String branch = rpc.getCurrentBranch(projectName);
-            SwingUtilities.invokeLater(() -> branchButton.setText(branch));
-        } catch (Exception e) {
-            SwingUtilities.invokeLater(() -> branchButton.setText("unknown"));
-        }
+        new Thread(() -> {
+            String branch;
+            try {
+                branch = rpc.getCurrentBranch(projectName);
+            } catch (Exception e) {
+                branch = "unknown";
+            }
+            String text = branch;
+            SwingUtilities.invokeLater(() -> branchButton.setText(text));
+        }, "git-branch-label").start();
     }
 
     public void refreshCommitPanel() {
