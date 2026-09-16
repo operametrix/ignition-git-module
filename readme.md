@@ -9,7 +9,7 @@ An Ignition module that embeds a Git client directly into the Ignition Designer,
 - **Setup wizard** — clone from a remote or create a local-only repo from the Designer
 - **Remotes** — add/edit/remove named remotes, each bound to a saved credential.
 - **User credentials** — manage SSH keys and per-host HTTPS credentials (GitHub/GitLab/Azure/Bitbucket hint text), shared across projects.
-- **Commit** — from the dockable Commit panel or a popup, with per-resource timestamps and amend-last-commit.
+- **Commit** — from the dockable Commit panel, with per-resource timestamps and amend-last-commit.
 - **Push / Fetch / Pull** — from the History panel, with multi-remote support
 - **Merge conflict resolution** — pull conflicts open a dedicated UI with per-file Accept Ours/Theirs, a side-by-side conflict diff, and abort/complete-merge actions.
 - **Branches** — list, create, checkout, delete, with automatic stash/restore of uncommitted changes.
