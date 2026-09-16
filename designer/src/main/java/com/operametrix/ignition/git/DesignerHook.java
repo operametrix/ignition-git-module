@@ -309,16 +309,13 @@ public class DesignerHook extends AbstractDesignerModuleHook {
             if (!commitFrameInitialized && !historyFrameInitialized) return;
             DockingManager dm = context.getDockingManager();
             boolean needsRestore = false;
-            if (commitFrameInitialized && commitFrame != null) {
-                DockableFrame f = dm.getFrame(commitFrame.getKey());
-                // isHidden() catches JIDE's logical hidden state; !isDisplayable()
-                // catches frames removed from the Swing hierarchy by workspace switches
-                // (some workspaces detach frames without using JIDE's hidden API)
-                if (f == null || f.isHidden() || !f.isDisplayable()) needsRestore = true;
+            if (commitFrameInitialized && commitFrame != null
+                    && isMissing(dm.getFrame(commitFrame.getKey()))) {
+                needsRestore = true;
             }
-            if (historyFrameInitialized && historyFrame != null) {
-                DockableFrame f = dm.getFrame(historyFrame.getKey());
-                if (f == null || f.isHidden() || !f.isDisplayable()) needsRestore = true;
+            if (historyFrameInitialized && historyFrame != null
+                    && isMissing(dm.getFrame(historyFrame.getKey()))) {
+                needsRestore = true;
             }
             if (needsRestore) {
                 ensurePanelsVisible();
@@ -412,6 +409,28 @@ public class DesignerHook extends AbstractDesignerModuleHook {
                 // Silently ignore refresh errors
             }
         }).start();
+    }
+
+    /**
+     * Whether a panel has actually gone missing and should be restored.
+     *
+     * <p>{@code isHidden()} catches JIDE's logical hidden state and {@code !isDisplayable()} catches
+     * frames detached from the Swing hierarchy by a workspace switch (some workspaces do that without
+     * going through JIDE's hidden API).
+     *
+     * <p>A <em>minimised</em> frame is neither: JIDE collapses it to a side tab in auto-hide state,
+     * which takes its content out of the displayed hierarchy, so {@code isDisplayable()} is false
+     * while nothing is wrong. Restoring it there re-opened the panel a second later, every second,
+     * which is what made minimised panels flicker.
+     */
+    private static boolean isMissing(DockableFrame f) {
+        if (f == null) {
+            return true;
+        }
+        if (f.isAutohide() || f.isAutohideShowing()) {
+            return false;
+        }
+        return f.isHidden() || !f.isDisplayable();
     }
 
     private void ensurePanelsVisible() {
