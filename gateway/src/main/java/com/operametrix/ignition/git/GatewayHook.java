@@ -136,6 +136,7 @@ public class GatewayHook extends AbstractGatewayModuleHook {
         httpsCredHandler.startup();
         remoteCredHandler.startup();
         configRemoteHandler.startup();
+        knownHostHandler.startup();
 
         // One-time migration of any legacy SimpleORM rows from a pre-8.3 install.
         try {

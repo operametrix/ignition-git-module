@@ -86,9 +86,19 @@ public class GitBaseAction {
                         + "Accept this key only if it matches what the server's administrator published.\n"
                         + "Accept it and continue?",
                 "Unknown host key", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
-        if (choice == JOptionPane.YES_OPTION && rpc.trustHostKey(host, keyType, fingerprint)) {
-            retry.run();
+        if (choice != JOptionPane.YES_OPTION) {
+            return true;
         }
+        if (!rpc.trustHostKey(host, keyType, fingerprint)) {
+            // Say so rather than doing nothing: a silent failure here looks like the Accept button
+            // did not register, and the next attempt asks again.
+            JOptionPane.showMessageDialog(context.getFrame(),
+                    "The host key could not be saved on the gateway, so " + host + " is still not\n"
+                            + "trusted. See the gateway log for the reason.",
+                    "Unknown host key", JOptionPane.ERROR_MESSAGE);
+            return true;
+        }
+        retry.run();
         return true;
     }
 
