@@ -23,7 +23,7 @@ An Ignition module that embeds a Git client directly into the Ignition Designer,
 
 ### Prerequisites
 
-- Java (JDK >= 17)
+- Java (JDK >= 17 and <= 19)
 - An Ignition gateway (8.3.0+)
 
 ### Building from source
